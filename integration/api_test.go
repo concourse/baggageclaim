@@ -5,22 +5,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"os/exec"
-	"strconv"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"github.com/tedsuo/rata"
 
 	"github.com/concourse/mattermaster"
 	"github.com/concourse/mattermaster/api"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/tedsuo/ifrit"
-	"github.com/tedsuo/ifrit/ginkgomon"
-	"github.com/tedsuo/rata"
 )
 
 var _ = Describe("Matter Master", func() {
 	var (
-		process   ifrit.Process
+		runner    *matterMasterRunner
 		port      int
 		volumeDir string
 	)
@@ -32,25 +29,13 @@ var _ = Describe("Matter Master", func() {
 		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("mattermaster_volume_dir_%d", GinkgoParallelNode()))
 		Ω(err).ShouldNot(HaveOccurred())
 
-		runner := ginkgomon.New(ginkgomon.Config{
-			Name: "mattermaster",
-			Command: exec.Command(
-				matterMasterPath,
-				"-listenPort", strconv.Itoa(port),
-				"-volumeDir", volumeDir,
-			),
-			StartCheck: "mattermaster.listening",
-		})
-
-		process = ginkgomon.Invoke(runner)
+		runner = newRunner(matterMasterPath, port, volumeDir)
+		runner.start()
 	})
 
 	AfterEach(func() {
-		process.Signal(os.Kill)
-		Eventually(process.Wait()).Should(Receive())
-
-		err := os.RemoveAll(volumeDir)
-		Ω(err).ShouldNot(HaveOccurred())
+		runner.stop()
+		runner.cleanup()
 	})
 
 	Describe("API", func() {
@@ -181,7 +166,7 @@ var _ = Describe("Matter Master", func() {
 				})
 
 				It("returns it", func() {
-					Ω(getVolumeResponse).Should(ContainElement(createVolumeResponse))
+					Ω(getVolumeResponse).Should(ConsistOf(createVolumeResponse))
 				})
 			})
 
