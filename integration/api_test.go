@@ -169,6 +169,10 @@ var _ = Describe("Matter Master", func() {
 				Ω(response.Header.Get("Content-Type")).To(Equal("application/json"))
 			})
 
+			It("returns an empty response", func() {
+				Ω(getVolumeResponse).Should(BeEmpty())
+			})
+
 			Context("when a volume has been created", func() {
 				var createVolumeResponse api.VolumeResponse
 

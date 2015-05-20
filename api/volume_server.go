@@ -71,10 +71,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 }
 
 func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
-	var response VolumesResponse
-
 	volumes, err := ioutil.ReadDir(vs.volumeDir)
-
 	if err != nil {
 		vs.logger.Error("failed-to-list-dirs", err, lager.Data{
 			"volume-dir": vs.volumeDir,
@@ -83,6 +80,7 @@ func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	response := make(VolumesResponse, 0, len(volumes))
 	for _, volume := range volumes {
 		response = append(response, VolumeResponse{
 			GUID: volume.Name(),

@@ -51,6 +51,12 @@ var _ = Describe("Volume Server", func() {
 			server.GetVolumes(recorder, request)
 		})
 
+		Context("when there are no volumes", func() {
+			It("returns an empty array", func() {
+				Ω(recorder.Body).Should(MatchJSON(`[]`))
+			})
+		})
+
 		Context("when the volumes directory is all messed up", func() {
 			BeforeEach(func() {
 				volumeDir = "/this/cannot/be/read/from"
