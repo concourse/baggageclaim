@@ -55,18 +55,32 @@ var _ = Describe("Matter Master", func() {
 
 	Describe("API", func() {
 		Describe("POST /volumes", func() {
-			var response *http.Response
-			var request *http.Request
+			var (
+				response             *http.Response
+				createVolumeResponse api.CreateVolumeResponse
+			)
 
-			JustBeforeEach(func() {
+			createVolume := func() (api.CreateVolumeResponse, *http.Response) {
 				var err error
 				url := fmt.Sprintf("http://localhost:%d", port)
 				requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
-				request, err = requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
+				request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				response, err = http.DefaultClient.Do(request)
+				response, err := http.DefaultClient.Do(request)
 				Ω(err).ShouldNot(HaveOccurred())
+
+				var createVolumeResponse api.CreateVolumeResponse
+
+				err = json.NewDecoder(response.Body).Decode(&createVolumeResponse)
+				Ω(err).ShouldNot(HaveOccurred())
+				response.Body.Close()
+
+				return createVolumeResponse, response
+			}
+
+			JustBeforeEach(func() {
+				createVolumeResponse, response = createVolume()
 			})
 
 			It("has a response code of 201 CREATED", func() {
@@ -83,12 +97,6 @@ var _ = Describe("Matter Master", func() {
 				)
 
 				JustBeforeEach(func() {
-					var createVolumeResponse api.CreateVolumeResponse
-
-					err := json.NewDecoder(response.Body).Decode(&createVolumeResponse)
-					Ω(err).ShouldNot(HaveOccurred())
-					response.Body.Close()
-
 					createdDir = createVolumeResponse.Path
 				})
 
@@ -106,17 +114,9 @@ var _ = Describe("Matter Master", func() {
 					)
 
 					JustBeforeEach(func() {
-						var createVolumeResponse api.CreateVolumeResponse
-						var err error
+						secondCreateVolumeResponse, _ := createVolume()
 
-						response, err = http.DefaultClient.Do(request)
-						Ω(err).ShouldNot(HaveOccurred())
-
-						err = json.NewDecoder(response.Body).Decode(&createVolumeResponse)
-						Ω(err).ShouldNot(HaveOccurred())
-						response.Body.Close()
-
-						secondCreatedDir = createVolumeResponse.Path
+						secondCreatedDir = secondCreateVolumeResponse.Path
 					})
 
 					It("creates a new directory", func() {
