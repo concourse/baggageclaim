@@ -45,7 +45,10 @@ func main() {
 
 	listenAddr := fmt.Sprintf("%s:%d", *listenAddress, *listenPort)
 
-	apiHandler, err := api.NewHandler(*volumeDir)
+	apiHandler, err := api.NewHandler(
+		logger.Session("api"),
+		*volumeDir,
+	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)
 	}

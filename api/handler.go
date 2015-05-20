@@ -3,54 +3,31 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/concourse/mattermaster"
-	"github.com/nu7hatch/gouuid"
+	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
 
-func NewHandler(volumeDir string) (http.Handler, error) {
-	volumeServer := volumeServer{
-		volumeDir: volumeDir,
-	}
+func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
+	volumeServer := NewVolumeServer(
+		logger.Session("volume-server"),
+		volumeDir,
+	)
 
 	handlers := rata.Handlers{
-		mattermaster.CreateVolume: http.HandlerFunc(volumeServer.createHandler),
+		mattermaster.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
 	}
 
 	return rata.NewRouter(mattermaster.Routes, handlers)
 }
 
-type CreateVolumeResponse struct {
-	Path string
+type errorResponse struct {
+	Message string `json:"error"`
 }
 
-type volumeServer struct {
-	volumeDir string
-}
-
-func (vs volumeServer) createHandler(w http.ResponseWriter, req *http.Request) {
-	guid, err := uuid.NewV4()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	createdVolume := filepath.Join(vs.volumeDir, guid.String())
-
-	os.MkdirAll(createdVolume, 0755)
-
-	createVolumeResponse := CreateVolumeResponse{
-		Path: createdVolume,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(createVolumeResponse); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+func respondWithError(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	errResponse := errorResponse{Message: err.Error()}
+	json.NewEncoder(w).Encode(errResponse)
 }
