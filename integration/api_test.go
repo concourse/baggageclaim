@@ -54,33 +54,33 @@ var _ = Describe("Matter Master", func() {
 	})
 
 	Describe("API", func() {
+		createVolume := func() (api.VolumeResponse, *http.Response) {
+			var err error
+			url := fmt.Sprintf("http://localhost:%d", port)
+			requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
+			request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			response, err := http.DefaultClient.Do(request)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			var volumeResponse api.VolumeResponse
+
+			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
+			Ω(err).ShouldNot(HaveOccurred())
+			response.Body.Close()
+
+			return volumeResponse, response
+		}
+
 		Describe("POST /volumes", func() {
 			var (
-				response             *http.Response
-				createVolumeResponse api.CreateVolumeResponse
+				response       *http.Response
+				volumeResponse api.VolumeResponse
 			)
 
-			createVolume := func() (api.CreateVolumeResponse, *http.Response) {
-				var err error
-				url := fmt.Sprintf("http://localhost:%d", port)
-				requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
-				request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				response, err := http.DefaultClient.Do(request)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				var createVolumeResponse api.CreateVolumeResponse
-
-				err = json.NewDecoder(response.Body).Decode(&createVolumeResponse)
-				Ω(err).ShouldNot(HaveOccurred())
-				response.Body.Close()
-
-				return createVolumeResponse, response
-			}
-
 			JustBeforeEach(func() {
-				createVolumeResponse, response = createVolume()
+				volumeResponse, response = createVolume()
 			})
 
 			It("has a response code of 201 CREATED", func() {
@@ -97,7 +97,7 @@ var _ = Describe("Matter Master", func() {
 				)
 
 				JustBeforeEach(func() {
-					createdDir = createVolumeResponse.Path
+					createdDir = volumeResponse.Path
 				})
 
 				It("is in the volume dir", func() {
@@ -110,20 +110,77 @@ var _ = Describe("Matter Master", func() {
 
 				Context("on a second request", func() {
 					var (
-						secondCreatedDir string
+						secondCreatedDir  string
+						secondCreatedGUID string
 					)
 
 					JustBeforeEach(func() {
 						secondCreateVolumeResponse, _ := createVolume()
 
 						secondCreatedDir = secondCreateVolumeResponse.Path
+						secondCreatedGUID = secondCreateVolumeResponse.GUID
 					})
 
 					It("creates a new directory", func() {
 						Ω(createdDir).ShouldNot(Equal(secondCreatedDir))
 					})
+
+					It("creates a new GUID", func() {
+						Ω(volumeResponse.GUID).ShouldNot(Equal(secondCreatedGUID))
+					})
 				})
 			})
+		})
+
+		Describe("GET /volumes", func() {
+			var (
+				response          *http.Response
+				getVolumeResponse api.VolumesResponse
+			)
+
+			getVolumes := func() (api.VolumesResponse, *http.Response) {
+				var err error
+				url := fmt.Sprintf("http://localhost:%d", port)
+				requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
+				request, err := requestGenerator.CreateRequest(mattermaster.GetVolumes, nil, nil)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				response, err := http.DefaultClient.Do(request)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				var getVolumeResponse api.VolumesResponse
+
+				err = json.NewDecoder(response.Body).Decode(&getVolumeResponse)
+				Ω(err).ShouldNot(HaveOccurred())
+				response.Body.Close()
+
+				return getVolumeResponse, response
+			}
+
+			JustBeforeEach(func() {
+				getVolumeResponse, response = getVolumes()
+			})
+
+			It("returns 200 OK", func() {
+				Ω(response.StatusCode).Should(Equal(http.StatusOK))
+			})
+
+			It("has a JSON Content-type header", func() {
+				Ω(response.Header.Get("Content-Type")).To(Equal("application/json"))
+			})
+
+			Context("when a volume has been created", func() {
+				var createVolumeResponse api.VolumeResponse
+
+				BeforeEach(func() {
+					createVolumeResponse, _ = createVolume()
+				})
+
+				It("returns it", func() {
+					Ω(getVolumeResponse).Should(ContainElement(createVolumeResponse))
+				})
+			})
+
 		})
 	})
 })

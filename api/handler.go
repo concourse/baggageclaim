@@ -17,6 +17,7 @@ func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
 
 	handlers := rata.Handlers{
 		mattermaster.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
+		mattermaster.GetVolumes:   http.HandlerFunc(volumeServer.GetVolumes),
 	}
 
 	return rata.NewRouter(mattermaster.Routes, handlers)
