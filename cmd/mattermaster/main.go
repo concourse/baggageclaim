@@ -69,5 +69,4 @@ func main() {
 		logger.Error("exited-with-failure", err)
 		os.Exit(1)
 	}
-
 }

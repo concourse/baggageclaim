@@ -16,6 +16,7 @@ import (
 )
 
 var matterMasterPath string
+var boyBetterKnowPath string
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -23,15 +24,20 @@ func TestIntegration(t *testing.T) {
 }
 
 type suiteData struct {
-	MatterMasterPath string
+	MatterMasterPath  string
+	BoyBetterKnowPath string
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	mmPath, err := gexec.Build("github.com/concourse/mattermaster/cmd/mattermaster")
 	Ω(err).ShouldNot(HaveOccurred())
 
+	bbkPath, err := gexec.Build("github.com/concourse/mattermaster/cmd/bbk")
+	Ω(err).ShouldNot(HaveOccurred())
+
 	data, err := json.Marshal(suiteData{
-		MatterMasterPath: mmPath,
+		MatterMasterPath:  mmPath,
+		BoyBetterKnowPath: bbkPath,
 	})
 	Ω(err).ShouldNot(HaveOccurred())
 
@@ -42,6 +48,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Ω(err).ShouldNot(HaveOccurred())
 
 	matterMasterPath = suiteData.MatterMasterPath
+	boyBetterKnowPath = suiteData.BoyBetterKnowPath
 })
 
 var _ = SynchronizedAfterSuite(func() {}, func() {
