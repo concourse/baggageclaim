@@ -66,9 +66,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	cow := strategy == "cow"
-
-	if !cow {
+	if strategy == "empty" {
 		err = os.MkdirAll(createdVolume, 0755)
 		if err != nil {
 			vs.logger.Error("failed-to-make-dir", err, lager.Data{
@@ -78,7 +76,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 			respondWithError(w, ErrCreateVolumeFailed)
 			return
 		}
-	} else {
+	} else if strategy == "cow" {
 		command := exec.Command("cp", "-r", filepath.Join(vs.volumeDir, request.Strategy["volume"]), createdVolume)
 		err := command.Run()
 
@@ -88,6 +86,13 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 			respondWithError(w, ErrCreateVolumeFailed)
 			return
 		}
+	} else {
+		vs.logger.Error("unrecognized-strategy", nil, lager.Data{
+			"strategy": strategy,
+		})
+
+		respondWithError(w, ErrCreateVolumeFailed, 422)
+		return
 	}
 
 	createVolumeResponse := VolumeResponse{

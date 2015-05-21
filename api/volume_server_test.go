@@ -146,6 +146,32 @@ var _ = Describe("Volume Server", func() {
 			})
 		})
 
+		Context("when an unrecognized strategy is submitted", func() {
+			BeforeEach(func() {
+				body = &bytes.Buffer{}
+				json.NewEncoder(body).Encode(api.VolumeRequest{
+					Strategy: api.Strategy{
+						"type": "grime",
+					},
+				})
+			})
+
+			It("returns a 422 Unprocessable Entity response", func() {
+				Ω(recorder.Code).Should(Equal(422))
+			})
+
+			It("writes a nice JSON response", func() {
+				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			})
+
+			It("does not create a volume", func() {
+				getRecorder := httptest.NewRecorder()
+				getReq, _ := http.NewRequest("GET", "/volumes", nil)
+				server.GetVolumes(getRecorder, getReq)
+				Ω(getRecorder.Body).Should(MatchJSON("[]"))
+			})
+		})
+
 		Context("when a new directory cannot be created", func() {
 			BeforeEach(func() {
 				volumeDir = "/dev/null"
