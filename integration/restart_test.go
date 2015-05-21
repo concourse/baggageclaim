@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -42,7 +43,15 @@ var _ = Describe("Restarting", func() {
 		var err error
 		url := fmt.Sprintf("http://localhost:%d", port)
 		requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
-		request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
+
+		buffer := &bytes.Buffer{}
+		json.NewEncoder(buffer).Encode(api.VolumeRequest{
+			Strategy: api.Strategy{
+				"type": "empty",
+			},
+		})
+
+		request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, buffer)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		response, err := http.DefaultClient.Do(request)

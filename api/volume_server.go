@@ -6,11 +6,18 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/lager"
 )
+
+type Strategy map[string]string
+
+type VolumeRequest struct {
+	Strategy Strategy `json:"strategy"`
+}
 
 type VolumeResponse struct {
 	GUID string `json:"guid"`
@@ -36,6 +43,14 @@ func NewVolumeServer(logger lager.Logger, volumeDir string) *VolumeServer {
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
+	var request VolumeRequest
+	err := json.NewDecoder(req.Body).Decode(&request)
+	req.Body.Close()
+	if err != nil {
+		respondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+		return
+	}
+
 	guid, err := uuid.NewV4()
 	if err != nil {
 		vs.logger.Error("failed-to-generate-guid", err)
@@ -45,14 +60,34 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 
 	createdVolume := filepath.Join(vs.volumeDir, guid.String())
 
-	err = os.MkdirAll(createdVolume, 0755)
-	if err != nil {
-		vs.logger.Error("failed-to-make-dir", err, lager.Data{
-			"volume-path": createdVolume,
-		})
-
-		respondWithError(w, ErrCreateVolumeFailed)
+	strategy, found := request.Strategy["type"]
+	if !found {
+		respondWithError(w, ErrCreateVolumeFailed, 422)
 		return
+	}
+
+	cow := strategy == "cow"
+
+	if !cow {
+		err = os.MkdirAll(createdVolume, 0755)
+		if err != nil {
+			vs.logger.Error("failed-to-make-dir", err, lager.Data{
+				"volume-path": createdVolume,
+			})
+
+			respondWithError(w, ErrCreateVolumeFailed)
+			return
+		}
+	} else {
+		command := exec.Command("cp", "-r", filepath.Join(vs.volumeDir, request.Strategy["volume"]), createdVolume)
+		err := command.Run()
+
+		if err != nil {
+			vs.logger.Error("failed-to-copy-volume", err)
+
+			respondWithError(w, ErrCreateVolumeFailed)
+			return
+		}
 	}
 
 	createVolumeResponse := VolumeResponse{

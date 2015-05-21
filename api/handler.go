@@ -27,8 +27,16 @@ type errorResponse struct {
 	Message string `json:"error"`
 }
 
-func respondWithError(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusInternalServerError)
+func respondWithError(w http.ResponseWriter, err error, statusCode ...int) {
+	var code int
+
+	if len(statusCode) > 0 {
+		code = statusCode[0]
+	} else {
+		code = http.StatusInternalServerError
+	}
+
+	w.WriteHeader(code)
 	errResponse := errorResponse{Message: err.Error()}
 	json.NewEncoder(w).Encode(errResponse)
 }

@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,7 @@ import (
 	"github.com/concourse/mattermaster/api"
 )
 
-var _ = Describe("Matter Master", func() {
+var _ = Describe("Empty Strategy", func() {
 	var (
 		runner    *matterMasterRunner
 		port      int
@@ -40,17 +41,23 @@ var _ = Describe("Matter Master", func() {
 
 	Describe("API", func() {
 		createVolume := func() (api.VolumeResponse, *http.Response) {
-			var err error
 			url := fmt.Sprintf("http://localhost:%d", port)
 			requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
-			request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, nil)
+
+			buffer := &bytes.Buffer{}
+			json.NewEncoder(buffer).Encode(api.VolumeRequest{
+				Strategy: api.Strategy{
+					"type": "empty",
+				},
+			})
+
+			request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, buffer)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			response, err := http.DefaultClient.Do(request)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			var volumeResponse api.VolumeResponse
-
 			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 			Ω(err).ShouldNot(HaveOccurred())
 			response.Body.Close()
@@ -169,7 +176,6 @@ var _ = Describe("Matter Master", func() {
 					Ω(getVolumeResponse).Should(ConsistOf(createVolumeResponse))
 				})
 			})
-
 		})
 	})
 })

@@ -1,7 +1,10 @@
 package api_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -73,11 +76,23 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	Describe("creating a volume", func() {
-		var recorder *httptest.ResponseRecorder
+		var (
+			recorder *httptest.ResponseRecorder
+			body     io.ReadWriter
+		)
+
+		BeforeEach(func() {
+			body = &bytes.Buffer{}
+			json.NewEncoder(body).Encode(api.VolumeRequest{
+				Strategy: api.Strategy{
+					"type": "empty",
+				},
+			})
+		})
 
 		JustBeforeEach(func() {
 			recorder = httptest.NewRecorder()
-			request, _ := http.NewRequest("POST", "/volumes", nil)
+			request, _ := http.NewRequest("POST", "/volumes", body)
 
 			server.CreateVolume(recorder, request)
 		})
@@ -86,6 +101,48 @@ var _ = Describe("Volume Server", func() {
 			It("writes a nice JSON response", func() {
 				Ω(recorder.Body).Should(ContainSubstring(`"path":`))
 				Ω(recorder.Body).Should(ContainSubstring(`"guid":`))
+			})
+		})
+
+		Context("when invalid JSON is submitted", func() {
+			BeforeEach(func() {
+				body = bytes.NewBufferString("{{{{{{")
+			})
+
+			It("returns a 400 Bad Request response", func() {
+				Ω(recorder.Code).Should(Equal(http.StatusBadRequest))
+			})
+
+			It("writes a nice JSON response", func() {
+				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			})
+
+			It("does not create a volume", func() {
+				getRecorder := httptest.NewRecorder()
+				getReq, _ := http.NewRequest("GET", "/volumes", nil)
+				server.GetVolumes(getRecorder, getReq)
+				Ω(getRecorder.Body).Should(MatchJSON("[]"))
+			})
+		})
+
+		Context("when no strategy is submitted", func() {
+			BeforeEach(func() {
+				body = bytes.NewBufferString("{}")
+			})
+
+			It("returns a 422 Unprocessable Entity response", func() {
+				Ω(recorder.Code).Should(Equal(422))
+			})
+
+			It("writes a nice JSON response", func() {
+				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			})
+
+			It("does not create a volume", func() {
+				getRecorder := httptest.NewRecorder()
+				getReq, _ := http.NewRequest("GET", "/volumes", nil)
+				server.GetVolumes(getRecorder, getReq)
+				Ω(getRecorder.Body).Should(MatchJSON("[]"))
 			})
 		})
 
