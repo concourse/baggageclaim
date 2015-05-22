@@ -174,6 +174,59 @@ var _ = Describe("Volume Server", func() {
 			})
 		})
 
+		Context("when the strategy is cow but not parent volume is provided", func() {
+			BeforeEach(func() {
+				body = &bytes.Buffer{}
+				json.NewEncoder(body).Encode(api.VolumeRequest{
+					Strategy: volume.Strategy{
+						"type": "cow",
+					},
+				})
+			})
+
+			It("returns a 422 Unprocessable Entity response", func() {
+				Ω(recorder.Code).Should(Equal(422))
+			})
+
+			It("writes a nice JSON response", func() {
+				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			})
+
+			It("does not create a volume", func() {
+				getRecorder := httptest.NewRecorder()
+				getReq, _ := http.NewRequest("GET", "/volumes", nil)
+				server.GetVolumes(getRecorder, getReq)
+				Ω(getRecorder.Body).Should(MatchJSON("[]"))
+			})
+		})
+
+		Context("when the strategy is cow and the parent volume does not exist", func() {
+			BeforeEach(func() {
+				body = &bytes.Buffer{}
+				json.NewEncoder(body).Encode(api.VolumeRequest{
+					Strategy: volume.Strategy{
+						"type":   "cow",
+						"volume": "#pain",
+					},
+				})
+			})
+
+			It("returns a 422 Unprocessable Entity response", func() {
+				Ω(recorder.Code).Should(Equal(422))
+			})
+
+			It("writes a nice JSON response", func() {
+				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			})
+
+			It("does not create a volume", func() {
+				getRecorder := httptest.NewRecorder()
+				getReq, _ := http.NewRequest("GET", "/volumes", nil)
+				server.GetVolumes(getRecorder, getReq)
+				Ω(getRecorder.Body).Should(MatchJSON("[]"))
+			})
+		})
+
 		Context("when a new directory cannot be created", func() {
 			BeforeEach(func() {
 				volumeDir = "/dev/null"

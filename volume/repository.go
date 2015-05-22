@@ -24,6 +24,8 @@ var ErrMissingStrategy = errors.New("missing strategy")
 var ErrUnrecognizedStrategy = errors.New("unrecognized strategy")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrListVolumesFailed = errors.New("failed to list volumes")
+var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
+var ErrParentVolumeNotFound = errors.New("parent volume not found")
 
 type Repository struct {
 	volumeDir string
@@ -47,6 +49,10 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 		return Volume{}, ErrMissingStrategy
 	}
 
+	logger := repo.logger.Session("create-volume", lager.Data{
+		"strategy": strategyName,
+	})
+
 	if strategyName == "empty" {
 		err := os.MkdirAll(createdVolume, 0755)
 		if err != nil {
@@ -57,16 +63,28 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 			return Volume{}, ErrCreateVolumeFailed
 		}
 	} else if strategyName == "cow" {
-		parentVolume := strategy["volume"] // TODO: what if this isn't here?
+		parentVolume, found := strategy["volume"]
+		if !found {
+			logger.Error("no-parent-volume-provided", nil)
+
+			return Volume{}, ErrNoParentVolumeProvided
+		}
+
+		if !repo.volumeExists(parentVolume) {
+			logger.Error("parent-volume-not-found", nil)
+
+			return Volume{}, ErrParentVolumeNotFound
+		}
+
 		err := exec.Command("cp", "-r", filepath.Join(repo.volumeDir, parentVolume), createdVolume).Run()
 
 		if err != nil {
-			repo.logger.Error("failed-to-copy-volume", err)
+			logger.Error("failed-to-copy-volume", err)
 
 			return Volume{}, ErrCreateVolumeFailed
 		}
 	} else {
-		repo.logger.Error("unrecognized-strategy", nil, lager.Data{
+		logger.Error("unrecognized-strategy", nil, lager.Data{
 			"strategy": strategyName,
 		})
 
@@ -107,4 +125,13 @@ func (repo *Repository) createUuid() string {
 	}
 
 	return guid.String()
+}
+
+func (repo *Repository) volumeExists(guid string) bool {
+	info, err := os.Stat(filepath.Join(repo.volumeDir, guid))
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
 }

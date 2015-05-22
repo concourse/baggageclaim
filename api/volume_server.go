@@ -38,6 +38,10 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		var code int
 		switch err {
+		case volume.ErrParentVolumeNotFound:
+			code = 422
+		case volume.ErrNoParentVolumeProvided:
+			code = 422
 		case volume.ErrMissingStrategy:
 			code = 422
 		case volume.ErrUnrecognizedStrategy:
