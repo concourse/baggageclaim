@@ -73,6 +73,8 @@ var _ = Describe("Copy On Write Strategy", func() {
 			response, err := http.DefaultClient.Do(req)
 			Ω(err).ShouldNot(HaveOccurred())
 
+			Ω(response.StatusCode).Should(Equal(http.StatusCreated))
+
 			var volumeResponse volume.Volume
 			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 			Ω(err).ShouldNot(HaveOccurred())
