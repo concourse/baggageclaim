@@ -19,7 +19,7 @@ var _ = Describe("BBK", func() {
 		return
 	}
 
-	loopbackDevice := "/dev/loop64"
+	loopbackDevice := fmt.Sprintf("/dev/loop%d", GinkgoParallelNode()+63)
 
 	var (
 		tempDir   string
