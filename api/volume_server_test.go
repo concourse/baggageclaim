@@ -15,6 +15,7 @@ import (
 	"github.com/pivotal-golang/lager/lagertest"
 
 	"github.com/concourse/mattermaster/api"
+	"github.com/concourse/mattermaster/volume"
 )
 
 var _ = Describe("Volume Server", func() {
@@ -36,7 +37,8 @@ var _ = Describe("Volume Server", func() {
 
 	JustBeforeEach(func() {
 		logger := lagertest.NewTestLogger("volume-server")
-		server = api.NewVolumeServer(logger, volumeDir)
+		repo := volume.NewRepository(logger, volumeDir)
+		server = api.NewVolumeServer(logger, repo)
 	})
 
 	AfterEach(func() {
@@ -84,7 +86,7 @@ var _ = Describe("Volume Server", func() {
 		BeforeEach(func() {
 			body = &bytes.Buffer{}
 			json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: api.Strategy{
+				Strategy: volume.Strategy{
 					"type": "empty",
 				},
 			})
@@ -150,7 +152,7 @@ var _ = Describe("Volume Server", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
 				json.NewEncoder(body).Encode(api.VolumeRequest{
-					Strategy: api.Strategy{
+					Strategy: volume.Strategy{
 						"type": "grime",
 					},
 				})

@@ -12,6 +12,7 @@ import (
 
 	"github.com/concourse/mattermaster"
 	"github.com/concourse/mattermaster/api"
+	"github.com/concourse/mattermaster/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tedsuo/rata"
@@ -56,7 +57,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 			return err == nil
 		}
 
-		createVolume := func(request api.VolumeRequest) (api.VolumeResponse, *http.Response) {
+		createVolume := func(request api.VolumeRequest) (volume.Volume, *http.Response) {
 			url := fmt.Sprintf("http://localhost:%d", port)
 			requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
 
@@ -70,7 +71,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 			response, err := http.DefaultClient.Do(req)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			var volumeResponse api.VolumeResponse
+			var volumeResponse volume.Volume
 			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 			Ω(err).ShouldNot(HaveOccurred())
 			response.Body.Close()
@@ -81,7 +82,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
 				parentResponse, _ := createVolume(api.VolumeRequest{
-					Strategy: api.Strategy{
+					Strategy: volume.Strategy{
 						"type": "empty",
 					},
 				})
@@ -90,7 +91,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 				Ω(dataExistsInVolume(dataInParent, parentResponse.Path)).To(BeTrue())
 
 				childResponse, httpResponse := createVolume(api.VolumeRequest{
-					Strategy: api.Strategy{
+					Strategy: volume.Strategy{
 						"type":   "cow",
 						"volume": parentResponse.GUID,
 					},

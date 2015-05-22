@@ -14,6 +14,7 @@ import (
 
 	"github.com/concourse/mattermaster"
 	"github.com/concourse/mattermaster/api"
+	"github.com/concourse/mattermaster/volume"
 )
 
 var _ = Describe("Restarting", func() {
@@ -39,14 +40,14 @@ var _ = Describe("Restarting", func() {
 		runner.cleanup()
 	})
 
-	createVolume := func() (api.VolumeResponse, *http.Response) {
+	createVolume := func() (volume.Volume, *http.Response) {
 		var err error
 		url := fmt.Sprintf("http://localhost:%d", port)
 		requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
 
 		buffer := &bytes.Buffer{}
 		json.NewEncoder(buffer).Encode(api.VolumeRequest{
-			Strategy: api.Strategy{
+			Strategy: volume.Strategy{
 				"type": "empty",
 			},
 		})
@@ -57,7 +58,7 @@ var _ = Describe("Restarting", func() {
 		response, err := http.DefaultClient.Do(request)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		var volumeResponse api.VolumeResponse
+		var volumeResponse volume.Volume
 
 		err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 		Ω(err).ShouldNot(HaveOccurred())
@@ -66,7 +67,7 @@ var _ = Describe("Restarting", func() {
 		return volumeResponse, response
 	}
 
-	getVolumes := func() (api.VolumesResponse, *http.Response) {
+	getVolumes := func() (volume.Volumes, *http.Response) {
 		var err error
 		url := fmt.Sprintf("http://localhost:%d", port)
 		requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
@@ -76,7 +77,7 @@ var _ = Describe("Restarting", func() {
 		response, err := http.DefaultClient.Do(request)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		var getVolumeResponse api.VolumesResponse
+		var getVolumeResponse volume.Volumes
 
 		err = json.NewDecoder(response.Body).Decode(&getVolumeResponse)
 		Ω(err).ShouldNot(HaveOccurred())

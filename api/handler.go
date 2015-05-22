@@ -5,14 +5,20 @@ import (
 	"net/http"
 
 	"github.com/concourse/mattermaster"
+	"github.com/concourse/mattermaster/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
 
 func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
+	volumeRepo := volume.NewRepository(
+		logger.Session("repository"),
+		volumeDir,
+	)
+
 	volumeServer := NewVolumeServer(
 		logger.Session("volume-server"),
-		volumeDir,
+		volumeRepo,
 	)
 
 	handlers := rata.Handlers{
