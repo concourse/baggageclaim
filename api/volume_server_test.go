@@ -14,8 +14,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pivotal-golang/lager/lagertest"
 
-	"github.com/concourse/mattermaster/api"
-	"github.com/concourse/mattermaster/volume"
+	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Volume Server", func() {
@@ -29,7 +29,7 @@ var _ = Describe("Volume Server", func() {
 	BeforeEach(func() {
 		var err error
 
-		tempDir, err = ioutil.TempDir("", fmt.Sprintf("mattermaster_volume_dir_%d", GinkgoParallelNode()))
+		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Ω(err).ShouldNot(HaveOccurred())
 
 		volumeDir = tempDir

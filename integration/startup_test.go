@@ -20,7 +20,7 @@ var _ = Describe("Startup", func() {
 		port := 7788 + GinkgoParallelNode()
 
 		command := exec.Command(
-			matterMasterPath,
+			baggageClaimPath,
 			"-listenPort", strconv.Itoa(port),
 		)
 

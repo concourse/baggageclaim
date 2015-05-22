@@ -1,4 +1,4 @@
-package mattermaster
+package baggageclaim
 
 import "github.com/tedsuo/rata"
 

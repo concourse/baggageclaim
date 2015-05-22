@@ -11,7 +11,7 @@ import (
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
 
-	"github.com/concourse/mattermaster/api"
+	"github.com/concourse/baggageclaim/api"
 )
 
 var listenAddress = flag.String(
@@ -39,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := lager.NewLogger("mattermaster")
+	logger := lager.NewLogger("baggageclaim")
 	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.INFO)
 	logger.RegisterSink(sink)
 

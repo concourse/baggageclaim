@@ -15,28 +15,28 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var matterMasterPath string
+var baggageClaimPath string
 var boyBetterKnowPath string
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Matter Master Suite")
+	RunSpecs(t, "Baggage Claim Suite")
 }
 
 type suiteData struct {
-	MatterMasterPath  string
+	BaggageClaimPath  string
 	BoyBetterKnowPath string
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
-	mmPath, err := gexec.Build("github.com/concourse/mattermaster/cmd/mattermaster")
+	bcPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/baggageclaim")
 	Ω(err).ShouldNot(HaveOccurred())
 
-	bbkPath, err := gexec.Build("github.com/concourse/mattermaster/cmd/bbk")
+	bbkPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/bbk")
 	Ω(err).ShouldNot(HaveOccurred())
 
 	data, err := json.Marshal(suiteData{
-		MatterMasterPath:  mmPath,
+		BaggageClaimPath:  bcPath,
 		BoyBetterKnowPath: bbkPath,
 	})
 	Ω(err).ShouldNot(HaveOccurred())
@@ -47,7 +47,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	err := json.Unmarshal(data, &suiteData)
 	Ω(err).ShouldNot(HaveOccurred())
 
-	matterMasterPath = suiteData.MatterMasterPath
+	baggageClaimPath = suiteData.BaggageClaimPath
 	boyBetterKnowPath = suiteData.BoyBetterKnowPath
 })
 
@@ -55,46 +55,46 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 	gexec.CleanupBuildArtifacts()
 })
 
-type matterMasterRunner struct {
+type BaggageClaimRunner struct {
 	path      string
 	process   ifrit.Process
 	port      int
 	volumeDir string
 }
 
-func newRunner(path string, port int, volumeDir string) *matterMasterRunner {
-	return &matterMasterRunner{
+func NewRunner(path string, port int, volumeDir string) *BaggageClaimRunner {
+	return &BaggageClaimRunner{
 		path:      path,
 		port:      port,
 		volumeDir: volumeDir,
 	}
 }
 
-func (mmr *matterMasterRunner) start() {
+func (bcr *BaggageClaimRunner) start() {
 	runner := ginkgomon.New(ginkgomon.Config{
-		Name: "mattermaster",
+		Name: "baggageclaim",
 		Command: exec.Command(
-			mmr.path,
-			"-listenPort", strconv.Itoa(mmr.port),
-			"-volumeDir", mmr.volumeDir,
+			bcr.path,
+			"-listenPort", strconv.Itoa(bcr.port),
+			"-volumeDir", bcr.volumeDir,
 		),
-		StartCheck: "mattermaster.listening",
+		StartCheck: "baggageclaim.listening",
 	})
 
-	mmr.process = ginkgomon.Invoke(runner)
+	bcr.process = ginkgomon.Invoke(runner)
 }
 
-func (mmr *matterMasterRunner) stop() {
-	mmr.process.Signal(os.Kill)
-	Eventually(mmr.process.Wait()).Should(Receive())
+func (bcr *BaggageClaimRunner) stop() {
+	bcr.process.Signal(os.Kill)
+	Eventually(bcr.process.Wait()).Should(Receive())
 }
 
-func (mmr *matterMasterRunner) bounce() {
-	mmr.stop()
-	mmr.start()
+func (bcr *BaggageClaimRunner) bounce() {
+	bcr.stop()
+	bcr.start()
 }
 
-func (mmr *matterMasterRunner) cleanup() {
-	err := os.RemoveAll(mmr.volumeDir)
+func (bcr *BaggageClaimRunner) cleanup() {
+	err := os.RemoveAll(bcr.volumeDir)
 	Ω(err).ShouldNot(HaveOccurred())
 }

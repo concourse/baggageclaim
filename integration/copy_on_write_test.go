@@ -10,17 +10,19 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/concourse/mattermaster"
-	"github.com/concourse/mattermaster/api"
-	"github.com/concourse/mattermaster/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	"github.com/tedsuo/rata"
+
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
 	var (
-		runner    *matterMasterRunner
+		runner    *BaggageClaimRunner
 		port      int
 		volumeDir string
 	)
@@ -29,10 +31,10 @@ var _ = Describe("Copy On Write Strategy", func() {
 		var err error
 
 		port = 7788 + GinkgoParallelNode()
-		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("mattermaster_volume_dir_%d", GinkgoParallelNode()))
+		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Ω(err).ShouldNot(HaveOccurred())
 
-		runner = newRunner(matterMasterPath, port, volumeDir)
+		runner = NewRunner(baggageClaimPath, port, volumeDir)
 		runner.start()
 	})
 
@@ -59,13 +61,13 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		createVolume := func(request api.VolumeRequest) (volume.Volume, *http.Response) {
 			url := fmt.Sprintf("http://localhost:%d", port)
-			requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
+			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 
 			buffer := &bytes.Buffer{}
 			err := json.NewEncoder(buffer).Encode(request)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			req, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, buffer)
+			req, err := requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			response, err := http.DefaultClient.Do(req)

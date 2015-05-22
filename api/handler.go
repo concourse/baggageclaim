@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/concourse/mattermaster"
-	"github.com/concourse/mattermaster/volume"
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
@@ -22,11 +22,11 @@ func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
 	)
 
 	handlers := rata.Handlers{
-		mattermaster.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
-		mattermaster.GetVolumes:   http.HandlerFunc(volumeServer.GetVolumes),
+		baggageclaim.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
+		baggageclaim.GetVolumes:   http.HandlerFunc(volumeServer.GetVolumes),
 	}
 
-	return rata.NewRouter(mattermaster.Routes, handlers)
+	return rata.NewRouter(baggageclaim.Routes, handlers)
 }
 
 type errorResponse struct {

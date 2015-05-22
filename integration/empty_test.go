@@ -12,14 +12,14 @@ import (
 
 	"github.com/tedsuo/rata"
 
-	"github.com/concourse/mattermaster"
-	"github.com/concourse/mattermaster/api"
-	"github.com/concourse/mattermaster/volume"
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Empty Strategy", func() {
 	var (
-		runner    *matterMasterRunner
+		runner    *BaggageClaimRunner
 		port      int
 		volumeDir string
 	)
@@ -28,10 +28,10 @@ var _ = Describe("Empty Strategy", func() {
 		var err error
 
 		port = 7788 + GinkgoParallelNode()
-		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("mattermaster_volume_dir_%d", GinkgoParallelNode()))
+		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Ω(err).ShouldNot(HaveOccurred())
 
-		runner = newRunner(matterMasterPath, port, volumeDir)
+		runner = NewRunner(baggageClaimPath, port, volumeDir)
 		runner.start()
 	})
 
@@ -43,7 +43,7 @@ var _ = Describe("Empty Strategy", func() {
 	Describe("API", func() {
 		createVolume := func() (volume.Volume, *http.Response) {
 			url := fmt.Sprintf("http://localhost:%d", port)
-			requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
+			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 
 			buffer := &bytes.Buffer{}
 			json.NewEncoder(buffer).Encode(api.VolumeRequest{
@@ -52,7 +52,7 @@ var _ = Describe("Empty Strategy", func() {
 				},
 			})
 
-			request, err := requestGenerator.CreateRequest(mattermaster.CreateVolume, nil, buffer)
+			request, err := requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			response, err := http.DefaultClient.Do(request)
@@ -134,8 +134,8 @@ var _ = Describe("Empty Strategy", func() {
 			getVolumes := func() (volume.Volumes, *http.Response) {
 				var err error
 				url := fmt.Sprintf("http://localhost:%d", port)
-				requestGenerator := rata.NewRequestGenerator(url, mattermaster.Routes)
-				request, err := requestGenerator.CreateRequest(mattermaster.GetVolumes, nil, nil)
+				requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
+				request, err := requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				response, err := http.DefaultClient.Do(request)

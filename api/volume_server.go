@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/concourse/mattermaster/volume"
+	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 )
 

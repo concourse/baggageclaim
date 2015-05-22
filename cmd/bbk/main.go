@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/concourse/mattermaster/fs"
+	"github.com/concourse/baggageclaim/fs"
 )
 
 var diskImage = flag.String(
