@@ -4,16 +4,19 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
+
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume/driver"
 )
 
 func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDir,
+		&driver.NaiveDriver{},
 	)
 
 	volumeServer := NewVolumeServer(

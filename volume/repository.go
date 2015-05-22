@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/nu7hatch/gouuid"
@@ -12,6 +11,11 @@ import (
 )
 
 type Strategy map[string]string
+
+const (
+	StrategyEmpty       = "empty"
+	StrategyCopyOnWrite = "cow"
+)
 
 type Volume struct {
 	GUID string `json:"guid"`
@@ -29,15 +33,22 @@ var ErrParentVolumeNotFound = errors.New("parent volume not found")
 
 type Repository struct {
 	volumeDir string
+	driver    Driver
 
 	logger lager.Logger
 }
 
-func NewRepository(logger lager.Logger, volumeDir string) *Repository {
+func NewRepository(logger lager.Logger, volumeDir string, driver Driver) *Repository {
 	return &Repository{
 		volumeDir: volumeDir,
 		logger:    logger,
+		driver:    driver,
 	}
+}
+
+type Driver interface {
+	CreateVolume(path string) error
+	CreateCopyOnWriteLayer(path string, parent string) error
 }
 
 func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
@@ -53,16 +64,14 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 		"strategy": strategyName,
 	})
 
-	if strategyName == "empty" {
-		err := os.MkdirAll(createdVolume, 0755)
+	switch strategyName {
+	case StrategyEmpty:
+		err := repo.createEmptyVolume(createdVolume)
 		if err != nil {
-			repo.logger.Error("failed-to-make-dir", err, lager.Data{
-				"volume-path": createdVolume,
-			})
-
-			return Volume{}, ErrCreateVolumeFailed
+			return Volume{}, err
 		}
-	} else if strategyName == "cow" {
+
+	case StrategyCopyOnWrite:
 		parentVolume, found := strategy["volume"]
 		if !found {
 			logger.Error("no-parent-volume-provided", nil)
@@ -76,14 +85,15 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 			return Volume{}, ErrParentVolumeNotFound
 		}
 
-		err := exec.Command("cp", "-r", filepath.Join(repo.volumeDir, parentVolume), createdVolume).Run()
-
+		parentPath := filepath.Join(repo.volumeDir, parentVolume)
+		err := repo.createCowVolume(parentPath, createdVolume)
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
 
-			return Volume{}, ErrCreateVolumeFailed
+			return Volume{}, err
 		}
-	} else {
+
+	default:
 		logger.Error("unrecognized-strategy", nil, lager.Data{
 			"strategy": strategyName,
 		})
@@ -116,6 +126,28 @@ func (repo *Repository) ListVolumes() (Volumes, error) {
 	}
 
 	return response, nil
+}
+
+func (repo *Repository) createEmptyVolume(volumePath string) error {
+	err := repo.driver.CreateVolume(volumePath)
+	if err != nil {
+		repo.logger.Error("failed-to-create-volume", err, lager.Data{
+			"path": volumePath,
+		})
+
+		return ErrCreateVolumeFailed
+	}
+
+	return nil
+}
+
+func (repo *Repository) createCowVolume(parentPath string, newPath string) error {
+	err := repo.driver.CreateCopyOnWriteLayer(newPath, parentPath)
+	if err != nil {
+		return ErrCreateVolumeFailed
+	}
+
+	return nil
 }
 
 func (repo *Repository) createUuid() string {

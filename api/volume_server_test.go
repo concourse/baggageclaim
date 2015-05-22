@@ -16,6 +16,7 @@ import (
 
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume/driver"
 )
 
 var _ = Describe("Volume Server", func() {
@@ -37,7 +38,7 @@ var _ = Describe("Volume Server", func() {
 
 	JustBeforeEach(func() {
 		logger := lagertest.NewTestLogger("volume-server")
-		repo := volume.NewRepository(logger, volumeDir)
+		repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{})
 		server = api.NewVolumeServer(logger, repo)
 	})
 
