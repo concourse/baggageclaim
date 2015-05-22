@@ -2,10 +2,12 @@ package integration_test
 
 import (
 	"encoding/json"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,6 +21,8 @@ var baggageClaimPath string
 var boyBetterKnowPath string
 
 func TestIntegration(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Baggage Claim Suite")
 }
