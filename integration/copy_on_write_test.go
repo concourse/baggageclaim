@@ -85,7 +85,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentResponse, _ := createVolume(api.VolumeRequest{
+				parentResponse, httpResponse := createVolume(api.VolumeRequest{
 					Strategy: volume.Strategy{
 						"type": "empty",
 					},

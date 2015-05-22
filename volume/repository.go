@@ -52,9 +52,6 @@ type Driver interface {
 }
 
 func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
-	guid := repo.createUuid()
-	createdVolume := filepath.Join(repo.volumeDir, guid)
-
 	strategyName, found := strategy["type"]
 	if !found {
 		return Volume{}, ErrMissingStrategy
@@ -64,45 +61,56 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 		"strategy": strategyName,
 	})
 
+	guid := repo.createUuid()
+	newVolumeMetadataPath := repo.metadataPath(guid)
+	err := os.Mkdir(newVolumeMetadataPath, 0755)
+	if err != nil {
+		logger.Error("failed-to-create-metadata-dir", err)
+		return Volume{}, ErrCreateVolumeFailed
+	}
+
+	newVolumeDataPath := repo.dataPath(guid)
+
 	switch strategyName {
 	case StrategyEmpty:
-		err := repo.createEmptyVolume(createdVolume)
+		err := repo.createEmptyVolume(newVolumeDataPath)
 		if err != nil {
-			return Volume{}, err
+			repo.deleteVolumeMetadataDir(guid)
+			return Volume{}, ErrCreateVolumeFailed
 		}
 
 	case StrategyCopyOnWrite:
-		parentVolume, found := strategy["volume"]
+		parentGUID, found := strategy["volume"]
 		if !found {
 			logger.Error("no-parent-volume-provided", nil)
-
+			repo.deleteVolumeMetadataDir(guid)
 			return Volume{}, ErrNoParentVolumeProvided
 		}
 
-		if !repo.volumeExists(parentVolume) {
+		if !repo.volumeExists(parentGUID) {
 			logger.Error("parent-volume-not-found", nil)
-
+			repo.deleteVolumeMetadataDir(guid)
 			return Volume{}, ErrParentVolumeNotFound
 		}
 
-		parentPath := filepath.Join(repo.volumeDir, parentVolume)
-		err := repo.createCowVolume(parentPath, createdVolume)
+		parentDataPath := repo.dataPath(parentGUID)
+		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
-
-			return Volume{}, err
+			repo.deleteVolumeMetadataDir(guid)
+			return Volume{}, ErrCreateVolumeFailed
 		}
 
 	default:
 		logger.Error("unrecognized-strategy", nil, lager.Data{
 			"strategy": strategyName,
 		})
-
+		repo.deleteVolumeMetadataDir(guid)
 		return Volume{}, ErrUnrecognizedStrategy
 	}
 
 	return Volume{
-		Path: createdVolume,
+		Path: newVolumeDataPath,
 		GUID: guid,
 	}, nil
 }
@@ -121,11 +129,23 @@ func (repo *Repository) ListVolumes() (Volumes, error) {
 	for _, volume := range volumes {
 		response = append(response, Volume{
 			GUID: volume.Name(),
-			Path: filepath.Join(repo.volumeDir, volume.Name()),
+			Path: repo.dataPath(volume.Name()),
 		})
 	}
 
 	return response, nil
+}
+
+func (repo *Repository) metadataPath(id string) string {
+	return filepath.Join(repo.volumeDir, id)
+}
+
+func (repo *Repository) dataPath(id string) string {
+	return filepath.Join(repo.metadataPath(id), "volume")
+}
+
+func (repo *Repository) deleteVolumeMetadataDir(id string) error {
+	return os.RemoveAll(repo.metadataPath(id))
 }
 
 func (repo *Repository) createEmptyVolume(volumePath string) error {
@@ -135,7 +155,7 @@ func (repo *Repository) createEmptyVolume(volumePath string) error {
 			"path": volumePath,
 		})
 
-		return ErrCreateVolumeFailed
+		return err
 	}
 
 	return nil
@@ -144,7 +164,7 @@ func (repo *Repository) createEmptyVolume(volumePath string) error {
 func (repo *Repository) createCowVolume(parentPath string, newPath string) error {
 	err := repo.driver.CreateCopyOnWriteLayer(newPath, parentPath)
 	if err != nil {
-		return ErrCreateVolumeFailed
+		return err
 	}
 
 	return nil
@@ -160,7 +180,7 @@ func (repo *Repository) createUuid() string {
 }
 
 func (repo *Repository) volumeExists(guid string) bool {
-	info, err := os.Stat(filepath.Join(repo.volumeDir, guid))
+	info, err := os.Stat(repo.metadataPath(guid))
 	if err != nil {
 		return false
 	}
