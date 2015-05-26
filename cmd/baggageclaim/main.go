@@ -34,6 +34,12 @@ var volumeDir = flag.String(
 	"directory where volumes and metadata will be stored",
 )
 
+var driverType = flag.String(
+	"driverType",
+	"",
+	"the backend driver to use for filesystems",
+)
+
 func main() {
 	flag.Parse()
 	if *volumeDir == "" {
@@ -47,10 +53,18 @@ func main() {
 
 	listenAddr := fmt.Sprintf("%s:%d", *listenAddress, *listenPort)
 
+	var volumeDriver volume.Driver
+
+	if *driverType == "btrfs" {
+		volumeDriver = driver.NewBtrFSDriver(logger.Session("driver"))
+	} else {
+		volumeDriver = &driver.NaiveDriver{}
+	}
+
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
 		*volumeDir,
-		&driver.NaiveDriver{},
+		volumeDriver,
 	)
 
 	apiHandler, err := api.NewHandler(
