@@ -12,6 +12,8 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 
 	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume/driver"
 )
 
 var listenAddress = flag.String(
@@ -45,9 +47,15 @@ func main() {
 
 	listenAddr := fmt.Sprintf("%s:%d", *listenAddress, *listenPort)
 
+	volumeRepo := volume.NewRepository(
+		logger.Session("repository"),
+		*volumeDir,
+		&driver.NaiveDriver{},
+	)
+
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
-		*volumeDir,
+		volumeRepo,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)

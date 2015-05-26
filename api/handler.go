@@ -9,16 +9,9 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/driver"
 )
 
-func NewHandler(logger lager.Logger, volumeDir string) (http.Handler, error) {
-	volumeRepo := volume.NewRepository(
-		logger.Session("repository"),
-		volumeDir,
-		&driver.NaiveDriver{},
-	)
-
+func NewHandler(logger lager.Logger, volumeRepo *volume.Repository) (http.Handler, error) {
 	volumeServer := NewVolumeServer(
 		logger.Session("volume-server"),
 		volumeRepo,
