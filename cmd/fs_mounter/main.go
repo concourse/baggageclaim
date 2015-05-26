@@ -66,6 +66,6 @@ func main() {
 	}
 
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("failed to filesystem: ", err)
 	}
 }

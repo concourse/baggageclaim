@@ -26,61 +26,50 @@ func New(logger lager.Logger, imagePath string, mountPath string) *BtrfsFilesyst
 	}
 }
 
+// lower your expectations
 func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 	kiloBytes := bytes / 1024
+	bytes = kiloBytes * 1024
 
-	_, err := fs.run(
-		"dd",
-		"if=/dev/zero",
-		fmt.Sprintf("of=%s", fs.imagePath),
-		"bs=1024",
-		fmt.Sprintf("count=%d", kiloBytes),
-	)
-	if err != nil {
-		return err
+	// significantly
+	idempotent := exec.Command("bash", "-e", "-x", "-c", `
+		if [ ! -e $IMAGE_PATH ] || [ "$(stat --printf="%s" $IMAGE_PATH)" != "$SIZE_IN_BYTES" ]; then
+			dd if=/dev/zero of=$IMAGE_PATH bs=1024 count=$SIZE_IN_KILOBYTES
+		fi
+
+		lo=""
+		if [ -z "$(losetup -j $IMAGE_PATH)" ]; then
+			lo="$(losetup -f --show $IMAGE_PATH)"
+		fi
+
+		if file $IMAGE_PATH | grep -v BTRFS; then
+			mkfs.btrfs $lo
+		fi
+
+		mkdir -p $MOUNT_PATH
+
+		if ! mountpoint -q $MOUNT_PATH; then
+			mount $lo $MOUNT_PATH
+		fi
+	`)
+
+	idempotent.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"MOUNT_PATH=" + fs.mountPath,
+		"IMAGE_PATH=" + fs.imagePath,
+		fmt.Sprintf("SIZE_IN_BYTES=%d", bytes),
+		fmt.Sprintf("SIZE_IN_KILOBYTES=%d", kiloBytes),
 	}
 
-	output, err := fs.run(
-		"losetup",
-		"-f",
-		"--show",
-		fs.imagePath,
-	)
-	if err != nil {
-		return err
-	}
-
-	loopbackDevice := strings.TrimSpace(string(output))
-
-	_, err = fs.run(
-		"mkfs.btrfs",
-		loopbackDevice,
-	)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(fs.mountPath, 0755); err != nil {
-		return err
-	}
-
-	_, err = fs.run(
-		"mount",
-		loopbackDevice,
-		fs.mountPath,
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	_, err := fs.run(idempotent)
+	return err
 }
 
 func (fs *BtrfsFilesystem) Delete() error {
-	_, err := fs.run(
+	_, err := fs.run(exec.Command(
 		"umount",
 		fs.mountPath,
-	)
+	))
 	if err != nil {
 		return err
 	}
@@ -89,22 +78,22 @@ func (fs *BtrfsFilesystem) Delete() error {
 		return err
 	}
 
-	loopbackOutput, err := fs.run(
+	loopbackOutput, err := fs.run(exec.Command(
 		"losetup",
 		"-j",
 		fs.imagePath,
-	)
+	))
 	if err != nil {
 		return err
 	}
 
 	loopbackDevice := strings.Split(loopbackOutput, ":")[0]
 
-	_, err = fs.run(
+	_, err = fs.run(exec.Command(
 		"losetup",
 		"-d",
 		loopbackDevice,
-	)
+	))
 	if err != nil {
 		return err
 	}
@@ -112,12 +101,11 @@ func (fs *BtrfsFilesystem) Delete() error {
 	return os.Remove(fs.imagePath)
 }
 
-func (fs *BtrfsFilesystem) run(command string, args ...string) (string, error) {
-	cmd := exec.Command(command, args...)
-
+func (fs *BtrfsFilesystem) run(cmd *exec.Cmd) (string, error) {
 	logger := fs.logger.Session("run-command", lager.Data{
-		"command": command,
-		"args":    args,
+		"command": cmd.Path,
+		"args":    cmd.Args,
+		"env":     cmd.Env,
 	})
 
 	stdout := &bytes.Buffer{}
