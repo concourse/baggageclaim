@@ -13,7 +13,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("BBK", func() {
+var _ = Describe("FS Mounter", func() {
 	if runtime.GOOS != "linux" {
 		fmt.Println("\x1b[33m*** skipping btrfs tests because non-linux ***\x1b[0m")
 		return
@@ -27,14 +27,14 @@ var _ = Describe("BBK", func() {
 
 	BeforeEach(func() {
 		var err error
-		tempDir, err = ioutil.TempDir("", "tempzzzz")
+		tempDir, err = ioutil.TempDir("", "fs_mounter_test")
 		Ω(err).ShouldNot(HaveOccurred())
 
 		diskImage = filepath.Join(tempDir, "image.img")
 		mountPath = filepath.Join(tempDir, "mount")
 
 		command := exec.Command(
-			boyBetterKnowPath,
+			fsMounterPath,
 			"-diskImage", diskImage,
 			"-mountPath", mountPath,
 			"-sizeInMegabytes", "100",
@@ -48,7 +48,7 @@ var _ = Describe("BBK", func() {
 
 	AfterEach(func() {
 		command := exec.Command(
-			boyBetterKnowPath,
+			fsMounterPath,
 			"-diskImage", diskImage,
 			"-mountPath", mountPath,
 			"-remove",
