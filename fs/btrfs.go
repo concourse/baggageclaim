@@ -1,89 +1,145 @@
 package fs
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"syscall"
+
+	"github.com/pivotal-golang/lager"
 )
 
-func CreateBtrFSVolume(diskImagePath string, loopbackDevicePath string, mountPath string) error {
-	createDiskImage := exec.Command(
+type BtrfsFilesystem struct {
+	imagePath string
+	mountPath string
+
+	logger lager.Logger
+}
+
+func New(logger lager.Logger, imagePath string, mountPath string) *BtrfsFilesystem {
+	return &BtrfsFilesystem{
+		imagePath: imagePath,
+		mountPath: mountPath,
+		logger:    logger,
+	}
+}
+
+func (fs *BtrfsFilesystem) Create(bytes uint64) error {
+	kiloBytes := bytes / 1024
+
+	_, err := fs.run(
 		"dd",
 		"if=/dev/zero",
-		fmt.Sprintf("of=%s", diskImagePath),
+		fmt.Sprintf("of=%s", fs.imagePath),
 		"bs=1024",
-		"count=307200",
+		fmt.Sprintf("count=%d", kiloBytes),
 	)
-	createDiskImage.Stdout = os.Stdout
-	createDiskImage.Stderr = os.Stderr
-	if err := createDiskImage.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
-	assignLoopbackDevice := exec.Command(
+	output, err := fs.run(
 		"losetup",
-		loopbackDevicePath,
-		diskImagePath,
+		"-f",
+		"--show",
+		fs.imagePath,
 	)
-	assignLoopbackDevice.Stdout = os.Stdout
-	assignLoopbackDevice.Stderr = os.Stderr
-	if err := assignLoopbackDevice.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
-	createFsOnDevice := exec.Command(
+	loopbackDevice := strings.TrimSpace(string(output))
+
+	_, err = fs.run(
 		"mkfs.btrfs",
-		loopbackDevicePath,
+		loopbackDevice,
 	)
-	createFsOnDevice.Stdout = os.Stdout
-	createFsOnDevice.Stderr = os.Stderr
-	if err := createFsOnDevice.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(mountPath, 0755); err != nil {
+	if err := os.MkdirAll(fs.mountPath, 0755); err != nil {
 		return err
 	}
 
-	mountFs := exec.Command(
+	_, err = fs.run(
 		"mount",
-		loopbackDevicePath,
-		mountPath,
+		loopbackDevice,
+		fs.mountPath,
 	)
-	mountFs.Stdout = os.Stdout
-	mountFs.Stderr = os.Stderr
-	if err := mountFs.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func DeleteBtrFSVolume(diskImagePath string, loopbackDevicePath string, mountPath string) error {
-	unmountFs := exec.Command(
+func (fs *BtrfsFilesystem) Delete() error {
+	_, err := fs.run(
 		"umount",
-		mountPath,
+		fs.mountPath,
 	)
-	unmountFs.Stdout = os.Stdout
-	unmountFs.Stderr = os.Stderr
-	if err := unmountFs.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
-	if err := os.RemoveAll(mountPath); err != nil {
+	if err := os.RemoveAll(fs.mountPath); err != nil {
 		return err
 	}
 
-	removeFsFromDevice := exec.Command(
+	loopbackOutput, err := fs.run(
+		"losetup",
+		"-j",
+		fs.imagePath,
+	)
+	if err != nil {
+		return err
+	}
+
+	loopbackDevice := strings.Split(loopbackOutput, ":")[0]
+
+	_, err = fs.run(
 		"losetup",
 		"-d",
-		loopbackDevicePath,
+		loopbackDevice,
 	)
-	removeFsFromDevice.Stdout = os.Stdout
-	removeFsFromDevice.Stderr = os.Stderr
-	if err := removeFsFromDevice.Run(); err != nil {
+	if err != nil {
 		return err
 	}
 
-	return os.Remove(diskImagePath)
+	return os.Remove(fs.imagePath)
+}
+
+func (fs *BtrfsFilesystem) run(command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	logger := fs.logger.Session("run-command", lager.Data{
+		"command": command,
+		"args":    args,
+	})
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	err := cmd.Run()
+
+	loggerData := lager.Data{
+		"stdout": stdout.String(),
+		"stderr": stderr.String(),
+		"status": cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(),
+	}
+
+	if err != nil {
+		logger.Error("failed", err, loggerData)
+		return "", err
+	}
+
+	logger.Debug("ran", loggerData)
+
+	return stdout.String(), nil
 }

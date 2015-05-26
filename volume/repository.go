@@ -75,6 +75,9 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 	case StrategyEmpty:
 		err := repo.createEmptyVolume(newVolumeDataPath)
 		if err != nil {
+			logger.Error("failed-to-create-volume", err, lager.Data{
+				"path": newVolumeDataPath,
+			})
 			repo.deleteVolumeMetadataDir(guid)
 			return Volume{}, ErrCreateVolumeFailed
 		}
@@ -151,10 +154,6 @@ func (repo *Repository) deleteVolumeMetadataDir(id string) error {
 func (repo *Repository) createEmptyVolume(volumePath string) error {
 	err := repo.driver.CreateVolume(volumePath)
 	if err != nil {
-		repo.logger.Error("failed-to-create-volume", err, lager.Data{
-			"path": volumePath,
-		})
-
 		return err
 	}
 

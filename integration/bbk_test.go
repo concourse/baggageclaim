@@ -19,8 +19,6 @@ var _ = Describe("BBK", func() {
 		return
 	}
 
-	loopbackDevice := fmt.Sprintf("/dev/loop%d", GinkgoParallelNode()+63)
-
 	var (
 		tempDir   string
 		diskImage string
@@ -38,8 +36,8 @@ var _ = Describe("BBK", func() {
 		command := exec.Command(
 			boyBetterKnowPath,
 			"-diskImage", diskImage,
-			"-loopbackDevice", loopbackDevice,
 			"-mountPath", mountPath,
+			"-sizeInMegabytes", "100",
 		)
 
 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -52,7 +50,6 @@ var _ = Describe("BBK", func() {
 		command := exec.Command(
 			boyBetterKnowPath,
 			"-diskImage", diskImage,
-			"-loopbackDevice", loopbackDevice,
 			"-mountPath", mountPath,
 			"-remove",
 		)

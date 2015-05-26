@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/concourse/baggageclaim/fs"
+	"github.com/pivotal-golang/lager"
 )
 
 var diskImage = flag.String(
@@ -15,16 +16,16 @@ var diskImage = flag.String(
 	"file where disk image will be stored",
 )
 
-var loopbackDevice = flag.String(
-	"loopbackDevice",
-	"",
-	"loopback device to use",
-)
-
 var mountPath = flag.String(
 	"mountPath",
 	"",
 	"where to mount the filesystem",
+)
+
+var sizeInMegabytes = flag.Uint(
+	"sizeInMegabytes",
+	0,
+	"size of the filesystem in megabytes",
 )
 
 var remove = flag.Bool(
@@ -41,21 +42,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	if *loopbackDevice == "" {
-		fmt.Fprintln(os.Stderr, "-loopbackDevice must be specified")
-		os.Exit(1)
-	}
-
 	if *mountPath == "" {
 		fmt.Fprintln(os.Stderr, "-mountPath must be specified")
 		os.Exit(1)
 	}
 
+	logger := lager.NewLogger("baggageclaim")
+	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
+	logger.RegisterSink(sink)
+
+	filesystem := fs.New(logger, *diskImage, *mountPath)
+
 	var err error
 	if !*remove {
-		err = fs.CreateBtrFSVolume(*diskImage, *loopbackDevice, *mountPath)
+		if *sizeInMegabytes == 0 {
+			fmt.Fprintln(os.Stderr, "-sizeInMegabytes must be specified")
+			os.Exit(1)
+		}
+
+		err = filesystem.Create(uint64(*sizeInMegabytes) * 1024 * 1024)
 	} else {
-		err = fs.DeleteBtrFSVolume(*diskImage, *loopbackDevice, *mountPath)
+		err = filesystem.Delete()
 	}
 
 	if err != nil {
