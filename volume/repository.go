@@ -71,45 +71,10 @@ func (repo *Repository) CreateVolume(strategy Strategy) (Volume, error) {
 
 	newVolumeDataPath := repo.dataPath(guid)
 
-	switch strategyName {
-	case StrategyEmpty:
-		err := repo.createEmptyVolume(newVolumeDataPath)
-		if err != nil {
-			logger.Error("failed-to-create-volume", err, lager.Data{
-				"path": newVolumeDataPath,
-			})
-			repo.deleteVolumeMetadataDir(guid)
-			return Volume{}, ErrCreateVolumeFailed
-		}
-
-	case StrategyCopyOnWrite:
-		parentGUID, found := strategy["volume"]
-		if !found {
-			logger.Error("no-parent-volume-provided", nil)
-			repo.deleteVolumeMetadataDir(guid)
-			return Volume{}, ErrNoParentVolumeProvided
-		}
-
-		if !repo.volumeExists(parentGUID) {
-			logger.Error("parent-volume-not-found", nil)
-			repo.deleteVolumeMetadataDir(guid)
-			return Volume{}, ErrParentVolumeNotFound
-		}
-
-		parentDataPath := repo.dataPath(parentGUID)
-		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
-		if err != nil {
-			logger.Error("failed-to-copy-volume", err)
-			repo.deleteVolumeMetadataDir(guid)
-			return Volume{}, ErrCreateVolumeFailed
-		}
-
-	default:
-		logger.Error("unrecognized-strategy", nil, lager.Data{
-			"strategy": strategyName,
-		})
+	err = repo.doStrategy(strategyName, newVolumeDataPath, strategy, logger)
+	if err != nil {
 		repo.deleteVolumeMetadataDir(guid)
-		return Volume{}, ErrUnrecognizedStrategy
+		return Volume{}, err
 	}
 
 	return Volume{
@@ -139,6 +104,46 @@ func (repo *Repository) ListVolumes() (Volumes, error) {
 	return response, nil
 }
 
+func (repo *Repository) doStrategy(strategyName string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
+	switch strategyName {
+	case StrategyEmpty:
+		err := repo.createEmptyVolume(newVolumeDataPath)
+		if err != nil {
+			logger.Error("failed-to-create-volume", err, lager.Data{
+				"path": newVolumeDataPath,
+			})
+			return ErrCreateVolumeFailed
+		}
+
+	case StrategyCopyOnWrite:
+		parentGUID, found := strategy["volume"]
+		if !found {
+			logger.Error("no-parent-volume-provided", nil)
+			return ErrNoParentVolumeProvided
+		}
+
+		if !repo.volumeExists(parentGUID) {
+			logger.Error("parent-volume-not-found", nil)
+			return ErrParentVolumeNotFound
+		}
+
+		parentDataPath := repo.dataPath(parentGUID)
+		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
+		if err != nil {
+			logger.Error("failed-to-copy-volume", err)
+			return ErrCreateVolumeFailed
+		}
+
+	default:
+		logger.Error("unrecognized-strategy", nil, lager.Data{
+			"strategy": strategyName,
+		})
+		return ErrUnrecognizedStrategy
+	}
+
+	return nil
+}
+
 func (repo *Repository) metadataPath(id string) string {
 	return filepath.Join(repo.volumeDir, id)
 }
@@ -147,8 +152,13 @@ func (repo *Repository) dataPath(id string) string {
 	return filepath.Join(repo.metadataPath(id), "volume")
 }
 
-func (repo *Repository) deleteVolumeMetadataDir(id string) error {
-	return os.RemoveAll(repo.metadataPath(id))
+func (repo *Repository) deleteVolumeMetadataDir(id string) {
+	err := os.RemoveAll(repo.metadataPath(id))
+	if err != nil {
+		repo.logger.Error("failed-to-cleanup", err, lager.Data{
+			"guid": id,
+		})
+	}
 }
 
 func (repo *Repository) createEmptyVolume(volumePath string) error {
