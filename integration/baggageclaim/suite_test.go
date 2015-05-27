@@ -18,7 +18,6 @@ import (
 )
 
 var baggageClaimPath string
-var fsMounterPath string
 
 func TestIntegration(t *testing.T) {
 	rand.Seed(time.Now().Unix())
@@ -29,19 +28,14 @@ func TestIntegration(t *testing.T) {
 
 type suiteData struct {
 	BaggageClaimPath string
-	FSMounterPath    string
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	bcPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/baggageclaim")
 	Ω(err).ShouldNot(HaveOccurred())
 
-	fsmPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/fs_mounter")
-	Ω(err).ShouldNot(HaveOccurred())
-
 	data, err := json.Marshal(suiteData{
 		BaggageClaimPath: bcPath,
-		FSMounterPath:    fsmPath,
 	})
 	Ω(err).ShouldNot(HaveOccurred())
 
@@ -52,7 +46,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Ω(err).ShouldNot(HaveOccurred())
 
 	baggageClaimPath = suiteData.BaggageClaimPath
-	fsMounterPath = suiteData.FSMounterPath
 })
 
 var _ = SynchronizedAfterSuite(func() {}, func() {
