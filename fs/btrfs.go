@@ -27,13 +27,12 @@ func New(logger lager.Logger, imagePath string, mountPath string) *BtrfsFilesyst
 
 // lower your expectations
 func (fs *BtrfsFilesystem) Create(bytes uint64) error {
-	kiloBytes := bytes / 1024
-	bytes = kiloBytes * 1024
 
 	// significantly
 	idempotent := exec.Command("bash", "-e", "-x", "-c", `
 		if [ ! -e $IMAGE_PATH ] || [ "$(stat --printf="%s" $IMAGE_PATH)" != "$SIZE_IN_BYTES" ]; then
-			dd if=/dev/zero of=$IMAGE_PATH bs=1024 count=$SIZE_IN_KILOBYTES
+			touch $IMAGE_PATH
+			truncate -s ${SIZE_IN_BYTES} $IMAGE_PATH
 		fi
 
 		lo="$(losetup -j $IMAGE_PATH | cut -d':' -f1)"
@@ -57,7 +56,6 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 		"MOUNT_PATH=" + fs.mountPath,
 		"IMAGE_PATH=" + fs.imagePath,
 		fmt.Sprintf("SIZE_IN_BYTES=%d", bytes),
-		fmt.Sprintf("SIZE_IN_KILOBYTES=%d", kiloBytes),
 	}
 
 	_, err := fs.run(idempotent)
