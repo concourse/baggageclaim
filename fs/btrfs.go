@@ -36,12 +36,12 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 			dd if=/dev/zero of=$IMAGE_PATH bs=1024 count=$SIZE_IN_KILOBYTES
 		fi
 
-		lo=""
-		if [ -z "$(losetup -j $IMAGE_PATH)" ]; then
+		lo="$(losetup -j $IMAGE_PATH | cut -d':' -f1)"
+		if [ -z "$lo" ]; then
 			lo="$(losetup -f --show $IMAGE_PATH)"
 		fi
 
-		if file $IMAGE_PATH | grep -v BTRFS; then
+		if ! file $IMAGE_PATH | grep BTRFS; then
 			mkfs.btrfs --nodiscard $lo
 		fi
 
