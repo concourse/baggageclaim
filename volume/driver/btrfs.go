@@ -3,7 +3,6 @@ package driver
 import (
 	"bytes"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/pivotal-golang/lager"
@@ -19,27 +18,6 @@ func NewBtrFSDriver(logger lager.Logger) *BtrFSDriver {
 	return &BtrFSDriver{
 		logger: logger,
 	}
-}
-
-func (driver *BtrFSDriver) Setup(logger lager.Logger, rootPath string, sizeInBytes uint64) (string, error) {
-	imagePath := filepath.Join(rootPath, "image.img")
-	mountPoint := filepath.Join(rootPath, "mountpoint")
-
-	driver.fs = fs.New(
-		logger.Session("filesystem"),
-		imagePath,
-		mountPoint,
-	)
-	err := driver.fs.Create(sizeInBytes)
-	if err != nil {
-		return "", err
-	}
-
-	return mountPoint, nil
-}
-
-func (driver *BtrFSDriver) Teardown() error {
-	return driver.fs.Delete()
 }
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {

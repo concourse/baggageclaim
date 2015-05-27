@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/concourse/baggageclaim/fs"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 	. "github.com/onsi/ginkgo"
@@ -24,6 +25,7 @@ var _ = Describe("Repository", func() {
 
 			var tempDir string
 			var fsDriver *driver.BtrFSDriver
+			var filesystem *fs.BtrfsFilesystem
 
 			BeforeEach(func() {
 				var err error
@@ -35,7 +37,7 @@ var _ = Describe("Repository", func() {
 			})
 
 			AfterEach(func() {
-				err := fsDriver.Teardown()
+				err := filesystem.Delete()
 				Ω(err).ShouldNot(HaveOccurred())
 
 				err = os.RemoveAll(tempDir)
@@ -44,10 +46,16 @@ var _ = Describe("Repository", func() {
 
 			It("cows", func() {
 				logger := lagertest.NewTestLogger("repo")
-				rootPath, err := fsDriver.Setup(logger, tempDir, 100*1024*1024)
+
+				imagePath := filepath.Join(tempDir, "image.img")
+				rootPath := filepath.Join(tempDir, "mountpoint")
+				filesystem = fs.New(logger, imagePath, rootPath)
+				err := filesystem.Create(100 * 1024 * 1024)
+
 				Ω(err).ShouldNot(HaveOccurred())
 
 				repo := volume.NewRepository(logger, rootPath, fsDriver)
+
 				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
 				})
