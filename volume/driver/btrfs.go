@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/pivotal-golang/lager"
@@ -72,7 +71,6 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, error) {
 	loggerData := lager.Data{
 		"stdout": stdout.String(),
 		"stderr": stderr.String(),
-		"status": cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(),
 	}
 
 	if err != nil {

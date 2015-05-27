@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 
 	"github.com/pivotal-golang/lager"
 )
@@ -119,7 +118,6 @@ func (fs *BtrfsFilesystem) run(cmd *exec.Cmd) (string, error) {
 	loggerData := lager.Data{
 		"stdout": stdout.String(),
 		"stderr": stderr.String(),
-		"status": cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(),
 	}
 
 	if err != nil {
