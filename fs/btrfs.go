@@ -42,7 +42,7 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 		fi
 
 		if file $IMAGE_PATH | grep -v BTRFS; then
-			mkfs.btrfs $lo
+			mkfs.btrfs --nodiscard $lo
 		fi
 
 		mkdir -p $MOUNT_PATH
