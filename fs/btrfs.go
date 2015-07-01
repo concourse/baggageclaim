@@ -47,7 +47,7 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 		mkdir -p $MOUNT_PATH
 
 		if ! mountpoint -q $MOUNT_PATH; then
-			mount $lo $MOUNT_PATH
+			mount -t btrfs $lo $MOUNT_PATH
 		fi
 	`)
 
