@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -84,15 +85,6 @@ var _ = Describe("Volume Server", func() {
 			body     io.ReadWriter
 		)
 
-		BeforeEach(func() {
-			body = &bytes.Buffer{}
-			json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: volume.Strategy{
-					"type": "empty",
-				},
-			})
-		})
-
 		JustBeforeEach(func() {
 			recorder = httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
@@ -100,145 +92,198 @@ var _ = Describe("Volume Server", func() {
 			server.CreateVolume(recorder, request)
 		})
 
-		Context("when a new directory can be created", func() {
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"path":`))
-				Ω(recorder.Body).Should(ContainSubstring(`"guid":`))
+		Context("when there are properties given", func() {
+			var properties volume.Properties
+
+			Context("with valid properties", func() {
+				BeforeEach(func() {
+					properties = volume.Properties{
+						"property-name": "property-value",
+					}
+
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(api.VolumeRequest{
+						Strategy: volume.Strategy{
+							"type": "empty",
+						},
+						Properties: properties,
+					})
+				})
+
+				It("creates the properties file", func() {
+					var response volume.Volume
+					err := json.NewDecoder(recorder.Body).Decode(&response)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					propertiesPath := filepath.Join(volumeDir, response.GUID, "properties.json")
+					Ω(propertiesPath).Should(BeAnExistingFile())
+
+					propertiesContents, err := ioutil.ReadFile(propertiesPath)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					var storedProperties volume.Properties
+					err = json.Unmarshal(propertiesContents, &storedProperties)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(storedProperties).Should(Equal(properties))
+				})
+
+				It("returns the properties in the response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"property-name":"property-value"`))
+				})
 			})
 		})
 
-		Context("when invalid JSON is submitted", func() {
-			BeforeEach(func() {
-				body = bytes.NewBufferString("{{{{{{")
-			})
-
-			It("returns a 400 Bad Request response", func() {
-				Ω(recorder.Code).Should(Equal(http.StatusBadRequest))
-			})
-
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
-			})
-
-			It("does not create a volume", func() {
-				getRecorder := httptest.NewRecorder()
-				getReq, _ := http.NewRequest("GET", "/volumes", nil)
-				server.GetVolumes(getRecorder, getReq)
-				Ω(getRecorder.Body).Should(MatchJSON("[]"))
-			})
-		})
-
-		Context("when no strategy is submitted", func() {
-			BeforeEach(func() {
-				body = bytes.NewBufferString("{}")
-			})
-
-			It("returns a 422 Unprocessable Entity response", func() {
-				Ω(recorder.Code).Should(Equal(422))
-			})
-
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
-			})
-
-			It("does not create a volume", func() {
-				getRecorder := httptest.NewRecorder()
-				getReq, _ := http.NewRequest("GET", "/volumes", nil)
-				server.GetVolumes(getRecorder, getReq)
-				Ω(getRecorder.Body).Should(MatchJSON("[]"))
-			})
-		})
-
-		Context("when an unrecognized strategy is submitted", func() {
+		Context("when there are no properties given", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
 				json.NewEncoder(body).Encode(api.VolumeRequest{
 					Strategy: volume.Strategy{
-						"type": "grime",
+						"type": "empty",
 					},
 				})
 			})
 
-			It("returns a 422 Unprocessable Entity response", func() {
-				Ω(recorder.Code).Should(Equal(422))
-			})
-
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
-			})
-
-			It("does not create a volume", func() {
-				getRecorder := httptest.NewRecorder()
-				getReq, _ := http.NewRequest("GET", "/volumes", nil)
-				server.GetVolumes(getRecorder, getReq)
-				Ω(getRecorder.Body).Should(MatchJSON("[]"))
-			})
-		})
-
-		Context("when the strategy is cow but not parent volume is provided", func() {
-			BeforeEach(func() {
-				body = &bytes.Buffer{}
-				json.NewEncoder(body).Encode(api.VolumeRequest{
-					Strategy: volume.Strategy{
-						"type": "cow",
-					},
+			Context("when a new directory can be created", func() {
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"path":`))
+					Ω(recorder.Body).Should(ContainSubstring(`"guid":`))
 				})
 			})
 
-			It("returns a 422 Unprocessable Entity response", func() {
-				Ω(recorder.Code).Should(Equal(422))
-			})
+			Context("when invalid JSON is submitted", func() {
+				BeforeEach(func() {
+					body = bytes.NewBufferString("{{{{{{")
+				})
 
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
-			})
+				It("returns a 400 Bad Request response", func() {
+					Ω(recorder.Code).Should(Equal(http.StatusBadRequest))
+				})
 
-			It("does not create a volume", func() {
-				getRecorder := httptest.NewRecorder()
-				getReq, _ := http.NewRequest("GET", "/volumes", nil)
-				server.GetVolumes(getRecorder, getReq)
-				Ω(getRecorder.Body).Should(MatchJSON("[]"))
-			})
-		})
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+				})
 
-		Context("when the strategy is cow and the parent volume does not exist", func() {
-			BeforeEach(func() {
-				body = &bytes.Buffer{}
-				json.NewEncoder(body).Encode(api.VolumeRequest{
-					Strategy: volume.Strategy{
-						"type":   "cow",
-						"volume": "#pain",
-					},
+				It("does not create a volume", func() {
+					getRecorder := httptest.NewRecorder()
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					server.GetVolumes(getRecorder, getReq)
+					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
 
-			It("returns a 422 Unprocessable Entity response", func() {
-				Ω(recorder.Code).Should(Equal(422))
+			Context("when no strategy is submitted", func() {
+				BeforeEach(func() {
+					body = bytes.NewBufferString("{}")
+				})
+
+				It("returns a 422 Unprocessable Entity response", func() {
+					Ω(recorder.Code).Should(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getRecorder := httptest.NewRecorder()
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					server.GetVolumes(getRecorder, getReq)
+					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+				})
 			})
 
-			It("writes a nice JSON response", func() {
-				Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+			Context("when an unrecognized strategy is submitted", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(api.VolumeRequest{
+						Strategy: volume.Strategy{
+							"type": "grime",
+						},
+					})
+				})
+
+				It("returns a 422 Unprocessable Entity response", func() {
+					Ω(recorder.Code).Should(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getRecorder := httptest.NewRecorder()
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					server.GetVolumes(getRecorder, getReq)
+					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+				})
 			})
 
-			It("does not create a volume", func() {
-				getRecorder := httptest.NewRecorder()
-				getReq, _ := http.NewRequest("GET", "/volumes", nil)
-				server.GetVolumes(getRecorder, getReq)
-				Ω(getRecorder.Body).Should(MatchJSON("[]"))
-			})
-		})
+			Context("when the strategy is cow but not parent volume is provided", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(api.VolumeRequest{
+						Strategy: volume.Strategy{
+							"type": "cow",
+						},
+					})
+				})
 
-		Context("when a new directory cannot be created", func() {
-			BeforeEach(func() {
-				volumeDir = "/dev/null"
+				It("returns a 422 Unprocessable Entity response", func() {
+					Ω(recorder.Code).Should(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getRecorder := httptest.NewRecorder()
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					server.GetVolumes(getRecorder, getReq)
+					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+				})
 			})
 
-			It("writes a 500 InternalServerError", func() {
-				Ω(recorder.Code).Should(Equal(http.StatusInternalServerError))
+			Context("when the strategy is cow and the parent volume does not exist", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(api.VolumeRequest{
+						Strategy: volume.Strategy{
+							"type":   "cow",
+							"volume": "#pain",
+						},
+					})
+				})
+
+				It("returns a 422 Unprocessable Entity response", func() {
+					Ω(recorder.Code).Should(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getRecorder := httptest.NewRecorder()
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					server.GetVolumes(getRecorder, getReq)
+					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+				})
 			})
 
-			It("writes a useful JSON error", func() {
-				Ω(recorder.Body).Should(MatchJSON(`{"error":"failed to create volume"}`))
+			Context("when a new directory cannot be created", func() {
+				BeforeEach(func() {
+					volumeDir = "/dev/null"
+				})
+
+				It("writes a 500 InternalServerError", func() {
+					Ω(recorder.Code).Should(Equal(http.StatusInternalServerError))
+				})
+
+				It("writes a useful JSON error", func() {
+					Ω(recorder.Body).Should(MatchJSON(`{"error":"failed to create volume"}`))
+				})
 			})
 		})
 	})

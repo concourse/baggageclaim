@@ -9,7 +9,8 @@ import (
 )
 
 type VolumeRequest struct {
-	Strategy volume.Strategy `json:"strategy"`
+	Strategy   volume.Strategy   `json:"strategy"`
+	Properties volume.Properties `json:"properties"`
 }
 
 type VolumeServer struct {
@@ -34,7 +35,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	createdVolume, err := vs.volumeRepo.CreateVolume(request.Strategy)
+	createdVolume, err := vs.volumeRepo.CreateVolume(request.Strategy, request.Properties)
 	if err != nil {
 		var code int
 		switch err {

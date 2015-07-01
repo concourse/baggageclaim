@@ -41,6 +41,10 @@ var _ = Describe("Empty Strategy", func() {
 	})
 
 	Describe("API", func() {
+		properties := volume.Properties{
+			"name": "value",
+		}
+
 		createVolume := func() (volume.Volume, *http.Response) {
 			url := fmt.Sprintf("http://localhost:%d", port)
 			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
@@ -50,6 +54,7 @@ var _ = Describe("Empty Strategy", func() {
 				Strategy: volume.Strategy{
 					"type": "empty",
 				},
+				Properties: properties,
 			})
 
 			request, err := requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
@@ -57,6 +62,7 @@ var _ = Describe("Empty Strategy", func() {
 
 			response, err := http.DefaultClient.Do(request)
 			Ω(err).ShouldNot(HaveOccurred())
+			Ω(response.StatusCode).Should(Equal(http.StatusCreated))
 
 			var volumeResponse volume.Volume
 			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
@@ -140,6 +146,7 @@ var _ = Describe("Empty Strategy", func() {
 
 				response, err := http.DefaultClient.Do(request)
 				Ω(err).ShouldNot(HaveOccurred())
+				Ω(response.StatusCode).Should(Equal(http.StatusOK))
 
 				var getVolumeResponse volume.Volumes
 
@@ -174,6 +181,10 @@ var _ = Describe("Empty Strategy", func() {
 				})
 
 				It("returns it", func() {
+					Ω(getVolumeResponse[0].Properties).Should(Equal(
+						properties,
+					))
+
 					Ω(getVolumeResponse).Should(ConsistOf(createVolumeResponse))
 				})
 			})

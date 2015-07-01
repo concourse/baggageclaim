@@ -58,13 +58,13 @@ var _ = Describe("Repository", func() {
 
 				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
-				})
+				}, volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				childVolume, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
 					"volume": parentVolume.GUID,
-				})
+				}, volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				childFilePath := filepath.Join(childVolume.Path, "this-should-only-be-in-the-child")
