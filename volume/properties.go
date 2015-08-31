@@ -16,3 +16,15 @@ func (p Properties) HasProperties(other Properties) bool {
 
 	return true
 }
+
+func (p Properties) UpdateProperty(name string, value string) Properties {
+	updatedProperties := Properties{}
+
+	for k, v := range p {
+		updatedProperties[k] = v
+	}
+
+	updatedProperties[name] = value
+
+	return updatedProperties
+}

@@ -175,7 +175,7 @@ func (repo *Repository) SetProperty(volumeGUID string, propertyName string, prop
 		return err
 	}
 
-	properties[propertyName] = propertyValue
+	properties = properties.UpdateProperty(propertyName, propertyValue)
 
 	err = pf.WriteProperties(properties)
 	if err != nil {

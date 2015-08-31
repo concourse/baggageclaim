@@ -104,4 +104,27 @@ var _ = Describe("Properties Superset", func() {
 		result := properties.HasProperties(query)
 		Ω(result).Should(BeTrue())
 	})
+
+	Describe("Update Property", func() {
+		It("creates the property if it's not present", func() {
+			properties := volume.Properties{}
+			updatedProperties := properties.UpdateProperty("some", "property")
+
+			Ω(updatedProperties).Should(Equal(volume.Properties{"some": "property"}))
+		})
+
+		It("does not modify the original object", func() {
+			properties := volume.Properties{}
+			properties.UpdateProperty("some", "property")
+
+			Ω(properties).Should(Equal(volume.Properties{}))
+		})
+
+		It("updates the property if it exists already", func() {
+			properties := volume.Properties{"some": "property"}
+			updatedProperties := properties.UpdateProperty("some", "other-property")
+
+			Ω(updatedProperties).Should(Equal(volume.Properties{"some": "other-property"}))
+		})
+	})
 })
