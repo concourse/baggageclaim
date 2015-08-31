@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/lager"
@@ -41,6 +42,8 @@ type Repository struct {
 	driver    Driver
 
 	logger lager.Logger
+
+	setPropertyLock *sync.Mutex
 }
 
 type propertiesFile struct {
@@ -79,9 +82,10 @@ func (pf *propertiesFile) Properties() (Properties, error) {
 
 func NewRepository(logger lager.Logger, volumeDir string, driver Driver) *Repository {
 	return &Repository{
-		volumeDir: volumeDir,
-		logger:    logger,
-		driver:    driver,
+		volumeDir:       volumeDir,
+		logger:          logger,
+		driver:          driver,
+		setPropertyLock: &sync.Mutex{},
 	}
 }
 
@@ -165,6 +169,9 @@ func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error)
 }
 
 func (repo *Repository) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
+	repo.setPropertyLock.Lock()
+	defer repo.setPropertyLock.Unlock()
+
 	pf := repo.propertiesFile(volumeGUID)
 
 	properties, err := pf.Properties()
