@@ -16,7 +16,8 @@ type Strategy map[string]string
 const (
 	StrategyEmpty       = "empty"
 	StrategyCopyOnWrite = "cow"
-	propertiesFileName  = "properties.json"
+
+	propertiesFileName = "properties.json"
 )
 
 type Volume struct {
@@ -40,6 +41,40 @@ type Repository struct {
 	driver    Driver
 
 	logger lager.Logger
+}
+
+type propertiesFile struct {
+	path string
+}
+
+func (pf *propertiesFile) WriteProperties(properties Properties) error {
+	file, err := os.OpenFile(
+		pf.path,
+		os.O_WRONLY|os.O_CREATE,
+		0644,
+	)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return json.NewEncoder(file).Encode(properties)
+}
+
+func (pf *propertiesFile) Properties() (Properties, error) {
+	var properties Properties
+
+	file, err := os.Open(pf.path)
+	if err != nil {
+		return Properties{}, err
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&properties); err != nil {
+		return Properties{}, err
+	}
+
+	return properties, nil
 }
 
 func NewRepository(logger lager.Logger, volumeDir string, driver Driver) *Repository {
@@ -72,14 +107,9 @@ func (repo *Repository) CreateVolume(strategy Strategy, properties Properties) (
 		return repo.handleError(err, "failed-to-create-metadata-dir", ErrCreateVolumeFailed)
 	}
 
-	propertiesBytes, err := json.Marshal(properties)
+	err = repo.propertiesFile(guid).WriteProperties(properties)
 	if err != nil {
-		return repo.handleError(err, "failed-to-marshal-properties", ErrCreateVolumeFailed)
-	}
-
-	err = ioutil.WriteFile(repo.propertiesPath(guid), propertiesBytes, 0644)
-	if err != nil {
-		return repo.handleError(err, "failed-to-write-properties", ErrCreateVolumeFailed)
+		return repo.handleError(err, "failed-to-create-properties-file", ErrCreateVolumeFailed)
 	}
 
 	newVolumeDataPath := repo.dataPath(guid)
@@ -102,7 +132,7 @@ func (repo *Repository) handleError(internalError error, errorMsg string, extern
 }
 
 func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error) {
-	volumes, err := ioutil.ReadDir(repo.volumeDir)
+	volumeDirs, err := ioutil.ReadDir(repo.volumeDir)
 	if err != nil {
 		repo.logger.Error("failed-to-list-dirs", err, lager.Data{
 			"volume-dir": repo.volumeDir,
@@ -111,31 +141,22 @@ func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error)
 		return Volumes{}, ErrListVolumesFailed
 	}
 
-	response := make(Volumes, 0, len(volumes))
-	for _, volume := range volumes {
-		propertiesPath := repo.propertiesPath(volume.Name())
-		propBytes, err := ioutil.ReadFile(propertiesPath)
+	response := make(Volumes, 0, len(volumeDirs))
+
+	for _, volumeDir := range volumeDirs {
+		volumeProperties, err := repo.propertiesFile(volumeDir.Name()).Properties()
 		if err != nil {
 			repo.logger.Error("failed-to-read-properties", err, lager.Data{
-				"volume": volume.Name(),
+				"volume": volumeDir.Name(),
 			})
 			return nil, err
 		}
 
-		var properties Properties
-		err = json.Unmarshal(propBytes, &properties)
-		if err != nil {
-			repo.logger.Error("failed-to-unmarshal-properties", err, lager.Data{
-				"volume": volume.Name(),
-			})
-			return nil, err
-		}
-
-		if properties.HasProperties(queryProperties) {
+		if volumeProperties.HasProperties(queryProperties) {
 			response = append(response, Volume{
-				GUID:       volume.Name(),
-				Path:       repo.dataPath(volume.Name()),
-				Properties: properties,
+				GUID:       volumeDir.Name(),
+				Path:       repo.dataPath(volumeDir.Name()),
+				Properties: volumeProperties,
 			})
 		}
 	}
@@ -144,18 +165,11 @@ func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error)
 }
 
 func (repo *Repository) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
-	propertiesPath := repo.propertiesPath(volumeGUID)
+	pf := repo.propertiesFile(volumeGUID)
 
-	propBytes, err := ioutil.ReadFile(propertiesPath)
+	properties, err := pf.Properties()
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-read-properties-file", ErrSetPropertyFailed)
-		return err
-	}
-
-	var properties Properties
-	err = json.Unmarshal(propBytes, &properties)
-	if err != nil {
-		repo.logger.Error("failed-to-unmarshal-properties", err, lager.Data{
+		repo.logger.Error("failed-to-read-properties", err, lager.Data{
 			"volume": volumeGUID,
 		})
 		return err
@@ -163,13 +177,7 @@ func (repo *Repository) SetProperty(volumeGUID string, propertyName string, prop
 
 	properties[propertyName] = propertyValue
 
-	propertiesBytes, err := json.Marshal(properties)
-	if err != nil {
-		_, err = repo.handleError(err, "failed-to-marshal-properties", ErrSetPropertyFailed)
-		return err
-	}
-
-	err = ioutil.WriteFile(repo.propertiesPath(volumeGUID), propertiesBytes, 0644)
+	err = pf.WriteProperties(properties)
 	if err != nil {
 		_, err = repo.handleError(err, "failed-to-write-properties", ErrSetPropertyFailed)
 		return err
@@ -224,6 +232,10 @@ func (repo *Repository) metadataPath(id string) string {
 
 func (repo *Repository) propertiesPath(id string) string {
 	return filepath.Join(repo.metadataPath(id), propertiesFileName)
+}
+
+func (repo *Repository) propertiesFile(id string) *propertiesFile {
+	return &propertiesFile{path: repo.propertiesPath(id)}
 }
 
 func (repo *Repository) dataPath(id string) string {
