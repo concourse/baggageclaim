@@ -1,33 +1,28 @@
 package integration_test
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/tedsuo/rata"
-
-	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/integration/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
 	var (
 		runner *BaggageClaimRunner
+		client *integration.Client
 	)
 
 	BeforeEach(func() {
 		runner = NewRunner(baggageClaimPath)
 		runner.Start()
+		client = runner.Client()
 	})
 
 	AfterEach(func() {
@@ -51,60 +46,26 @@ var _ = Describe("Copy On Write Strategy", func() {
 			return err == nil
 		}
 
-		createVolume := func(request api.VolumeRequest) (volume.Volume, *http.Response) {
-			url := fmt.Sprintf("http://localhost:%d", runner.Port())
-			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
-
-			buffer := &bytes.Buffer{}
-			err := json.NewEncoder(buffer).Encode(request)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			req, err := requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			response, err := http.DefaultClient.Do(req)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Ω(response.StatusCode).Should(Equal(http.StatusCreated))
-
-			var volumeResponse volume.Volume
-			err = json.NewDecoder(response.Body).Decode(&volumeResponse)
-			Ω(err).ShouldNot(HaveOccurred())
-			response.Body.Close()
-
-			return volumeResponse, response
-		}
-
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentResponse, httpResponse := createVolume(api.VolumeRequest{
-					Strategy: volume.Strategy{
-						"type": "empty",
-					},
-				})
+				parentVolume, err := client.CreateEmptyVolume(volume.Properties{})
+				Ω(err).ShouldNot(HaveOccurred())
 
-				dataInParent := writeData(parentResponse.Path)
-				Ω(dataExistsInVolume(dataInParent, parentResponse.Path)).To(BeTrue())
+				dataInParent := writeData(parentVolume.Path)
+				Ω(dataExistsInVolume(dataInParent, parentVolume.Path)).To(BeTrue())
 
-				childResponse, httpResponse := createVolume(api.VolumeRequest{
-					Strategy: volume.Strategy{
-						"type":   "cow",
-						"volume": parentResponse.GUID,
-					},
-				})
+				childVolume, err := client.CreateCOWVolume(parentVolume.GUID, volume.Properties{})
+				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(httpResponse.StatusCode).Should(Equal(http.StatusCreated))
-				Ω(httpResponse.Header.Get("Content-Type")).To(Equal("application/json"))
+				Ω(dataExistsInVolume(dataInParent, childVolume.Path)).To(BeTrue())
 
-				Ω(dataExistsInVolume(dataInParent, childResponse.Path)).To(BeTrue())
+				newDataInParent := writeData(parentVolume.Path)
+				Ω(dataExistsInVolume(newDataInParent, parentVolume.Path)).To(BeTrue())
+				Ω(dataExistsInVolume(newDataInParent, childVolume.Path)).To(BeFalse())
 
-				newDataInParent := writeData(parentResponse.Path)
-				Ω(dataExistsInVolume(newDataInParent, parentResponse.Path)).To(BeTrue())
-				Ω(dataExistsInVolume(newDataInParent, childResponse.Path)).To(BeFalse())
-
-				dataInChild := writeData(childResponse.Path)
-				Ω(dataExistsInVolume(dataInChild, childResponse.Path)).To(BeTrue())
-				Ω(dataExistsInVolume(dataInChild, parentResponse.Path)).To(BeFalse())
+				dataInChild := writeData(childVolume.Path)
+				Ω(dataExistsInVolume(dataInChild, childVolume.Path)).To(BeTrue())
+				Ω(dataExistsInVolume(dataInChild, parentVolume.Path)).To(BeFalse())
 			})
 		})
 	})
