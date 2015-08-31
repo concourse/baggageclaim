@@ -2,6 +2,8 @@ package integration_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/concourse/baggageclaim/integration/baggageclaim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tedsuo/ifrit"
@@ -59,7 +62,11 @@ type BaggageClaimRunner struct {
 	volumeDir string
 }
 
-func NewRunner(path string, port int, volumeDir string) *BaggageClaimRunner {
+func NewRunner(path string) *BaggageClaimRunner {
+	port := 7788 + GinkgoParallelNode()
+	volumeDir, err := ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
+	Ω(err).ShouldNot(HaveOccurred())
+
 	return &BaggageClaimRunner{
 		path:      path,
 		port:      port,
@@ -67,7 +74,7 @@ func NewRunner(path string, port int, volumeDir string) *BaggageClaimRunner {
 	}
 }
 
-func (bcr *BaggageClaimRunner) start() {
+func (bcr *BaggageClaimRunner) Start() {
 	runner := ginkgomon.New(ginkgomon.Config{
 		Name: "baggageclaim",
 		Command: exec.Command(
@@ -81,17 +88,29 @@ func (bcr *BaggageClaimRunner) start() {
 	bcr.process = ginkgomon.Invoke(runner)
 }
 
-func (bcr *BaggageClaimRunner) stop() {
+func (bcr *BaggageClaimRunner) Stop() {
 	bcr.process.Signal(os.Kill)
 	Eventually(bcr.process.Wait()).Should(Receive())
 }
 
-func (bcr *BaggageClaimRunner) bounce() {
-	bcr.stop()
-	bcr.start()
+func (bcr *BaggageClaimRunner) Bounce() {
+	bcr.Stop()
+	bcr.Start()
 }
 
-func (bcr *BaggageClaimRunner) cleanup() {
+func (bcr *BaggageClaimRunner) Cleanup() {
 	err := os.RemoveAll(bcr.volumeDir)
 	Ω(err).ShouldNot(HaveOccurred())
+}
+
+func (bcr *BaggageClaimRunner) Client() *integration.Client {
+	return integration.NewClient(fmt.Sprintf("http://localhost:%d", bcr.port))
+}
+
+func (bcr *BaggageClaimRunner) VolumeDir() string {
+	return bcr.volumeDir
+}
+
+func (bcr *BaggageClaimRunner) Port() int {
+	return bcr.port
 }

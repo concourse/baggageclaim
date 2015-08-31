@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -19,30 +18,23 @@ import (
 
 var _ = Describe("Restarting", func() {
 	var (
-		runner    *BaggageClaimRunner
-		port      int
-		volumeDir string
+		runner *BaggageClaimRunner
 	)
 
 	BeforeEach(func() {
-		var err error
 
-		port = 7788 + GinkgoParallelNode()
-		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
-		Ω(err).ShouldNot(HaveOccurred())
-
-		runner = NewRunner(baggageClaimPath, port, volumeDir)
-		runner.start()
+		runner = NewRunner(baggageClaimPath)
+		runner.Start()
 	})
 
 	AfterEach(func() {
-		runner.stop()
-		runner.cleanup()
+		runner.Stop()
+		runner.Cleanup()
 	})
 
 	createVolume := func() (volume.Volume, *http.Response) {
 		var err error
-		url := fmt.Sprintf("http://localhost:%d", port)
+		url := fmt.Sprintf("http://localhost:%d", runner.Port())
 		requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 
 		buffer := &bytes.Buffer{}
@@ -69,7 +61,7 @@ var _ = Describe("Restarting", func() {
 
 	getVolumes := func() (volume.Volumes, *http.Response) {
 		var err error
-		url := fmt.Sprintf("http://localhost:%d", port)
+		url := fmt.Sprintf("http://localhost:%d", runner.Port())
 		requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 		request, err := requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
 		Ω(err).ShouldNot(HaveOccurred())
@@ -91,7 +83,7 @@ var _ = Describe("Restarting", func() {
 		volumes, _ := getVolumes()
 		Ω(volumes).Should(ConsistOf(volumeResponse))
 
-		runner.bounce()
+		runner.Bounce()
 
 		volumesAfterRestart, _ := getVolumes()
 		Ω(volumesAfterRestart).Should(Equal(volumes))

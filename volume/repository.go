@@ -47,6 +47,7 @@ type Volumes []Volume
 var ErrMissingStrategy = errors.New("missing strategy")
 var ErrUnrecognizedStrategy = errors.New("unrecognized strategy")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
+var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrListVolumesFailed = errors.New("failed to list volumes")
 var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
 var ErrParentVolumeNotFound = errors.New("parent volume not found")
@@ -157,6 +158,41 @@ func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error)
 	}
 
 	return response, nil
+}
+
+func (repo *Repository) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
+	propertiesPath := repo.propertiesPath(volumeGUID)
+
+	propBytes, err := ioutil.ReadFile(propertiesPath)
+	if err != nil {
+		_, err = repo.handleError(err, "failed-to-read-properties-file", ErrSetPropertyFailed)
+		return err
+	}
+
+	var properties Properties
+	err = json.Unmarshal(propBytes, &properties)
+	if err != nil {
+		repo.logger.Error("failed-to-unmarshal-properties", err, lager.Data{
+			"volume": volumeGUID,
+		})
+		return err
+	}
+
+	properties[propertyName] = propertyValue
+
+	propertiesBytes, err := json.Marshal(properties)
+	if err != nil {
+		_, err = repo.handleError(err, "failed-to-marshal-properties", ErrSetPropertyFailed)
+		return err
+	}
+
+	err = ioutil.WriteFile(repo.propertiesPath(volumeGUID), propertiesBytes, 0644)
+	if err != nil {
+		_, err = repo.handleError(err, "failed-to-write-properties", ErrSetPropertyFailed)
+		return err
+	}
+
+	return nil
 }
 
 func (repo *Repository) doStrategy(strategyName string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {

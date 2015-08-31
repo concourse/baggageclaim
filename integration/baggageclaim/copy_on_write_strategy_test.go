@@ -22,25 +22,17 @@ import (
 
 var _ = Describe("Copy On Write Strategy", func() {
 	var (
-		runner    *BaggageClaimRunner
-		port      int
-		volumeDir string
+		runner *BaggageClaimRunner
 	)
 
 	BeforeEach(func() {
-		var err error
-
-		port = 7788 + GinkgoParallelNode()
-		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
-		Ω(err).ShouldNot(HaveOccurred())
-
-		runner = NewRunner(baggageClaimPath, port, volumeDir)
-		runner.start()
+		runner = NewRunner(baggageClaimPath)
+		runner.Start()
 	})
 
 	AfterEach(func() {
-		runner.stop()
-		runner.cleanup()
+		runner.Stop()
+		runner.Cleanup()
 	})
 
 	Describe("API", func() {
@@ -60,7 +52,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 		}
 
 		createVolume := func(request api.VolumeRequest) (volume.Volume, *http.Response) {
-			url := fmt.Sprintf("http://localhost:%d", port)
+			url := fmt.Sprintf("http://localhost:%d", runner.Port())
 			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 
 			buffer := &bytes.Buffer{}

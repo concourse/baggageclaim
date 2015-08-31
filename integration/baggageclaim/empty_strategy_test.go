@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -19,25 +18,17 @@ import (
 
 var _ = Describe("Empty Strategy", func() {
 	var (
-		runner    *BaggageClaimRunner
-		port      int
-		volumeDir string
+		runner *BaggageClaimRunner
 	)
 
 	BeforeEach(func() {
-		var err error
-
-		port = 7788 + GinkgoParallelNode()
-		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
-		Ω(err).ShouldNot(HaveOccurred())
-
-		runner = NewRunner(baggageClaimPath, port, volumeDir)
-		runner.start()
+		runner = NewRunner(baggageClaimPath)
+		runner.Start()
 	})
 
 	AfterEach(func() {
-		runner.stop()
-		runner.cleanup()
+		runner.Stop()
+		runner.Cleanup()
 	})
 
 	Describe("API", func() {
@@ -46,7 +37,7 @@ var _ = Describe("Empty Strategy", func() {
 		}
 
 		createVolume := func() (volume.Volume, *http.Response) {
-			url := fmt.Sprintf("http://localhost:%d", port)
+			url := fmt.Sprintf("http://localhost:%d", runner.Port())
 			requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 
 			buffer := &bytes.Buffer{}
@@ -100,7 +91,7 @@ var _ = Describe("Empty Strategy", func() {
 				})
 
 				It("is in the volume dir", func() {
-					Ω(createdDir).Should(HavePrefix(volumeDir))
+					Ω(createdDir).Should(HavePrefix(runner.VolumeDir()))
 				})
 
 				It("creates the directory", func() {
@@ -139,7 +130,7 @@ var _ = Describe("Empty Strategy", func() {
 
 			getVolumes := func() (volume.Volumes, *http.Response) {
 				var err error
-				url := fmt.Sprintf("http://localhost:%d", port)
+				url := fmt.Sprintf("http://localhost:%d", runner.Port())
 				requestGenerator := rata.NewRequestGenerator(url, baggageclaim.Routes)
 				request, err := requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
 				Ω(err).ShouldNot(HaveOccurred())

@@ -6,6 +6,7 @@ import (
 
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
+	"github.com/tedsuo/rata"
 )
 
 const httpUnprocessableEntity = 422
@@ -13,6 +14,10 @@ const httpUnprocessableEntity = 422
 type VolumeRequest struct {
 	Strategy   volume.Strategy   `json:"strategy"`
 	Properties volume.Properties `json:"properties"`
+}
+
+type PropertyRequest struct {
+	Value string `json:"value"`
 }
 
 type VolumeServer struct {
@@ -85,4 +90,26 @@ func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(w).Encode(volumes); err != nil {
 		vs.logger.Error("failed-to-encode", err)
 	}
+}
+
+func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
+	var request PropertyRequest
+	err := json.NewDecoder(req.Body).Decode(&request)
+	if err != nil {
+		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusBadRequest)
+		return
+	}
+
+	propertyValue := request.Value
+	volumeGUID := rata.Param(req, "volume")
+	propertyName := rata.Param(req, "property")
+	req.Body.Close()
+
+	err = vs.volumeRepo.SetProperty(volumeGUID, propertyName, propertyValue)
+	if err != nil {
+		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

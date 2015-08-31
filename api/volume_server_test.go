@@ -23,7 +23,7 @@ import (
 
 var _ = Describe("Volume Server", func() {
 	var (
-		server *api.VolumeServer
+		handler http.Handler
 
 		volumeDir string
 		tempDir   string
@@ -39,9 +39,13 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	JustBeforeEach(func() {
+
 		logger := lagertest.NewTestLogger("volume-server")
 		repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{})
-		server = api.NewVolumeServer(logger, repo)
+
+		var err error
+		handler, err = api.NewHandler(logger, repo)
+		Ω(err).ShouldNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
@@ -56,7 +60,7 @@ var _ = Describe("Volume Server", func() {
 			recorder = httptest.NewRecorder()
 			request, _ := http.NewRequest("GET", "/volumes", nil)
 
-			server.GetVolumes(recorder, request)
+			handler.ServeHTTP(recorder, request)
 		})
 
 		Context("when there are no volumes", func() {
@@ -98,7 +102,7 @@ var _ = Describe("Volume Server", func() {
 
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
-			server.CreateVolume(recorder, request)
+			handler.ServeHTTP(recorder, request)
 			Ω(recorder.Code).Should(Equal(201))
 
 			body.Reset()
@@ -111,12 +115,12 @@ var _ = Describe("Volume Server", func() {
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("POST", "/volumes", body)
-			server.CreateVolume(recorder, request)
+			handler.ServeHTTP(recorder, request)
 			Ω(recorder.Code).Should(Equal(201))
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("GET", "/volumes?property-query=value", nil)
-			server.GetVolumes(recorder, request)
+			handler.ServeHTTP(recorder, request)
 			Ω(recorder.Code).Should(Equal(200))
 
 			var volumes volume.Volumes
@@ -129,9 +133,63 @@ var _ = Describe("Volume Server", func() {
 		It("returns an error if an invalid set of properties are specified", func() {
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("GET", "/volumes?property-query=value&property-query=another-value", nil)
-			server.GetVolumes(recorder, request)
+			handler.ServeHTTP(recorder, request)
 
 			Ω(recorder.Code).Should(Equal(422))
+		})
+	})
+
+	Describe("updating a volume", func() {
+		It("can have it's properties updated", func() {
+			recorder := httptest.NewRecorder()
+			body := &bytes.Buffer{}
+
+			err := json.NewEncoder(body).Encode(api.VolumeRequest{
+				Strategy: volume.Strategy{
+					"type": "empty",
+				},
+				Properties: volume.Properties{
+					"property-name": "property-val",
+				},
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			request, _ := http.NewRequest("POST", "/volumes", body)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(201))
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("GET", "/volumes?property-name=property-val", nil)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(200))
+
+			var volumes volume.Volumes
+			err = json.NewDecoder(recorder.Body).Decode(&volumes)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Ω(volumes).Should(HaveLen(1))
+
+			err = json.NewEncoder(body).Encode(api.PropertyRequest{
+				Value: "other-val",
+			})
+
+			Ω(err).ShouldNot(HaveOccurred())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/properties/property-name", volumes[0].GUID), body)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(http.StatusNoContent))
+			Ω(recorder.Body.String()).Should(BeEmpty())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("GET", "/volumes?property-name=other-val", nil)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(200))
+
+			err = json.NewDecoder(recorder.Body).Decode(&volumes)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Ω(volumes).Should(HaveLen(1))
 		})
 	})
 
@@ -145,7 +203,7 @@ var _ = Describe("Volume Server", func() {
 			recorder = httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
 
-			server.CreateVolume(recorder, request)
+			handler.ServeHTTP(recorder, request)
 		})
 
 		Context("when there are properties given", func() {
@@ -223,7 +281,7 @@ var _ = Describe("Volume Server", func() {
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
-					server.GetVolumes(getRecorder, getReq)
+					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
@@ -244,7 +302,7 @@ var _ = Describe("Volume Server", func() {
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
-					server.GetVolumes(getRecorder, getReq)
+					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
@@ -270,7 +328,7 @@ var _ = Describe("Volume Server", func() {
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
-					server.GetVolumes(getRecorder, getReq)
+					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
@@ -296,7 +354,7 @@ var _ = Describe("Volume Server", func() {
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
-					server.GetVolumes(getRecorder, getReq)
+					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
@@ -323,7 +381,7 @@ var _ = Describe("Volume Server", func() {
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
-					server.GetVolumes(getRecorder, getReq)
+					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
 				})
 			})
