@@ -8,6 +8,8 @@ import (
 	"github.com/pivotal-golang/lager"
 )
 
+const httpUnprocessableEntity = 422
+
 type VolumeRequest struct {
 	Strategy   volume.Strategy   `json:"strategy"`
 	Properties volume.Properties `json:"properties"`
@@ -36,17 +38,18 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	}
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(request.Strategy, request.Properties)
+
 	if err != nil {
 		var code int
 		switch err {
 		case volume.ErrParentVolumeNotFound:
-			code = 422
+			code = httpUnprocessableEntity
 		case volume.ErrNoParentVolumeProvided:
-			code = 422
+			code = httpUnprocessableEntity
 		case volume.ErrMissingStrategy:
-			code = 422
+			code = httpUnprocessableEntity
 		case volume.ErrUnrecognizedStrategy:
-			code = 422
+			code = httpUnprocessableEntity
 		default:
 			code = http.StatusInternalServerError
 		}
@@ -67,7 +70,13 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	volumes, err := vs.volumeRepo.ListVolumes()
+	properties, err := ConvertQueryToProperties(req.URL.Query())
+	if err != nil {
+		respondWithError(w, err, httpUnprocessableEntity)
+		return
+	}
+
+	volumes, err := vs.volumeRepo.ListVolumes(properties)
 	if err != nil {
 		respondWithError(w, volume.ErrListVolumesFailed, http.StatusInternalServerError)
 		return

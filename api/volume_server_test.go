@@ -13,6 +13,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
 	"github.com/pivotal-golang/lager/lagertest"
 
 	"github.com/concourse/baggageclaim/api"
@@ -76,6 +77,61 @@ var _ = Describe("Volume Server", func() {
 			It("writes a useful JSON error", func() {
 				Ω(recorder.Body).Should(MatchJSON(`{"error":"failed to list volumes"}`))
 			})
+		})
+	})
+
+	Describe("querying for volumes with properties", func() {
+		props := volume.Properties{
+			"property-query": "value",
+		}
+
+		It("finds volumes that have a property", func() {
+			body := &bytes.Buffer{}
+
+			err := json.NewEncoder(body).Encode(api.VolumeRequest{
+				Strategy: volume.Strategy{
+					"type": "empty",
+				},
+				Properties: props,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest("POST", "/volumes", body)
+			server.CreateVolume(recorder, request)
+			Ω(recorder.Code).Should(Equal(201))
+
+			body.Reset()
+			err = json.NewEncoder(body).Encode(api.VolumeRequest{
+				Strategy: volume.Strategy{
+					"type": "empty",
+				},
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("POST", "/volumes", body)
+			server.CreateVolume(recorder, request)
+			Ω(recorder.Code).Should(Equal(201))
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("GET", "/volumes?property-query=value", nil)
+			server.GetVolumes(recorder, request)
+			Ω(recorder.Code).Should(Equal(200))
+
+			var volumes volume.Volumes
+			err = json.NewDecoder(recorder.Body).Decode(&volumes)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Ω(volumes).Should(HaveLen(1))
+		})
+
+		It("returns an error if an invalid set of properties are specified", func() {
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest("GET", "/volumes?property-query=value&property-query=another-value", nil)
+			server.GetVolumes(recorder, request)
+
+			Ω(recorder.Code).Should(Equal(422))
 		})
 	})
 

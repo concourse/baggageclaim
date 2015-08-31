@@ -12,7 +12,23 @@ import (
 )
 
 type Strategy map[string]string
+
 type Properties map[string]string
+
+func (p Properties) HasProperties(other Properties) bool {
+	if len(other) > len(p) {
+		return false
+	}
+
+	for otherName, otherValue := range other {
+		value, found := p[otherName]
+		if !found || value != otherValue {
+			return false
+		}
+	}
+
+	return true
+}
 
 const (
 	StrategyEmpty       = "empty"
@@ -101,7 +117,7 @@ func (repo *Repository) handleError(internalError error, errorMsg string, extern
 	return Volume{}, externalError
 }
 
-func (repo *Repository) ListVolumes() (Volumes, error) {
+func (repo *Repository) ListVolumes(queryProperties Properties) (Volumes, error) {
 	volumes, err := ioutil.ReadDir(repo.volumeDir)
 	if err != nil {
 		repo.logger.Error("failed-to-list-dirs", err, lager.Data{
@@ -131,11 +147,13 @@ func (repo *Repository) ListVolumes() (Volumes, error) {
 			return nil, err
 		}
 
-		response = append(response, Volume{
-			GUID:       volume.Name(),
-			Path:       repo.dataPath(volume.Name()),
-			Properties: properties,
-		})
+		if properties.HasProperties(queryProperties) {
+			response = append(response, Volume{
+				GUID:       volume.Name(),
+				Path:       repo.dataPath(volume.Name()),
+				Properties: properties,
+			})
+		}
 	}
 
 	return response, nil
