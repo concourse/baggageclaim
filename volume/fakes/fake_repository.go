@@ -29,10 +29,10 @@ type FakeRepository struct {
 		result1 volume.Volume
 		result2 error
 	}
-	DestroyVolumeStub        func(volume.Volume) error
+	DestroyVolumeStub        func(handle string) error
 	destroyVolumeMutex       sync.RWMutex
 	destroyVolumeArgsForCall []struct {
-		arg1 volume.Volume
+		handle string
 	}
 	destroyVolumeReturns struct {
 		result1 error
@@ -125,14 +125,14 @@ func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) DestroyVolume(arg1 volume.Volume) error {
+func (fake *FakeRepository) DestroyVolume(handle string) error {
 	fake.destroyVolumeMutex.Lock()
 	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
-		arg1 volume.Volume
-	}{arg1})
+		handle string
+	}{handle})
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
-		return fake.DestroyVolumeStub(arg1)
+		return fake.DestroyVolumeStub(handle)
 	} else {
 		return fake.destroyVolumeReturns.result1
 	}
@@ -144,10 +144,10 @@ func (fake *FakeRepository) DestroyVolumeCallCount() int {
 	return len(fake.destroyVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) volume.Volume {
+func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) string {
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
-	return fake.destroyVolumeArgsForCall[i].arg1
+	return fake.destroyVolumeArgsForCall[i].handle
 }
 
 func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {

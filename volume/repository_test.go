@@ -86,7 +86,7 @@ var _ = Describe("Repository", func() {
 
 				Ω(filepath.Join(volumeDir, someVolume.GUID)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(someVolume)
+				err = repo.DestroyVolume(someVolume.GUID)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeDriver.DestroyVolumeCallCount()).Should(Equal(1))
@@ -105,7 +105,7 @@ var _ = Describe("Repository", func() {
 
 				Ω(filepath.Join(volumeDir, parentVolume.GUID)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(parentVolume)
+				err = repo.DestroyVolume(parentVolume.GUID)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				volumes, err := repo.ListVolumes(volume.Properties{})
@@ -191,7 +191,7 @@ var _ = Describe("Repository", func() {
 
 				Ω(filepath.Join(volumeDir, parentVolume.GUID)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(parentVolume)
+				err = repo.DestroyVolume(parentVolume.GUID)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				volumes, err := repo.ListVolumes(volume.Properties{})

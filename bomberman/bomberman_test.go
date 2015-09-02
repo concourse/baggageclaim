@@ -15,13 +15,13 @@ var _ = Ω
 
 var _ = Describe("Bomberman", func() {
 	It("straps a bomb to the given container with the container's grace time as the countdown", func() {
-		detonated := make(chan volume.Volume)
+		detonated := make(chan string)
 
 		repository := new(fakes.FakeRepository)
 		repository.TTLReturns(100 * time.Millisecond)
 
-		bomberman := bomberman.New(repository, func(volume volume.Volume) {
-			detonated <- volume
+		bomberman := bomberman.New(repository, func(handle string) {
+			detonated <- handle
 		})
 
 		someVolume := volume.Volume{
@@ -40,13 +40,13 @@ var _ = Describe("Bomberman", func() {
 	Context("when the container has a grace time of 0", func() {
 		It("never detonates", func() {
 
-			detonated := make(chan volume.Volume)
+			detonated := make(chan string)
 
 			repository := new(fakes.FakeRepository)
 			repository.TTLReturns(0)
 
-			bomberman := bomberman.New(repository, func(volume volume.Volume) {
-				detonated <- volume
+			bomberman := bomberman.New(repository, func(handle string) {
+				detonated <- handle
 			})
 
 			someVolume := volume.Volume{
@@ -65,13 +65,13 @@ var _ = Describe("Bomberman", func() {
 
 	Describe("pausing a container's timebomb", func() {
 		It("prevents it from detonating", func() {
-			detonated := make(chan volume.Volume)
+			detonated := make(chan string)
 
 			repository := new(fakes.FakeRepository)
 			repository.TTLReturns(100 * time.Millisecond)
 
-			bomberman := bomberman.New(repository, func(volume volume.Volume) {
-				detonated <- volume
+			bomberman := bomberman.New(repository, func(handle string) {
+				detonated <- handle
 			})
 
 			someVolume := volume.Volume{
@@ -90,7 +90,7 @@ var _ = Describe("Bomberman", func() {
 
 		Context("when the handle is invalid", func() {
 			It("doesn't launch any missiles or anything like that", func() {
-				bomberman := bomberman.New(new(fakes.FakeRepository), func(volume volume.Volume) {
+				bomberman := bomberman.New(new(fakes.FakeRepository), func(handle string) {
 					panic("dont call me")
 				})
 
@@ -101,13 +101,13 @@ var _ = Describe("Bomberman", func() {
 		Describe("and then unpausing it", func() {
 			It("causes it to detonate after the countdown", func() {
 
-				detonated := make(chan volume.Volume)
+				detonated := make(chan string)
 
 				repository := new(fakes.FakeRepository)
 				repository.TTLReturns(100 * time.Millisecond)
 
-				bomberman := bomberman.New(repository, func(volume volume.Volume) {
-					detonated <- volume
+				bomberman := bomberman.New(repository, func(handle string) {
+					detonated <- handle
 				})
 
 				someVolume := volume.Volume{
@@ -131,7 +131,7 @@ var _ = Describe("Bomberman", func() {
 
 			Context("when the handle is invalid", func() {
 				It("doesn't launch any missiles or anything like that", func() {
-					bomberman := bomberman.New(new(fakes.FakeRepository), func(volume volume.Volume) {
+					bomberman := bomberman.New(new(fakes.FakeRepository), func(handle string) {
 						panic("dont call me")
 					})
 
@@ -143,13 +143,13 @@ var _ = Describe("Bomberman", func() {
 
 	Describe("defusing a container's timebomb", func() {
 		It("prevents it from detonating", func() {
-			detonated := make(chan volume.Volume)
+			detonated := make(chan string)
 
 			repository := new(fakes.FakeRepository)
 			repository.TTLReturns(100 * time.Millisecond)
 
-			bomberman := bomberman.New(repository, func(volume volume.Volume) {
-				detonated <- volume
+			bomberman := bomberman.New(repository, func(handle string) {
+				detonated <- handle
 			})
 
 			someVolume := volume.Volume{
@@ -168,7 +168,7 @@ var _ = Describe("Bomberman", func() {
 
 		Context("when the handle is invalid", func() {
 			It("doesn't launch any missiles or anything like that", func() {
-				bomberman := bomberman.New(new(fakes.FakeRepository), func(volume volume.Volume) {
+				bomberman := bomberman.New(new(fakes.FakeRepository), func(handle string) {
 					panic("dont call me")
 				})
 

@@ -31,11 +31,11 @@ type VolumeServer struct {
 }
 
 func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository) *VolumeServer {
-	volumeServerBomberman := bomberman.New(volumeRepo, func(v volume.Volume) {
-		err := volumeRepo.DestroyVolume(v)
+	volumeServerBomberman := bomberman.New(volumeRepo, func(handle string) {
+		err := volumeRepo.DestroyVolume(handle)
 		if err != nil {
 			logger.Error("failed-to-destroy-end-of-life-volume", err, lager.Data{
-				"guid": v.GUID,
+				"guid": handle,
 			})
 		}
 	})

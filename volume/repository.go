@@ -58,7 +58,7 @@ type Driver interface {
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	CreateVolume(strategy Strategy, properties Properties, ttl *uint) (Volume, error)
-	DestroyVolume(Volume) error
+	DestroyVolume(handle string) error
 
 	SetProperty(volumeGUID string, propertyName string, propertyValue string) error
 
@@ -89,14 +89,14 @@ func (repo *repository) TTL(volume Volume) time.Duration {
 	return volume.TTL.Duration()
 }
 
-func (repo *repository) DestroyVolume(volume Volume) error {
-	err := repo.destroyVolume(repo.dataPath(volume.GUID))
+func (repo *repository) DestroyVolume(handle string) error {
+	err := repo.destroyVolume(repo.dataPath(handle))
 	if err != nil {
 		_, err = repo.handleError(err, "failed-to-delete-data", ErrDestroyVolumeFailed)
 		return err
 	}
 
-	err = os.RemoveAll(repo.metadataPath(volume.GUID))
+	err = os.RemoveAll(repo.metadataPath(handle))
 	if err != nil {
 		_, err = repo.handleError(err, "failed-to-delete-metadata", ErrDestroyVolumeFailed)
 		return err

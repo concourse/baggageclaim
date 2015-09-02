@@ -8,7 +8,7 @@ import (
 type Bomberman struct {
 	repository volume.Repository
 
-	detonate func(volume.Volume)
+	detonate func(handle string)
 
 	strap   chan volume.Volume
 	pause   chan string
@@ -17,7 +17,7 @@ type Bomberman struct {
 	cleanup chan string
 }
 
-func New(repository volume.Repository, detonate func(volume.Volume)) *Bomberman {
+func New(repository volume.Repository, detonate func(handle string)) *Bomberman {
 	b := &Bomberman{
 		repository: repository,
 		detonate:   detonate,
@@ -63,7 +63,7 @@ func (b *Bomberman) manageBombs() {
 			bomb := timebomb.New(
 				b.repository.TTL(volume),
 				func() {
-					b.detonate(volume)
+					b.detonate(volume.GUID)
 					b.cleanup <- volume.GUID
 				},
 			)
