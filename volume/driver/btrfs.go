@@ -21,16 +21,18 @@ func NewBtrFSDriver(logger lager.Logger) *BtrFSDriver {
 }
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
-	_, err := driver.run("btrfs", "subvolume", "create", path)
-	return err
+	return driver.run("btrfs", "subvolume", "create", path)
+}
+
+func (driver *BtrFSDriver) DestroyVolume(path string) error {
+	return driver.run("btrfs", "subvolume", "delete", path)
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	_, err := driver.run("btrfs", "subvolume", "snapshot", parent, path)
-	return err
+	return driver.run("btrfs", "subvolume", "snapshot", parent, path)
 }
 
-func (driver *BtrFSDriver) run(command string, args ...string) (string, error) {
+func (driver *BtrFSDriver) run(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 
 	logger := driver.logger.Session("run-command", lager.Data{
@@ -53,10 +55,10 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, error) {
 
 	if err != nil {
 		logger.Error("failed", err, loggerData)
-		return "", err
+		return err
 	}
 
 	logger.Debug("ran", loggerData)
 
-	return stdout.String(), nil
+	return nil
 }

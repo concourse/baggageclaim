@@ -11,7 +11,7 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 )
 
-func NewHandler(logger lager.Logger, volumeRepo *volume.Repository) (http.Handler, error) {
+func NewHandler(logger lager.Logger, volumeRepo volume.Repository) (http.Handler, error) {
 	volumeServer := NewVolumeServer(
 		logger.Session("volume-server"),
 		volumeRepo,

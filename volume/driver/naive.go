@@ -11,6 +11,10 @@ func (driver *NaiveDriver) CreateVolume(path string) error {
 	return os.Mkdir(path, 0755)
 }
 
+func (driver *NaiveDriver) DestroyVolume(path string) error {
+	return exec.Command("rm", "-r", path).Run()
+}
+
 func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
 	return exec.Command("cp", "-r", parent, path).Run()
 }

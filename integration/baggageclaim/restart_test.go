@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim/integration/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Restarting", func() {
@@ -27,7 +26,7 @@ var _ = Describe("Restarting", func() {
 	})
 
 	It("can get volumes after the process restarts", func() {
-		createdVolume, err := client.CreateEmptyVolume(volume.Properties{})
+		createdVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{})
 		Ω(err).ShouldNot(HaveOccurred())
 
 		volumes, err := client.GetVolumes()

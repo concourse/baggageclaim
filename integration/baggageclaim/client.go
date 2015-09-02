@@ -16,6 +16,11 @@ type Client struct {
 	requestGenerator *rata.RequestGenerator
 }
 
+type VolumeSpec struct {
+	Properties volume.Properties
+	TTL        uint
+}
+
 func NewClient(
 	apiURL string,
 ) *Client {
@@ -57,13 +62,15 @@ func (c *Client) CreateCOWVolume(parentVolumeGUID string, properties volume.Prop
 
 	return volumeResponse, nil
 }
-func (c *Client) CreateEmptyVolume(properties volume.Properties) (volume.Volume, error) {
+
+func (c *Client) CreateEmptyVolume(volumeSpec VolumeSpec) (volume.Volume, error) {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(api.VolumeRequest{
 		Strategy: volume.Strategy{
 			"type": "empty",
 		},
-		Properties: properties,
+		Properties: volumeSpec.Properties,
+		TTL:        &volumeSpec.TTL,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)

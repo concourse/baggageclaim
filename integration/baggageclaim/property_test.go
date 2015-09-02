@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Empty Strategy", func() {
+var _ = Describe("Properties", func() {
 	var (
 		runner *BaggageClaimRunner
 		client *integration.Client
@@ -26,8 +26,10 @@ var _ = Describe("Empty Strategy", func() {
 	})
 
 	It("can manage properties", func() {
-		emptyVolume, err := client.CreateEmptyVolume(volume.Properties{
-			"property-name": "property-value",
+		emptyVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{
+			Properties: volume.Properties{
+				"property-name": "property-value",
+			},
 		})
 		Ω(err).ShouldNot(HaveOccurred())
 

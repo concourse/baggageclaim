@@ -40,6 +40,12 @@ var driverType = flag.String(
 	"the backend driver to use for filesystems",
 )
 
+var defaultTTL = flag.Uint(
+	"defaultTTL",
+	86400, // 1 day in seconds
+	"default volume ttl",
+)
+
 func main() {
 	flag.Parse()
 	if *volumeDir == "" {
@@ -61,10 +67,12 @@ func main() {
 		volumeDriver = &driver.NaiveDriver{}
 	}
 
+	ttl := volume.TTL(*defaultTTL)
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
 		*volumeDir,
 		volumeDriver,
+		ttl,
 	)
 
 	apiHandler, err := api.NewHandler(

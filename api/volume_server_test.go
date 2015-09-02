@@ -41,7 +41,7 @@ var _ = Describe("Volume Server", func() {
 	JustBeforeEach(func() {
 
 		logger := lagertest.NewTestLogger("volume-server")
-		repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{})
+		repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{}, volume.TTL(60))
 
 		var err error
 		handler, err = api.NewHandler(logger, repo)
@@ -204,6 +204,35 @@ var _ = Describe("Volume Server", func() {
 			request, _ := http.NewRequest("POST", "/volumes", body)
 
 			handler.ServeHTTP(recorder, request)
+		})
+
+		Context("when no TTL is given", func() {
+			BeforeEach(func() {
+				body = &bytes.Buffer{}
+				json.NewEncoder(body).Encode(api.VolumeRequest{
+					Strategy: volume.Strategy{
+						"type": "empty",
+					},
+				})
+			})
+
+			It("sets it to the default", func() {
+				var response volume.Volume
+				err := json.NewDecoder(recorder.Body).Decode(&response)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				recorder = httptest.NewRecorder()
+				request, _ := http.NewRequest("GET", "/volumes", nil)
+				handler.ServeHTTP(recorder, request)
+				Ω(recorder.Code).Should(Equal(200))
+
+				var volumes volume.Volumes
+				err = json.NewDecoder(recorder.Body).Decode(&volumes)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				Ω(volumes).Should(HaveLen(1))
+				Ω(volumes[0].TTL).Should(Equal(volume.TTL(60)))
+			})
 		})
 
 		Context("when there are properties given", func() {

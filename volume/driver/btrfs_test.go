@@ -1,0 +1,83 @@
+package driver_test
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
+	"github.com/onsi/gomega/gexec"
+
+	"github.com/pivotal-golang/lager/lagertest"
+
+	"github.com/concourse/baggageclaim/fs"
+	"github.com/concourse/baggageclaim/volume/driver"
+)
+
+var _ = Describe("BtrFS", func() {
+	if runtime.GOOS != "linux" {
+		fmt.Println("\x1b[33m*** skipping btrfs tests because non-linux ***\x1b[0m")
+		return
+	}
+
+	var (
+		tempDir    string
+		volumeDir  string
+		fsDriver   *driver.BtrFSDriver
+		filesystem *fs.BtrfsFilesystem
+	)
+
+	BeforeEach(func() {
+		var err error
+		tempDir, err = ioutil.TempDir("", "baggageclaim_driver_test")
+		Ω(err).ShouldNot(HaveOccurred())
+
+		logger := lagertest.NewTestLogger("fs")
+
+		imagePath := filepath.Join(tempDir, "image.img")
+		volumeDir = filepath.Join(tempDir, "mountpoint")
+
+		filesystem = fs.New(logger, imagePath, volumeDir)
+		err = filesystem.Create(100 * 1024 * 1024)
+		Ω(err).ShouldNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		err := filesystem.Delete()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		err = os.RemoveAll(tempDir)
+		Ω(err).ShouldNot(HaveOccurred())
+	})
+
+	Describe("Lifecycle", func() {
+		It("can create and delete a subvolume", func() {
+			logger := lagertest.NewTestLogger("driver")
+			fsDriver = driver.NewBtrFSDriver(logger)
+
+			subvolumePath := filepath.Join(volumeDir, "subvolume")
+
+			err := fsDriver.CreateVolume(subvolumePath)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Ω(subvolumePath).Should(BeADirectory())
+
+			checkSubvolume := exec.Command("btrfs", "subvolume", "show", subvolumePath)
+			session, err := gexec.Start(checkSubvolume, GinkgoWriter, GinkgoWriter)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gbytes.Say(subvolumePath))
+			Eventually(session).Should(gexec.Exit(0))
+
+			err = fsDriver.DestroyVolume(subvolumePath)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Ω(subvolumePath).ShouldNot(BeADirectory())
+		})
+	})
+})

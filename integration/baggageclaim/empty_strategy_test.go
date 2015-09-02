@@ -37,7 +37,7 @@ var _ = Describe("Empty Strategy", func() {
 
 			JustBeforeEach(func() {
 				var err error
-				firstVolume, err = client.CreateEmptyVolume(volume.Properties{})
+				firstVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{})
 				Ω(err).ShouldNot(HaveOccurred())
 			})
 
@@ -65,7 +65,7 @@ var _ = Describe("Empty Strategy", func() {
 
 					JustBeforeEach(func() {
 						var err error
-						secondVolume, err = client.CreateEmptyVolume(volume.Properties{})
+						secondVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{})
 						Ω(err).ShouldNot(HaveOccurred())
 					})
 
@@ -100,7 +100,7 @@ var _ = Describe("Empty Strategy", func() {
 
 				BeforeEach(func() {
 					var err error
-					createdVolume, err = client.CreateEmptyVolume(properties)
+					createdVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{Properties: properties})
 					Ω(err).ShouldNot(HaveOccurred())
 				})
 

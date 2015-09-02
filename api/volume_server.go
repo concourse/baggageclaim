@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/concourse/baggageclaim/bomberman"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
@@ -14,6 +15,7 @@ const httpUnprocessableEntity = 422
 type VolumeRequest struct {
 	Strategy   volume.Strategy   `json:"strategy"`
 	Properties volume.Properties `json:"properties"`
+	TTL        *uint             `json:"ttl,omitempty"`
 }
 
 type PropertyRequest struct {
@@ -21,15 +23,27 @@ type PropertyRequest struct {
 }
 
 type VolumeServer struct {
-	volumeRepo *volume.Repository
+	volumeRepo volume.Repository
 
 	logger lager.Logger
+
+	bomberman *bomberman.Bomberman
 }
 
-func NewVolumeServer(logger lager.Logger, volumeRepo *volume.Repository) *VolumeServer {
+func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository) *VolumeServer {
+	volumeServerBomberman := bomberman.New(volumeRepo, func(v volume.Volume) {
+		err := volumeRepo.DestroyVolume(v)
+		if err != nil {
+			logger.Error("failed-to-destroy-end-of-life-volume", err, lager.Data{
+				"guid": v.GUID,
+			})
+		}
+	})
+
 	return &VolumeServer{
 		volumeRepo: volumeRepo,
 		logger:     logger,
+		bomberman:  volumeServerBomberman,
 	}
 }
 
@@ -42,7 +56,12 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	createdVolume, err := vs.volumeRepo.CreateVolume(request.Strategy, request.Properties)
+	createdVolume, err := vs.volumeRepo.CreateVolume(
+		request.Strategy,
+		request.Properties,
+		request.TTL,
+	)
+	vs.bomberman.Strap(createdVolume)
 
 	if err != nil {
 		var code int

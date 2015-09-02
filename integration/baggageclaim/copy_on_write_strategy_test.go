@@ -48,7 +48,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateEmptyVolume(volume.Properties{})
+				parentVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				dataInParent := writeData(parentVolume.Path)
