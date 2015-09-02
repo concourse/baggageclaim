@@ -25,7 +25,7 @@ var _ = Describe("Bomberman", func() {
 		})
 
 		someVolume := volume.Volume{
-			GUID: "some-guid",
+			Handle: "some-handle",
 		}
 
 		bomberman.Strap(someVolume)
@@ -50,7 +50,7 @@ var _ = Describe("Bomberman", func() {
 			})
 
 			someVolume := volume.Volume{
-				GUID: "some-guid",
+				Handle: "some-handle",
 			}
 
 			bomberman.Strap(someVolume)
@@ -75,7 +75,7 @@ var _ = Describe("Bomberman", func() {
 			})
 
 			someVolume := volume.Volume{
-				GUID: "doomed",
+				Handle: "doomed",
 			}
 
 			bomberman.Strap(someVolume)
@@ -111,7 +111,7 @@ var _ = Describe("Bomberman", func() {
 				})
 
 				someVolume := volume.Volume{
-					GUID: "doomed",
+					Handle: "doomed",
 				}
 
 				bomberman.Strap(someVolume)
@@ -153,7 +153,7 @@ var _ = Describe("Bomberman", func() {
 			})
 
 			someVolume := volume.Volume{
-				GUID: "doomed",
+				Handle: "doomed",
 			}
 
 			bomberman.Strap(someVolume)

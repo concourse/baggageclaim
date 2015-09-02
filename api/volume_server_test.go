@@ -176,7 +176,7 @@ var _ = Describe("Volume Server", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
-			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/properties/property-name", volumes[0].GUID), body)
+			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/properties/property-name", volumes[0].Handle), body)
 			handler.ServeHTTP(recorder, request)
 			Ω(recorder.Code).Should(Equal(http.StatusNoContent))
 			Ω(recorder.Body.String()).Should(BeEmpty())
@@ -258,7 +258,7 @@ var _ = Describe("Volume Server", func() {
 					err := json.NewDecoder(recorder.Body).Decode(&response)
 					Ω(err).ShouldNot(HaveOccurred())
 
-					propertiesPath := filepath.Join(volumeDir, response.GUID, "properties.json")
+					propertiesPath := filepath.Join(volumeDir, response.Handle, "properties.json")
 					Ω(propertiesPath).Should(BeAnExistingFile())
 
 					propertiesContents, err := ioutil.ReadFile(propertiesPath)
@@ -290,7 +290,7 @@ var _ = Describe("Volume Server", func() {
 			Context("when a new directory can be created", func() {
 				It("writes a nice JSON response", func() {
 					Ω(recorder.Body).Should(ContainSubstring(`"path":`))
-					Ω(recorder.Body).Should(ContainSubstring(`"guid":`))
+					Ω(recorder.Body).Should(ContainSubstring(`"handle":`))
 				})
 			})
 

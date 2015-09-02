@@ -63,12 +63,12 @@ func (b *Bomberman) manageBombs() {
 			bomb := timebomb.New(
 				b.repository.TTL(volume),
 				func() {
-					b.detonate(volume.GUID)
-					b.cleanup <- volume.GUID
+					b.detonate(volume.Handle)
+					b.cleanup <- volume.Handle
 				},
 			)
 
-			timeBombs[volume.GUID] = bomb
+			timeBombs[volume.Handle] = bomb
 
 			bomb.Strap()
 

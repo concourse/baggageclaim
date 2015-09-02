@@ -20,7 +20,7 @@ const (
 )
 
 type Volume struct {
-	GUID       string     `json:"guid"`
+	Handle     string     `json:"handle"`
 	Path       string     `json:"path"`
 	Properties Properties `json:"properties"`
 	TTL        TTL        `json:"ttl,omitempty"`
@@ -60,7 +60,7 @@ type Repository interface {
 	CreateVolume(strategy Strategy, properties Properties, ttl *uint) (Volume, error)
 	DestroyVolume(handle string) error
 
-	SetProperty(volumeGUID string, propertyName string, propertyValue string) error
+	SetProperty(handle string, propertyName string, propertyValue string) error
 
 	TTL(Volume) time.Duration
 }
@@ -126,14 +126,14 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		ttl = TTL(*ttlInt)
 	}
 
-	guid := repo.createUuid()
-	newVolumeMetadataPath := repo.metadataPath(guid)
+	handle := repo.generateHandle()
+	newVolumeMetadataPath := repo.metadataPath(handle)
 	err := os.Mkdir(newVolumeMetadataPath, 0755)
 	if err != nil {
 		return repo.handleError(err, "failed-to-create-metadata-dir", ErrCreateVolumeFailed)
 	}
 
-	metadata := repo.metadata(guid)
+	metadata := repo.metadata(handle)
 	err = metadata.StoreProperties(properties)
 	if err != nil {
 		return repo.handleError(err, "failed-to-create-properties-file", ErrCreateVolumeFailed)
@@ -149,16 +149,16 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		return repo.handleError(err, "failed-to-read-expires-at", ErrCreateVolumeFailed)
 	}
 
-	newVolumeDataPath := repo.dataPath(guid)
+	newVolumeDataPath := repo.dataPath(handle)
 	err = repo.doStrategy(strategyName, newVolumeDataPath, strategy, logger)
 	if err != nil {
-		repo.deleteVolumeMetadataDir(guid)
+		repo.deleteVolumeMetadataDir(handle)
 		return Volume{}, err
 	}
 
 	return Volume{
 		Path:       newVolumeDataPath,
-		GUID:       guid,
+		Handle:     handle,
 		Properties: properties,
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
@@ -210,7 +210,7 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 
 		if volumeProperties.HasProperties(queryProperties) {
 			response = append(response, Volume{
-				GUID:       volumeDir.Name(),
+				Handle:     volumeDir.Name(),
 				Path:       repo.dataPath(volumeDir.Name()),
 				Properties: volumeProperties,
 				TTL:        ttl,
@@ -222,16 +222,16 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 	return response, nil
 }
 
-func (repo *repository) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
+func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {
 	repo.setPropertyLock.Lock()
 	defer repo.setPropertyLock.Unlock()
 
-	md := repo.metadata(volumeGUID)
+	md := repo.metadata(handle)
 
 	properties, err := md.Properties()
 	if err != nil {
 		repo.logger.Error("failed-to-read-properties", err, lager.Data{
-			"volume": volumeGUID,
+			"volume": handle,
 		})
 		return err
 	}
@@ -259,18 +259,18 @@ func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string
 		}
 
 	case StrategyCopyOnWrite:
-		parentGUID, found := strategy["volume"]
+		parentHandle, found := strategy["volume"]
 		if !found {
 			logger.Error("no-parent-volume-provided", nil)
 			return ErrNoParentVolumeProvided
 		}
 
-		if !repo.volumeExists(parentGUID) {
+		if !repo.volumeExists(parentHandle) {
 			logger.Error("parent-volume-not-found", nil)
 			return ErrParentVolumeNotFound
 		}
 
-		parentDataPath := repo.dataPath(parentGUID)
+		parentDataPath := repo.dataPath(parentHandle)
 		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
@@ -303,7 +303,7 @@ func (repo *repository) deleteVolumeMetadataDir(id string) {
 	err := os.RemoveAll(repo.metadataPath(id))
 	if err != nil {
 		repo.logger.Error("failed-to-cleanup", err, lager.Data{
-			"guid": id,
+			"handle": id,
 		})
 	}
 }
@@ -320,17 +320,17 @@ func (repo *repository) createCowVolume(parentPath string, newPath string) error
 	return repo.driver.CreateCopyOnWriteLayer(newPath, parentPath)
 }
 
-func (repo *repository) createUuid() string {
-	guid, err := uuid.NewV4()
+func (repo *repository) generateHandle() string {
+	handle, err := uuid.NewV4()
 	if err != nil {
-		repo.logger.Fatal("failed-to-generate-guid", err)
+		repo.logger.Fatal("failed-to-generate-handle", err)
 	}
 
-	return guid.String()
+	return handle.String()
 }
 
-func (repo *repository) volumeExists(guid string) bool {
-	info, err := os.Stat(repo.metadataPath(guid))
+func (repo *repository) volumeExists(handle string) bool {
+	info, err := os.Stat(repo.metadataPath(handle))
 	if err != nil {
 		return false
 	}

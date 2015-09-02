@@ -33,10 +33,10 @@ var _ = Describe("Properties", func() {
 		})
 		Ω(err).ShouldNot(HaveOccurred())
 
-		err = client.SetProperty(emptyVolume.GUID, "another-property", "another-value")
+		err = client.SetProperty(emptyVolume.Handle, "another-property", "another-value")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		someVolume, err := client.GetVolume(emptyVolume.GUID)
+		someVolume, err := client.GetVolume(emptyVolume.Handle)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		Ω(someVolume.Properties).Should(Equal(volume.Properties{
@@ -44,10 +44,10 @@ var _ = Describe("Properties", func() {
 			"another-property": "another-value",
 		}))
 
-		err = client.SetProperty(someVolume.GUID, "another-property", "yet-another-value")
+		err = client.SetProperty(someVolume.Handle, "another-property", "yet-another-value")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		someVolume, err = client.GetVolume(someVolume.GUID)
+		someVolume, err = client.GetVolume(someVolume.Handle)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		Ω(someVolume.Properties).Should(Equal(volume.Properties{

@@ -29,12 +29,12 @@ func NewClient(
 	}
 }
 
-func (c *Client) CreateCOWVolume(parentVolumeGUID string, properties volume.Properties) (volume.Volume, error) {
+func (c *Client) CreateCOWVolume(parentHandle string, properties volume.Properties) (volume.Volume, error) {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(api.VolumeRequest{
 		Strategy: volume.Strategy{
 			"type":   "cow",
-			"volume": parentVolumeGUID,
+			"volume": parentHandle,
 		},
 		Properties: properties,
 	})
@@ -123,29 +123,29 @@ func (c *Client) GetVolumes() (volume.Volumes, error) {
 	return volumesResponse, nil
 }
 
-func (c *Client) GetVolume(volumeGUID string) (volume.Volume, error) {
+func (c *Client) GetVolume(handle string) (volume.Volume, error) {
 	volumesResponse, err := c.GetVolumes()
 	if err != nil {
 		return volume.Volume{}, err
 	}
 
 	for _, volumeResponse := range volumesResponse {
-		if volumeResponse.GUID == volumeGUID {
+		if volumeResponse.Handle == handle {
 			return volumeResponse, nil
 		}
 	}
 
-	return volume.Volume{}, fmt.Errorf("no volumes matching guid: %s", volumeGUID)
+	return volume.Volume{}, fmt.Errorf("no volumes matching handle: %s", handle)
 }
 
-func (c *Client) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
+func (c *Client) SetProperty(handle string, propertyName string, propertyValue string) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(api.PropertyRequest{
 		Value: propertyValue,
 	})
 
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.SetProperty, rata.Params{
-		"volume":   volumeGUID,
+		"handle":   handle,
 		"property": propertyName,
 	}, buffer)
 	if err != nil {

@@ -36,7 +36,7 @@ var _ = Describe("TTL's", func() {
 
 		expiresAt := time.Now().Add(volume.TTL(10).Duration())
 
-		someVolume, err := client.GetVolume(emptyVolume.GUID)
+		someVolume, err := client.GetVolume(emptyVolume.Handle)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		Ω(someVolume.TTL).Should(Equal(volume.TTL(10)))

@@ -35,7 +35,7 @@ func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository) *VolumeS
 		err := volumeRepo.DestroyVolume(handle)
 		if err != nil {
 			logger.Error("failed-to-destroy-end-of-life-volume", err, lager.Data{
-				"guid": handle,
+				"handle": handle,
 			})
 		}
 	})
@@ -120,11 +120,11 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	}
 
 	propertyValue := request.Value
-	volumeGUID := rata.Param(req, "volume")
+	handle := rata.Param(req, "handle")
 	propertyName := rata.Param(req, "property")
 	req.Body.Close()
 
-	err = vs.volumeRepo.SetProperty(volumeGUID, propertyName, propertyValue)
+	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
 	if err != nil {
 		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
 		return

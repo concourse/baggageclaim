@@ -84,9 +84,9 @@ var _ = Describe("Repository", func() {
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(filepath.Join(volumeDir, someVolume.GUID)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(someVolume.GUID)
+				err = repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeDriver.DestroyVolumeCallCount()).Should(Equal(1))
@@ -103,16 +103,16 @@ var _ = Describe("Repository", func() {
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(filepath.Join(volumeDir, parentVolume.GUID)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, parentVolume.Handle)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(parentVolume.GUID)
+				err = repo.DestroyVolume(parentVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				volumes, err := repo.ListVolumes(volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(0))
 
-				Ω(filepath.Join(volumeDir, parentVolume.GUID)).ShouldNot(BeADirectory())
+				Ω(filepath.Join(volumeDir, parentVolume.Handle)).ShouldNot(BeADirectory())
 			})
 		})
 	})
@@ -165,7 +165,7 @@ var _ = Describe("Repository", func() {
 
 				childVolume, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
-					"volume": parentVolume.GUID,
+					"volume": parentVolume.Handle,
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
 
@@ -189,16 +189,16 @@ var _ = Describe("Repository", func() {
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(filepath.Join(volumeDir, parentVolume.GUID)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, parentVolume.Handle)).Should(BeADirectory())
 
-				err = repo.DestroyVolume(parentVolume.GUID)
+				err = repo.DestroyVolume(parentVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				volumes, err := repo.ListVolumes(volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(0))
 
-				Ω(filepath.Join(volumeDir, parentVolume.GUID)).ShouldNot(BeADirectory())
+				Ω(filepath.Join(volumeDir, parentVolume.Handle)).ShouldNot(BeADirectory())
 			})
 		})
 	})

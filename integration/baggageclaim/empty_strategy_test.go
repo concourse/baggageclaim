@@ -73,8 +73,8 @@ var _ = Describe("Empty Strategy", func() {
 						Ω(createdDir).ShouldNot(Equal(secondVolume.Path))
 					})
 
-					It("creates a new GUID", func() {
-						Ω(firstVolume.GUID).ShouldNot(Equal(secondVolume.GUID))
+					It("creates a new handle", func() {
+						Ω(firstVolume.Handle).ShouldNot(Equal(secondVolume.Handle))
 					})
 				})
 			})

@@ -54,7 +54,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 				dataInParent := writeData(parentVolume.Path)
 				Ω(dataExistsInVolume(dataInParent, parentVolume.Path)).To(BeTrue())
 
-				childVolume, err := client.CreateCOWVolume(parentVolume.GUID, volume.Properties{})
+				childVolume, err := client.CreateCOWVolume(parentVolume.Handle, volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(dataExistsInVolume(dataInParent, childVolume.Path)).To(BeTrue())

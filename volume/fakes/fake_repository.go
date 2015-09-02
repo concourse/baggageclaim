@@ -37,10 +37,10 @@ type FakeRepository struct {
 	destroyVolumeReturns struct {
 		result1 error
 	}
-	SetPropertyStub        func(volumeGUID string, propertyName string, propertyValue string) error
+	SetPropertyStub        func(handle string, propertyName string, propertyValue string) error
 	setPropertyMutex       sync.RWMutex
 	setPropertyArgsForCall []struct {
-		volumeGUID    string
+		handle        string
 		propertyName  string
 		propertyValue string
 	}
@@ -157,16 +157,16 @@ func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) SetProperty(volumeGUID string, propertyName string, propertyValue string) error {
+func (fake *FakeRepository) SetProperty(handle string, propertyName string, propertyValue string) error {
 	fake.setPropertyMutex.Lock()
 	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
-		volumeGUID    string
+		handle        string
 		propertyName  string
 		propertyValue string
-	}{volumeGUID, propertyName, propertyValue})
+	}{handle, propertyName, propertyValue})
 	fake.setPropertyMutex.Unlock()
 	if fake.SetPropertyStub != nil {
-		return fake.SetPropertyStub(volumeGUID, propertyName, propertyValue)
+		return fake.SetPropertyStub(handle, propertyName, propertyValue)
 	} else {
 		return fake.setPropertyReturns.result1
 	}
@@ -181,7 +181,7 @@ func (fake *FakeRepository) SetPropertyCallCount() int {
 func (fake *FakeRepository) SetPropertyArgsForCall(i int) (string, string, string) {
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
-	return fake.setPropertyArgsForCall[i].volumeGUID, fake.setPropertyArgsForCall[i].propertyName, fake.setPropertyArgsForCall[i].propertyValue
+	return fake.setPropertyArgsForCall[i].handle, fake.setPropertyArgsForCall[i].propertyName, fake.setPropertyArgsForCall[i].propertyValue
 }
 
 func (fake *FakeRepository) SetPropertyReturns(result1 error) {
