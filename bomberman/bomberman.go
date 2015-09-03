@@ -6,8 +6,6 @@ import (
 )
 
 type Bomberman struct {
-	repository volume.Repository
-
 	detonate func(handle string)
 
 	strap   chan volume.Volume
@@ -17,10 +15,9 @@ type Bomberman struct {
 	cleanup chan string
 }
 
-func New(repository volume.Repository, detonate func(handle string)) *Bomberman {
+func New(detonate func(handle string)) *Bomberman {
 	b := &Bomberman{
-		repository: repository,
-		detonate:   detonate,
+		detonate: detonate,
 
 		strap:   make(chan volume.Volume),
 		pause:   make(chan string),
@@ -34,8 +31,8 @@ func New(repository volume.Repository, detonate func(handle string)) *Bomberman 
 	return b
 }
 
-func (b *Bomberman) Strap(volume volume.Volume) {
-	b.strap <- volume
+func (b *Bomberman) Strap(vol volume.Volume) {
+	b.strap <- vol
 }
 
 func (b *Bomberman) Pause(name string) {
@@ -55,20 +52,20 @@ func (b *Bomberman) manageBombs() {
 
 	for {
 		select {
-		case volume := <-b.strap:
-			if b.repository.TTL(volume) == 0 {
+		case vol := <-b.strap:
+			if vol.TTL.Duration() == 0 {
 				continue
 			}
 
 			bomb := timebomb.New(
-				b.repository.TTL(volume),
+				vol.TTL.Duration(),
 				func() {
-					b.detonate(volume.Handle)
-					b.cleanup <- volume.Handle
+					b.detonate(vol.Handle)
+					b.cleanup <- vol.Handle
 				},
 			)
 
-			timeBombs[volume.Handle] = bomb
+			timeBombs[vol.Handle] = bomb
 
 			bomb.Strap()
 

@@ -21,6 +21,7 @@ func NewHandler(logger lager.Logger, volumeRepo volume.Repository) (http.Handler
 		baggageclaim.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
 		baggageclaim.GetVolumes:   http.HandlerFunc(volumeServer.GetVolumes),
 		baggageclaim.SetProperty:  http.HandlerFunc(volumeServer.SetProperty),
+		baggageclaim.SetTTL:       http.HandlerFunc(volumeServer.SetTTL),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)

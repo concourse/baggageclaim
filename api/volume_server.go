@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/concourse/baggageclaim/bomberman"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
@@ -22,28 +21,20 @@ type PropertyRequest struct {
 	Value string `json:"value"`
 }
 
+type TTLRequest struct {
+	Value uint `json:"value"`
+}
+
 type VolumeServer struct {
 	volumeRepo volume.Repository
 
 	logger lager.Logger
-
-	bomberman *bomberman.Bomberman
 }
 
 func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository) *VolumeServer {
-	volumeServerBomberman := bomberman.New(volumeRepo, func(handle string) {
-		err := volumeRepo.DestroyVolume(handle)
-		if err != nil {
-			logger.Error("failed-to-destroy-end-of-life-volume", err, lager.Data{
-				"handle": handle,
-			})
-		}
-	})
-
 	return &VolumeServer{
 		volumeRepo: volumeRepo,
 		logger:     logger,
-		bomberman:  volumeServerBomberman,
 	}
 }
 
@@ -61,7 +52,6 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		request.Properties,
 		request.TTL,
 	)
-	vs.bomberman.Strap(createdVolume)
 
 	if err != nil {
 		var code int
@@ -127,6 +117,27 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
 	if err != nil {
 		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
+	var request TTLRequest
+	err := json.NewDecoder(req.Body).Decode(&request)
+	if err != nil {
+		respondWithError(w, volume.ErrSetTTLFailed, http.StatusBadRequest)
+		return
+	}
+
+	ttl := request.Value
+	handle := rata.Param(req, "handle")
+	req.Body.Close()
+
+	err = vs.volumeRepo.SetTTL(handle, ttl)
+	if err != nil {
+		respondWithError(w, volume.ErrSetTTLFailed, http.StatusInternalServerError)
 		return
 	}
 

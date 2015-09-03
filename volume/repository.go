@@ -36,10 +36,12 @@ var ErrMissingStrategy = errors.New("missing strategy")
 var ErrUnrecognizedStrategy = errors.New("unrecognized strategy")
 
 var ErrListVolumesFailed = errors.New("failed to list volumes")
+var ErrGetVolumeFailed = errors.New("failed to get volume")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
+var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 
 var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
 var ErrParentVolumeNotFound = errors.New("parent volume not found")
@@ -57,12 +59,12 @@ type Driver interface {
 
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
+	GetVolume(handle string) (Volume, error)
 	CreateVolume(strategy Strategy, properties Properties, ttl *uint) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
-
-	TTL(Volume) time.Duration
+	SetTTL(handle string, ttl uint) error
 }
 
 type repository struct {
@@ -72,25 +74,30 @@ type repository struct {
 
 	logger lager.Logger
 
-	setPropertyLock *sync.Mutex
+	volumeLock      *sync.Mutex
+	volumeStateLock *sync.Mutex
 }
 
-func NewRepository(logger lager.Logger, volumeDir string, driver Driver, defaultTTL TTL) Repository {
+func NewRepository(logger lager.Logger, driver Driver, volumeDir string, defaultTTL TTL) Repository {
 	return &repository{
 		volumeDir:       volumeDir,
 		logger:          logger,
 		driver:          driver,
 		defaultTTL:      defaultTTL,
-		setPropertyLock: &sync.Mutex{},
+		volumeLock:      &sync.Mutex{},
+		volumeStateLock: &sync.Mutex{},
 	}
 }
 
-func (repo *repository) TTL(volume Volume) time.Duration {
-	return volume.TTL.Duration()
-}
-
 func (repo *repository) DestroyVolume(handle string) error {
-	err := repo.destroyVolume(repo.dataPath(handle))
+	err := repo.metadata(handle).StoreState(VolumeDestroyed)
+
+	if err != nil {
+		_, err = repo.handleError(err, "failed-to-set-volume-state-to-destroy", ErrDestroyVolumeFailed)
+		return err
+	}
+
+	err = repo.destroyVolume(repo.dataPath(handle))
 	if err != nil {
 		_, err = repo.handleError(err, "failed-to-delete-data", ErrDestroyVolumeFailed)
 		return err
@@ -149,11 +156,21 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		return repo.handleError(err, "failed-to-read-expires-at", ErrCreateVolumeFailed)
 	}
 
+	err = metadata.StoreState(CreatingVolume)
+	if err != nil {
+		return repo.handleError(err, "failed-to-create-state-file", ErrCreateVolumeFailed)
+	}
+
 	newVolumeDataPath := repo.dataPath(handle)
 	err = repo.doStrategy(strategyName, newVolumeDataPath, strategy, logger)
 	if err != nil {
 		repo.deleteVolumeMetadataDir(handle)
 		return Volume{}, err
+	}
+
+	err = metadata.StoreState(VolumeActive)
+	if err != nil {
+		return repo.handleError(err, "failed-to-create-state-file", ErrCreateVolumeFailed)
 	}
 
 	return Volume{
@@ -183,48 +200,63 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 	response := make(Volumes, 0, len(volumeDirs))
 
 	for _, volumeDir := range volumeDirs {
-		metadata := repo.metadata(volumeDir.Name())
-		volumeProperties, err := metadata.Properties()
+		vol, err := repo.GetVolume(volumeDir.Name())
 		if err != nil {
-			repo.logger.Error("failed-to-read-properties", err, lager.Data{
+			repo.logger.Error("failed-to-get-volume", err, lager.Data{
 				"volume": volumeDir.Name(),
 			})
 			return nil, err
 		}
 
-		ttl, err := metadata.TTL()
-		if err != nil {
-			repo.logger.Error("failed-to-read-ttl", err, lager.Data{
-				"volume": volumeDir.Name(),
-			})
-			return nil, err
+		if vol.Handle == "" {
+			continue
 		}
 
-		expiresAt, err := metadata.ExpiresAt()
-		if err != nil {
-			repo.logger.Error("failed-to-read-expires-at", err, lager.Data{
-				"volume": volumeDir.Name(),
-			})
-			return nil, err
-		}
-
-		if volumeProperties.HasProperties(queryProperties) {
-			response = append(response, Volume{
-				Handle:     volumeDir.Name(),
-				Path:       repo.dataPath(volumeDir.Name()),
-				Properties: volumeProperties,
-				TTL:        ttl,
-				ExpiresAt:  expiresAt,
-			})
+		if vol.Properties.HasProperties(queryProperties) {
+			response = append(response, vol)
 		}
 	}
 
 	return response, nil
 }
 
+func (repo *repository) GetVolume(handle string) (Volume, error) {
+	if !repo.volumeActive(handle) {
+		return Volume{}, nil
+	}
+
+	if !repo.volumeExists(handle) {
+		return repo.handleError(errors.New("volume-does-not-exist"), "failed-to-get-volume", ErrGetVolumeFailed)
+	}
+
+	metadata := repo.metadata(handle)
+	volumeProperties, err := metadata.Properties()
+	if err != nil {
+		return repo.handleError(err, "failed-to-read-properties", ErrGetVolumeFailed)
+	}
+
+	ttl, err := metadata.TTL()
+	if err != nil {
+		return repo.handleError(err, "failed-to-read-ttl", ErrGetVolumeFailed)
+	}
+
+	expiresAt, err := metadata.ExpiresAt()
+	if err != nil {
+		return repo.handleError(err, "failed-to-read-expires-at", ErrGetVolumeFailed)
+	}
+
+	return Volume{
+		Handle:     handle,
+		Path:       repo.dataPath(handle),
+		Properties: volumeProperties,
+		TTL:        ttl,
+		ExpiresAt:  expiresAt,
+	}, nil
+}
+
 func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {
-	repo.setPropertyLock.Lock()
-	defer repo.setPropertyLock.Unlock()
+	repo.volumeLock.Lock()
+	defer repo.volumeLock.Unlock()
 
 	md := repo.metadata(handle)
 
@@ -240,7 +272,20 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 
 	err = md.StoreProperties(properties)
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-write-properties", ErrSetPropertyFailed)
+		_, err = repo.handleError(err, "failed-to-store-properties", ErrSetPropertyFailed)
+		return err
+	}
+
+	return nil
+}
+
+func (repo *repository) SetTTL(handle string, ttl uint) error {
+	repo.volumeLock.Lock()
+	defer repo.volumeLock.Unlock()
+
+	err := repo.metadata(handle).StoreTTL(TTL(ttl))
+	if err != nil {
+		_, err = repo.handleError(err, "failed-to-store-ttl", ErrSetTTLFailed)
 		return err
 	}
 
@@ -327,6 +372,16 @@ func (repo *repository) generateHandle() string {
 	}
 
 	return handle.String()
+}
+
+func (repo *repository) volumeActive(handle string) bool {
+	volumeState, err := repo.metadata(handle).VolumeState()
+
+	if err != nil {
+		return false
+	}
+
+	return volumeState == VolumeActive
 }
 
 func (repo *repository) volumeExists(handle string) bool {

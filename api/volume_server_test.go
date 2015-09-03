@@ -41,7 +41,7 @@ var _ = Describe("Volume Server", func() {
 	JustBeforeEach(func() {
 
 		logger := lagertest.NewTestLogger("volume-server")
-		repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{}, volume.TTL(60))
+		repo := volume.NewRepository(logger, &driver.NaiveDriver{}, volumeDir, volume.TTL(60))
 
 		var err error
 		handler, err = api.NewHandler(logger, repo)
@@ -141,7 +141,6 @@ var _ = Describe("Volume Server", func() {
 
 	Describe("updating a volume", func() {
 		It("can have it's properties updated", func() {
-			recorder := httptest.NewRecorder()
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(api.VolumeRequest{
@@ -154,6 +153,7 @@ var _ = Describe("Volume Server", func() {
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
+			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
 			Ω(recorder.Code).Should(Equal(201))
@@ -166,13 +166,11 @@ var _ = Describe("Volume Server", func() {
 			var volumes volume.Volumes
 			err = json.NewDecoder(recorder.Body).Decode(&volumes)
 			Ω(err).ShouldNot(HaveOccurred())
-
 			Ω(volumes).Should(HaveLen(1))
 
 			err = json.NewEncoder(body).Encode(api.PropertyRequest{
 				Value: "other-val",
 			})
-
 			Ω(err).ShouldNot(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
@@ -190,6 +188,53 @@ var _ = Describe("Volume Server", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Ω(volumes).Should(HaveLen(1))
+		})
+
+		It("can have it's ttl updated", func() {
+			body := &bytes.Buffer{}
+
+			one := uint(1)
+
+			err := json.NewEncoder(body).Encode(api.VolumeRequest{
+				Strategy: volume.Strategy{
+					"type": "empty",
+				},
+				TTL: &one,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest("POST", "/volumes", body)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(201))
+
+			var firstVolume volume.Volume
+			err = json.NewDecoder(recorder.Body).Decode(&firstVolume)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(firstVolume.TTL).Should(Equal(volume.TTL(1)))
+
+			err = json.NewEncoder(body).Encode(api.TTLRequest{
+				Value: 2,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/ttl", firstVolume.Handle), body)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(http.StatusNoContent))
+			Ω(recorder.Body.String()).Should(BeEmpty())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("GET", "/volumes", body)
+			handler.ServeHTTP(recorder, request)
+			Ω(recorder.Code).Should(Equal(200))
+
+			var volumes volume.Volumes
+			err = json.NewDecoder(recorder.Body).Decode(&volumes)
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(volumes).Should(HaveLen(1))
+			Ω(volumes[0].TTL).Should(Equal(volume.TTL(2)))
+			Ω(volumes[0].ExpiresAt).ShouldNot(Equal(firstVolume.ExpiresAt))
 		})
 	})
 

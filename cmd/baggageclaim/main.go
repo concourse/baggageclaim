@@ -12,6 +12,7 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 
 	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/bomberman"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -70,14 +71,16 @@ func main() {
 	ttl := volume.TTL(*defaultTTL)
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
-		*volumeDir,
 		volumeDriver,
+		*volumeDir,
 		ttl,
 	)
 
+	daBombRepo := bomberman.NewBombermanRepository(volumeRepo, logger.Session("bomberman"))
+
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
-		volumeRepo,
+		daBombRepo,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)

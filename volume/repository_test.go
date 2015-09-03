@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/concourse/baggageclaim/volume"
@@ -23,7 +22,6 @@ var _ = Describe("Repository", func() {
 	)
 
 	zero := uint(0)
-	one := uint(1)
 
 	BeforeEach(func() {
 		var err error
@@ -36,48 +34,12 @@ var _ = Describe("Repository", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 	})
 
-	Describe("TTL", func() {
-		var (
-			repo       volume.Repository
-			defaultTTL volume.TTL
-		)
-
-		BeforeEach(func() {
-			defaultTTL = volume.TTL(60)
-			fakeDriver := new(fakes.FakeDriver)
-			logger := lagertest.NewTestLogger("repo")
-			repo = volume.NewRepository(logger, volumeDir, fakeDriver, defaultTTL)
-		})
-
-		Context("when the volume has a TTL", func() {
-			It("returns the ttl of the volume converted to a duration", func() {
-				someVolume, err := repo.CreateVolume(volume.Strategy{
-					"type": volume.StrategyEmpty,
-				}, volume.Properties{}, &one)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(repo.TTL(someVolume)).Should(Equal(1 * time.Second))
-			})
-		})
-
-		Context("when the volume does not have a TTL", func() {
-			It("returns the ttl of the volume converted to a duration", func() {
-				someVolume, err := repo.CreateVolume(volume.Strategy{
-					"type": volume.StrategyEmpty,
-				}, volume.Properties{}, nil)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(repo.TTL(someVolume)).Should(Equal(60 * time.Second))
-			})
-		})
-	})
-
 	Describe("naive", func() {
 		Describe("destroying a volume", func() {
 			It("calls DestroyVolume on the driver", func() {
 				fakeDriver := new(fakes.FakeDriver)
 				logger := lagertest.NewTestLogger("repo")
-				repo := volume.NewRepository(logger, volumeDir, fakeDriver, volume.TTL(60))
+				repo := volume.NewRepository(logger, fakeDriver, volumeDir, volume.TTL(60))
 
 				someVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
@@ -96,24 +58,69 @@ var _ = Describe("Repository", func() {
 
 			It("deletes it from the disk", func() {
 				logger := lagertest.NewTestLogger("repo")
-				repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{}, volume.TTL(60))
+				repo := volume.NewRepository(logger, &driver.NaiveDriver{}, volumeDir, volume.TTL(60))
 
 				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
 
+				volumes, err := repo.ListVolumes(volume.Properties{})
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(volumes).Should(HaveLen(1))
+
 				Ω(filepath.Join(volumeDir, parentVolume.Handle)).Should(BeADirectory())
 
 				err = repo.DestroyVolume(parentVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				volumes, err := repo.ListVolumes(volume.Properties{})
+				volumes, err = repo.ListVolumes(volume.Properties{})
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(0))
 
 				Ω(filepath.Join(volumeDir, parentVolume.Handle)).ShouldNot(BeADirectory())
 			})
+
+			It("immediately removes it from listVolumes", func() {
+				destroyed := make(chan bool, 1)
+				fakeDriver := new(fakes.FakeDriver)
+
+				fakeDriver.DestroyVolumeStub = func(handle string) error {
+					<-destroyed
+					return nil
+				}
+
+				logger := lagertest.NewTestLogger("repo")
+				repo := volume.NewRepository(logger, fakeDriver, volumeDir, volume.TTL(60))
+
+				currentHandles := func() []string {
+					volumes, err := repo.ListVolumes(volume.Properties{})
+					Ω(err).ShouldNot(HaveOccurred())
+
+					handles := []string{}
+
+					for _, v := range volumes {
+						handles = append(handles, v.Handle)
+					}
+
+					return handles
+				}
+
+				someVolume, err := repo.CreateVolume(volume.Strategy{
+					"type": volume.StrategyEmpty,
+				}, volume.Properties{}, &zero)
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
+
+				go func() {
+					repo.DestroyVolume(someVolume.Handle)
+				}()
+
+				Eventually(currentHandles).Should(HaveLen(0))
+
+				destroyed <- false
+			})
+
 		})
 	})
 
@@ -156,7 +163,7 @@ var _ = Describe("Repository", func() {
 		Describe("creating a new volume", func() {
 			It("cows", func() {
 				logger := lagertest.NewTestLogger("repo")
-				repo := volume.NewRepository(logger, volumeDir, fsDriver, volume.TTL(60))
+				repo := volume.NewRepository(logger, fsDriver, volumeDir, volume.TTL(60))
 
 				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
@@ -182,7 +189,7 @@ var _ = Describe("Repository", func() {
 		Describe("destroying a volume", func() {
 			It("deletes it", func() {
 				logger := lagertest.NewTestLogger("repo")
-				repo := volume.NewRepository(logger, volumeDir, &driver.NaiveDriver{}, volume.TTL(60))
+				repo := volume.NewRepository(logger, &driver.NaiveDriver{}, volumeDir, volume.TTL(60))
 
 				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,

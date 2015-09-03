@@ -3,7 +3,6 @@ package fakes
 
 import (
 	"sync"
-	"time"
 
 	"github.com/concourse/baggageclaim/volume"
 )
@@ -16,6 +15,15 @@ type FakeRepository struct {
 	}
 	listVolumesReturns struct {
 		result1 volume.Volumes
+		result2 error
+	}
+	GetVolumeStub        func(handle string) (volume.Volume, error)
+	getVolumeMutex       sync.RWMutex
+	getVolumeArgsForCall []struct {
+		handle string
+	}
+	getVolumeReturns struct {
+		result1 volume.Volume
 		result2 error
 	}
 	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttl *uint) (volume.Volume, error)
@@ -47,13 +55,14 @@ type FakeRepository struct {
 	setPropertyReturns struct {
 		result1 error
 	}
-	TTLStub        func(volume.Volume) time.Duration
-	tTLMutex       sync.RWMutex
-	tTLArgsForCall []struct {
-		arg1 volume.Volume
+	SetTTLStub        func(handle string, ttl uint) error
+	setTTLMutex       sync.RWMutex
+	setTTLArgsForCall []struct {
+		handle string
+		ttl    uint
 	}
-	tTLReturns struct {
-		result1 time.Duration
+	setTTLReturns struct {
+		result1 error
 	}
 }
 
@@ -86,6 +95,39 @@ func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 e
 	fake.ListVolumesStub = nil
 	fake.listVolumesReturns = struct {
 		result1 volume.Volumes
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, error) {
+	fake.getVolumeMutex.Lock()
+	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
+		handle string
+	}{handle})
+	fake.getVolumeMutex.Unlock()
+	if fake.GetVolumeStub != nil {
+		return fake.GetVolumeStub(handle)
+	} else {
+		return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2
+	}
+}
+
+func (fake *FakeRepository) GetVolumeCallCount() int {
+	fake.getVolumeMutex.RLock()
+	defer fake.getVolumeMutex.RUnlock()
+	return len(fake.getVolumeArgsForCall)
+}
+
+func (fake *FakeRepository) GetVolumeArgsForCall(i int) string {
+	fake.getVolumeMutex.RLock()
+	defer fake.getVolumeMutex.RUnlock()
+	return fake.getVolumeArgsForCall[i].handle
+}
+
+func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 error) {
+	fake.GetVolumeStub = nil
+	fake.getVolumeReturns = struct {
+		result1 volume.Volume
 		result2 error
 	}{result1, result2}
 }
@@ -191,35 +233,36 @@ func (fake *FakeRepository) SetPropertyReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) TTL(arg1 volume.Volume) time.Duration {
-	fake.tTLMutex.Lock()
-	fake.tTLArgsForCall = append(fake.tTLArgsForCall, struct {
-		arg1 volume.Volume
-	}{arg1})
-	fake.tTLMutex.Unlock()
-	if fake.TTLStub != nil {
-		return fake.TTLStub(arg1)
+func (fake *FakeRepository) SetTTL(handle string, ttl uint) error {
+	fake.setTTLMutex.Lock()
+	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
+		handle string
+		ttl    uint
+	}{handle, ttl})
+	fake.setTTLMutex.Unlock()
+	if fake.SetTTLStub != nil {
+		return fake.SetTTLStub(handle, ttl)
 	} else {
-		return fake.tTLReturns.result1
+		return fake.setTTLReturns.result1
 	}
 }
 
-func (fake *FakeRepository) TTLCallCount() int {
-	fake.tTLMutex.RLock()
-	defer fake.tTLMutex.RUnlock()
-	return len(fake.tTLArgsForCall)
+func (fake *FakeRepository) SetTTLCallCount() int {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	return len(fake.setTTLArgsForCall)
 }
 
-func (fake *FakeRepository) TTLArgsForCall(i int) volume.Volume {
-	fake.tTLMutex.RLock()
-	defer fake.tTLMutex.RUnlock()
-	return fake.tTLArgsForCall[i].arg1
+func (fake *FakeRepository) SetTTLArgsForCall(i int) (string, uint) {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	return fake.setTTLArgsForCall[i].handle, fake.setTTLArgsForCall[i].ttl
 }
 
-func (fake *FakeRepository) TTLReturns(result1 time.Duration) {
-	fake.TTLStub = nil
-	fake.tTLReturns = struct {
-		result1 time.Duration
+func (fake *FakeRepository) SetTTLReturns(result1 error) {
+	fake.SetTTLStub = nil
+	fake.setTTLReturns = struct {
+		result1 error
 	}{result1}
 }
 

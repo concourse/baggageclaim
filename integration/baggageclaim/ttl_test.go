@@ -54,6 +54,51 @@ var _ = Describe("TTL's", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(volumes).Should(HaveLen(1))
 
-		Eventually(client.GetVolumes, 2*time.Second, 500*time.Millisecond).ShouldNot(ConsistOf(emptyVolume))
+		Eventually(client.GetVolumes, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume))
+	})
+
+	currentHandles := func() []string {
+		volumes, err := client.GetVolumes()
+		Ω(err).ShouldNot(HaveOccurred())
+
+		handles := []string{}
+
+		for _, v := range volumes {
+			handles = append(handles, v.Handle)
+		}
+
+		return handles
+	}
+
+	Context("resetting the ttl", func() {
+		It("resets if you update properties on the volume", func() {
+			spec := integration.VolumeSpec{
+				TTL: 3,
+			}
+			emptyVolume, err := client.CreateEmptyVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
+
+			err = client.SetProperty(emptyVolume.Handle, "name", "value")
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
+			Eventually(currentHandles, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume.Handle))
+		})
+
+		It("resets to a new value if you update the ttl", func() {
+			spec := integration.VolumeSpec{
+				TTL: 1,
+			}
+			emptyVolume, err := client.CreateEmptyVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			err = client.SetTTL(emptyVolume.Handle, 3)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
+			Eventually(currentHandles, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume.Handle))
+		})
 	})
 })

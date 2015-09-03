@@ -7,9 +7,16 @@ import (
 	"time"
 )
 
+type VolumeState string
+
 const (
 	propertiesFileName = "properties.json"
 	ttlFileName        = "ttl.json"
+	stateFileName      = "state.json"
+
+	VolumeDestroyed VolumeState = "destroyed"
+	VolumeActive    VolumeState = "active"
+	CreatingVolume  VolumeState = "creating"
 )
 
 type Metadata struct {
@@ -22,6 +29,64 @@ func (md *Metadata) Properties() (Properties, error) {
 
 func (md *Metadata) StoreProperties(properties Properties) error {
 	return md.propertiesFile().WriteProperties(properties)
+}
+
+func (md *Metadata) VolumeState() (VolumeState, error) {
+	volumeStateProperties, err := md.stateFile().Properties()
+	if err != nil {
+		return "", err
+	}
+	return volumeStateProperties.State, nil
+}
+
+func (md *Metadata) StoreState(volumeState VolumeState) error {
+	return md.stateFile().WriteState(volumeState)
+}
+
+func (md *Metadata) stateFile() *stateFile {
+	return &stateFile{path: filepath.Join(md.path, stateFileName)}
+}
+
+type stateFile struct {
+	path string
+}
+
+type stateProperties struct {
+	State VolumeState `json:"state"`
+}
+
+func (sf *stateFile) Properties() (stateProperties, error) {
+	var properties stateProperties
+
+	file, err := os.Open(sf.path)
+	if err != nil {
+		return stateProperties{}, err
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&properties); err != nil {
+		return stateProperties{}, err
+	}
+
+	return properties, nil
+}
+
+func (sf *stateFile) WriteState(volumeState VolumeState) error {
+	file, err := os.OpenFile(
+		sf.path,
+		os.O_WRONLY|os.O_CREATE,
+		0644,
+	)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	properties := stateProperties{
+		State: volumeState,
+	}
+
+	return json.NewEncoder(file).Encode(properties)
 }
 
 func (md *Metadata) StoreTTL(ttl TTL) error {

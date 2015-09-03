@@ -14,6 +14,7 @@ import (
 
 type Client struct {
 	requestGenerator *rata.RequestGenerator
+	httpClient       *http.Client
 }
 
 type VolumeSpec struct {
@@ -26,6 +27,9 @@ func NewClient(
 ) *Client {
 	return &Client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
+		httpClient: &http.Client{
+			Transport: &http.Transport{},
+		},
 	}
 }
 
@@ -40,7 +44,7 @@ func (c *Client) CreateCOWVolume(parentHandle string, properties volume.Properti
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-	response, err := http.DefaultClient.Do(request)
+	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return volume.Volume{}, err
 	}
@@ -74,7 +78,7 @@ func (c *Client) CreateEmptyVolume(volumeSpec VolumeSpec) (volume.Volume, error)
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-	response, err := http.DefaultClient.Do(request)
+	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return volume.Volume{}, err
 	}
@@ -99,7 +103,7 @@ func (c *Client) CreateEmptyVolume(volumeSpec VolumeSpec) (volume.Volume, error)
 
 func (c *Client) GetVolumes() (volume.Volumes, error) {
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
-	response, err := http.DefaultClient.Do(request)
+	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return volume.Volumes{}, err
 	}
@@ -138,6 +142,32 @@ func (c *Client) GetVolume(handle string) (volume.Volume, error) {
 	return volume.Volume{}, fmt.Errorf("no volumes matching handle: %s", handle)
 }
 
+func (c *Client) SetTTL(handle string, ttl uint) error {
+	buffer := &bytes.Buffer{}
+	json.NewEncoder(buffer).Encode(api.TTLRequest{
+		Value: ttl,
+	})
+
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.SetTTL, rata.Params{
+		"handle": handle,
+	}, buffer)
+	if err != nil {
+		panic(err)
+	}
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 204 {
+		return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	}
+
+	return response.Body.Close()
+	return nil
+}
+
 func (c *Client) SetProperty(handle string, propertyName string, propertyValue string) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(api.PropertyRequest{
@@ -152,7 +182,7 @@ func (c *Client) SetProperty(handle string, propertyName string, propertyValue s
 		panic(err)
 	}
 
-	response, err := http.DefaultClient.Do(request)
+	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return err
 	}
