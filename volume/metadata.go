@@ -23,6 +23,7 @@ type Metadata struct {
 	path string
 }
 
+// Properties File
 func (md *Metadata) Properties() (Properties, error) {
 	return md.propertiesFile().Properties()
 }
@@ -31,6 +32,30 @@ func (md *Metadata) StoreProperties(properties Properties) error {
 	return md.propertiesFile().WriteProperties(properties)
 }
 
+func (md *Metadata) propertiesFile() *propertiesFile {
+	return &propertiesFile{path: filepath.Join(md.path, propertiesFileName)}
+}
+
+type propertiesFile struct {
+	path string
+}
+
+func (pf *propertiesFile) WriteProperties(properties Properties) error {
+	return writeMetadataFile(pf.path, properties)
+}
+
+func (pf *propertiesFile) Properties() (Properties, error) {
+	var properties Properties
+
+	err := readMetadataFile(pf.path, &properties)
+	if err != nil {
+		return Properties{}, err
+	}
+
+	return properties, nil
+}
+
+// State File
 func (md *Metadata) VolumeState() (VolumeState, error) {
 	volumeStateProperties, err := md.stateFile().Properties()
 	if err != nil {
@@ -58,13 +83,8 @@ type stateProperties struct {
 func (sf *stateFile) Properties() (stateProperties, error) {
 	var properties stateProperties
 
-	file, err := os.Open(sf.path)
+	err := readMetadataFile(sf.path, &properties)
 	if err != nil {
-		return stateProperties{}, err
-	}
-	defer file.Close()
-
-	if err := json.NewDecoder(file).Decode(&properties); err != nil {
 		return stateProperties{}, err
 	}
 
@@ -72,27 +92,13 @@ func (sf *stateFile) Properties() (stateProperties, error) {
 }
 
 func (sf *stateFile) WriteState(volumeState VolumeState) error {
-	file, err := os.OpenFile(
-		sf.path,
-		os.O_WRONLY|os.O_CREATE,
-		0644,
-	)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	properties := stateProperties{
 		State: volumeState,
 	}
-
-	return json.NewEncoder(file).Encode(properties)
+	return writeMetadataFile(sf.path, properties)
 }
 
-func (md *Metadata) StoreTTL(ttl TTL) error {
-	return md.ttlFile().WriteTTL(ttl)
-}
-
+// TTL File
 func (md *Metadata) TTL() (TTL, error) {
 	properties, err := md.ttlFile().Properties()
 	if err != nil {
@@ -100,6 +106,10 @@ func (md *Metadata) TTL() (TTL, error) {
 	}
 
 	return properties.TTL, nil
+}
+
+func (md *Metadata) StoreTTL(ttl TTL) error {
+	return md.ttlFile().WriteTTL(ttl)
 }
 
 func (md *Metadata) ExpiresAt() (time.Time, error) {
@@ -125,51 +135,40 @@ type ttlProperties struct {
 }
 
 func (tf *ttlFile) WriteTTL(ttl TTL) error {
-	file, err := os.OpenFile(
-		tf.path,
-		os.O_WRONLY|os.O_CREATE,
-		0644,
-	)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	properties := ttlProperties{
 		TTL:       ttl,
 		ExpiresAt: time.Now().Add(ttl.Duration()),
 	}
-
-	return json.NewEncoder(file).Encode(properties)
+	return writeMetadataFile(tf.path, properties)
 }
 
 func (tf *ttlFile) Properties() (ttlProperties, error) {
 	var properties ttlProperties
-
-	file, err := os.Open(tf.path)
+	err := readMetadataFile(tf.path, &properties)
 	if err != nil {
-		return ttlProperties{}, err
-	}
-	defer file.Close()
-
-	if err := json.NewDecoder(file).Decode(&properties); err != nil {
 		return ttlProperties{}, err
 	}
 
 	return properties, nil
 }
 
-func (md *Metadata) propertiesFile() *propertiesFile {
-	return &propertiesFile{path: filepath.Join(md.path, propertiesFileName)}
+func readMetadataFile(path string, properties interface{}) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if err := json.NewDecoder(file).Decode(&properties); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-type propertiesFile struct {
-	path string
-}
-
-func (pf *propertiesFile) WriteProperties(properties Properties) error {
+func writeMetadataFile(path string, properties interface{}) error {
 	file, err := os.OpenFile(
-		pf.path,
+		path,
 		os.O_WRONLY|os.O_CREATE,
 		0644,
 	)
@@ -179,20 +178,4 @@ func (pf *propertiesFile) WriteProperties(properties Properties) error {
 	defer file.Close()
 
 	return json.NewEncoder(file).Encode(properties)
-}
-
-func (pf *propertiesFile) Properties() (Properties, error) {
-	var properties Properties
-
-	file, err := os.Open(pf.path)
-	if err != nil {
-		return Properties{}, err
-	}
-	defer file.Close()
-
-	if err := json.NewDecoder(file).Decode(&properties); err != nil {
-		return Properties{}, err
-	}
-
-	return properties, nil
 }
