@@ -69,9 +69,11 @@ func main() {
 	}
 
 	ttl := volume.TTL(*defaultTTL)
+	locker := volume.NewLocker()
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDriver,
+		locker,
 		*volumeDir,
 		ttl,
 	)

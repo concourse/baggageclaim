@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/nu7hatch/gouuid"
@@ -70,22 +69,19 @@ type Repository interface {
 type repository struct {
 	volumeDir  string
 	driver     Driver
+	locker     Locker
 	defaultTTL TTL
 
 	logger lager.Logger
-
-	volumeLock      *sync.Mutex
-	volumeStateLock *sync.Mutex
 }
 
-func NewRepository(logger lager.Logger, driver Driver, volumeDir string, defaultTTL TTL) Repository {
+func NewRepository(logger lager.Logger, driver Driver, locker Locker, volumeDir string, defaultTTL TTL) Repository {
 	return &repository{
-		volumeDir:       volumeDir,
-		logger:          logger,
-		driver:          driver,
-		defaultTTL:      defaultTTL,
-		volumeLock:      &sync.Mutex{},
-		volumeStateLock: &sync.Mutex{},
+		volumeDir:  volumeDir,
+		logger:     logger,
+		driver:     driver,
+		locker:     locker,
+		defaultTTL: defaultTTL,
 	}
 }
 
@@ -255,8 +251,8 @@ func (repo *repository) GetVolume(handle string) (Volume, error) {
 }
 
 func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {
-	repo.volumeLock.Lock()
-	defer repo.volumeLock.Unlock()
+	repo.locker.Lock(handle)
+	defer repo.locker.Unlock(handle)
 
 	md := repo.metadata(handle)
 
@@ -280,8 +276,8 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 }
 
 func (repo *repository) SetTTL(handle string, ttl uint) error {
-	repo.volumeLock.Lock()
-	defer repo.volumeLock.Unlock()
+	repo.locker.Lock(handle)
+	defer repo.locker.Unlock(handle)
 
 	err := repo.metadata(handle).StoreTTL(TTL(ttl))
 	if err != nil {
