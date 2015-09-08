@@ -69,7 +69,7 @@ func main() {
 	}
 
 	ttl := volume.TTL(*defaultTTL)
-	locker := volume.NewLocker()
+	locker := volume.NewLockManager()
 	volumeRepo := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDriver,

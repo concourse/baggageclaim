@@ -41,7 +41,13 @@ var _ = Describe("Volume Server", func() {
 	JustBeforeEach(func() {
 
 		logger := lagertest.NewTestLogger("volume-server")
-		repo := volume.NewRepository(logger, &driver.NaiveDriver{}, volume.NewLocker(), volumeDir, volume.TTL(60))
+		repo := volume.NewRepository(
+			logger,
+			&driver.NaiveDriver{},
+			volume.NewLockManager(),
+			volumeDir,
+			volume.TTL(60),
+		)
 
 		var err error
 		handler, err = api.NewHandler(logger, repo)

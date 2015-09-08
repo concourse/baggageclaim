@@ -69,13 +69,19 @@ type Repository interface {
 type repository struct {
 	volumeDir  string
 	driver     Driver
-	locker     Locker
+	locker     LockManager
 	defaultTTL TTL
 
 	logger lager.Logger
 }
 
-func NewRepository(logger lager.Logger, driver Driver, locker Locker, volumeDir string, defaultTTL TTL) Repository {
+func NewRepository(
+	logger lager.Logger,
+	driver Driver,
+	locker LockManager,
+	volumeDir string,
+	defaultTTL TTL,
+) Repository {
 	return &repository{
 		volumeDir:  volumeDir,
 		logger:     logger,
@@ -86,6 +92,9 @@ func NewRepository(logger lager.Logger, driver Driver, locker Locker, volumeDir 
 }
 
 func (repo *repository) DestroyVolume(handle string) error {
+	repo.locker.Lock(handle)
+	defer repo.locker.Unlock(handle)
+
 	err := repo.metadata(handle).StoreState(VolumeDestroyed)
 
 	if err != nil {
@@ -176,11 +185,6 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
 	}, nil
-}
-
-func (repo *repository) handleError(internalError error, errorMsg string, externalError error) (Volume, error) {
-	repo.logger.Error(errorMsg, internalError)
-	return Volume{}, externalError
 }
 
 func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error) {
@@ -286,6 +290,11 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	}
 
 	return nil
+}
+
+func (repo *repository) handleError(internalError error, errorMsg string, externalError error) (Volume, error) {
+	repo.logger.Error(errorMsg, internalError)
+	return Volume{}, externalError
 }
 
 func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
