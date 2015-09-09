@@ -44,6 +44,7 @@ func (br *bombermanRepository) CreateVolume(strategy volume.Strategy, properties
 
 	return createdVolume, err
 }
+
 func (br *bombermanRepository) DestroyVolume(handle string) error {
 	return br.repo.DestroyVolume(handle)
 }

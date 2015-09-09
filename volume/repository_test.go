@@ -47,11 +47,12 @@ var _ = Describe("Repository", func() {
 		)
 
 		BeforeEach(func() {
+			var err error
 			fakeDriver = new(fakes.FakeDriver)
 			logger := lagertest.NewTestLogger("repo")
-			repo = volume.NewRepository(logger, fakeDriver, fakeLocker, volumeDir, volume.TTL(60))
+			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, volumeDir, volume.TTL(60))
+			Ω(err).ShouldNot(HaveOccurred())
 
-			var err error
 			someVolume, err = repo.CreateVolume(volume.Strategy{
 				"type": volume.StrategyEmpty,
 			}, volume.Properties{}, &zero)
@@ -60,14 +61,16 @@ var _ = Describe("Repository", func() {
 
 		Describe("destroying a volume", func() {
 			It("calls DestroyVolume on the driver", func() {
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
 				err := repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeDriver.DestroyVolumeCallCount()).Should(Equal(1))
 				volumePath := fakeDriver.DestroyVolumeArgsForCall(0)
-				Ω(volumePath).Should(Equal(someVolume.Path))
+
+				tombstone := filepath.Join(volumeDir, "dead", someVolume.Handle, "volume")
+				Ω(volumePath).Should(Equal(tombstone))
 			})
 
 			It("deletes it from the disk", func() {
@@ -75,7 +78,7 @@ var _ = Describe("Repository", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(1))
 
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
 				err = repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
@@ -84,14 +87,17 @@ var _ = Describe("Repository", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(0))
 
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).ShouldNot(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
 			})
 
 			It("removes it from listVolumes", func() {
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
 				err := repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
+
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
+				Ω(filepath.Join(volumeDir, "dead", someVolume.Handle)).ShouldNot(BeADirectory())
 
 				Ω(repo.ListVolumes(volume.Properties{})).Should(BeEmpty())
 			})
@@ -163,7 +169,8 @@ var _ = Describe("Repository", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			logger := lagertest.NewTestLogger("repo")
-			repo = volume.NewRepository(logger, fsDriver, fakeLocker, volumeDir, volume.TTL(60))
+			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, volumeDir, volume.TTL(60))
+			Ω(err).ShouldNot(HaveOccurred())
 
 			someVolume, err = repo.CreateVolume(volume.Strategy{
 				"type": volume.StrategyEmpty,
@@ -212,7 +219,7 @@ var _ = Describe("Repository", func() {
 
 		Describe("destroying a volume", func() {
 			It("deletes it", func() {
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).Should(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
 				err := repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
@@ -221,7 +228,7 @@ var _ = Describe("Repository", func() {
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(volumes).Should(HaveLen(0))
 
-				Ω(filepath.Join(volumeDir, someVolume.Handle)).ShouldNot(BeADirectory())
+				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
 			})
 
 			It("makes some attempt at locking", func() {

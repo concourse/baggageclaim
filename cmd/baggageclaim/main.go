@@ -70,13 +70,16 @@ func main() {
 
 	ttl := volume.TTL(*defaultTTL)
 	locker := volume.NewLockManager()
-	volumeRepo := volume.NewRepository(
+	volumeRepo, err := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDriver,
 		locker,
 		*volumeDir,
 		ttl,
 	)
+	if err != nil {
+		logger.Fatal("failed-to-initialize-repo", err)
+	}
 
 	daBombRepo := bomberman.NewBombermanRepository(volumeRepo, logger.Session("bomberman"))
 

@@ -39,17 +39,16 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	JustBeforeEach(func() {
-
 		logger := lagertest.NewTestLogger("volume-server")
-		repo := volume.NewRepository(
+		repo, err := volume.NewRepository(
 			logger,
 			&driver.NaiveDriver{},
 			volume.NewLockManager(),
 			volumeDir,
 			volume.TTL(60),
 		)
+		Ω(err).ShouldNot(HaveOccurred())
 
-		var err error
 		handler, err = api.NewHandler(logger, repo)
 		Ω(err).ShouldNot(HaveOccurred())
 	})
@@ -72,20 +71,6 @@ var _ = Describe("Volume Server", func() {
 		Context("when there are no volumes", func() {
 			It("returns an empty array", func() {
 				Ω(recorder.Body).Should(MatchJSON(`[]`))
-			})
-		})
-
-		Context("when the volumes directory is all messed up", func() {
-			BeforeEach(func() {
-				volumeDir = "/this/cannot/be/read/from"
-			})
-
-			It("writes a 500 InternalServerError", func() {
-				Ω(recorder.Code).Should(Equal(http.StatusInternalServerError))
-			})
-
-			It("writes a useful JSON error", func() {
-				Ω(recorder.Body).Should(MatchJSON(`{"error":"failed to list volumes"}`))
 			})
 		})
 	})
@@ -309,7 +294,7 @@ var _ = Describe("Volume Server", func() {
 					err := json.NewDecoder(recorder.Body).Decode(&response)
 					Ω(err).ShouldNot(HaveOccurred())
 
-					propertiesPath := filepath.Join(volumeDir, response.Handle, "properties.json")
+					propertiesPath := filepath.Join(volumeDir, "live", response.Handle, "properties.json")
 					Ω(propertiesPath).Should(BeAnExistingFile())
 
 					propertiesContents, err := ioutil.ReadFile(propertiesPath)
@@ -463,20 +448,6 @@ var _ = Describe("Volume Server", func() {
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
 					Ω(getRecorder.Body).Should(MatchJSON("[]"))
-				})
-			})
-
-			Context("when a new directory cannot be created", func() {
-				BeforeEach(func() {
-					volumeDir = "/dev/null"
-				})
-
-				It("writes a 500 InternalServerError", func() {
-					Ω(recorder.Code).Should(Equal(http.StatusInternalServerError))
-				})
-
-				It("writes a useful JSON error", func() {
-					Ω(recorder.Body).Should(MatchJSON(`{"error":"failed to create volume"}`))
 				})
 			})
 		})

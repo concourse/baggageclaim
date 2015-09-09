@@ -68,6 +68,7 @@ type Repository interface {
 
 type repository struct {
 	volumeDir  string
+	limboDir   string
 	driver     Driver
 	locker     LockManager
 	defaultTTL TTL
@@ -75,20 +76,38 @@ type repository struct {
 	logger lager.Logger
 }
 
+const (
+	liveDir = "live"
+	deadDir = "dead"
+)
+
 func NewRepository(
 	logger lager.Logger,
 	driver Driver,
 	locker LockManager,
-	volumeDir string,
+	parentDir string,
 	defaultTTL TTL,
-) Repository {
+) (Repository, error) {
+	volumeDir := filepath.Join(parentDir, liveDir)
+	err := os.MkdirAll(volumeDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	limboDir := filepath.Join(parentDir, deadDir)
+	err = os.MkdirAll(limboDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
 	return &repository{
 		volumeDir:  volumeDir,
+		limboDir:   limboDir,
 		logger:     logger,
 		driver:     driver,
 		locker:     locker,
 		defaultTTL: defaultTTL,
-	}
+	}, nil
 }
 
 func (repo *repository) DestroyVolume(handle string) error {
@@ -99,20 +118,19 @@ func (repo *repository) DestroyVolume(handle string) error {
 		"volume": handle,
 	})
 
-	err := repo.metadata(handle).StoreState(VolumeDestroyed)
-
+	err := os.Rename(repo.metadataPath(handle), repo.deadPath(handle))
 	if err != nil {
-		logger.Error("failed-to-set-volume-state-to-destroy", err)
+		logger.Error("failed-to-move-to-dead", err)
 		return ErrDestroyVolumeFailed
 	}
 
-	err = repo.destroyVolume(repo.dataPath(handle))
+	err = repo.destroyVolume(repo.deadPath(handle))
 	if err != nil {
 		logger.Error("failed-to-delete-data", err)
 		return ErrDestroyVolumeFailed
 	}
 
-	err = os.RemoveAll(repo.metadataPath(handle))
+	err = os.RemoveAll(repo.deadPath(handle))
 	if err != nil {
 		logger.Error("failed-to-delete-metadata", err)
 		return ErrDestroyVolumeFailed
@@ -236,9 +254,6 @@ func (repo *repository) GetVolume(handle string) (Volume, error) {
 		"volume": handle,
 	})
 
-	if !repo.volumeActive(handle) {
-		return Volume{}, nil
-	}
 
 	if !repo.volumeExists(handle) {
 		logger.Error("failed-to-get-volume", errors.New("volume-does-not-exist"))
@@ -364,6 +379,10 @@ func (repo *repository) metadataPath(id string) string {
 	return filepath.Join(repo.volumeDir, id)
 }
 
+func (repo *repository) deadPath(id string) string {
+	return filepath.Join(repo.limboDir, id)
+}
+
 func (repo *repository) metadata(id string) *Metadata {
 	return &Metadata{path: repo.metadataPath(id)}
 }
@@ -381,8 +400,8 @@ func (repo *repository) deleteVolumeMetadataDir(id string) {
 	}
 }
 
-func (repo *repository) destroyVolume(volumePath string) error {
-	return repo.driver.DestroyVolume(volumePath)
+func (repo *repository) destroyVolume(limboPath string) error {
+	return repo.driver.DestroyVolume(filepath.Join(limboPath, "volume"))
 }
 
 func (repo *repository) createEmptyVolume(volumePath string) error {
