@@ -315,6 +315,9 @@ func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string
 			return ErrNoParentVolumeProvided
 		}
 
+		repo.locker.Lock(parentHandle)
+		defer repo.locker.Unlock(parentHandle)
+
 		if !repo.volumeExists(parentHandle) {
 			logger.Error("parent-volume-not-found", nil)
 			return ErrParentVolumeNotFound

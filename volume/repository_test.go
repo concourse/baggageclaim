@@ -196,13 +196,11 @@ var _ = Describe("Repository", func() {
 				Ω(parentFilePath).ShouldNot(BeADirectory())
 			})
 
-			It("makes some attempt at locking", func() {
-				someVolume, err := repo.CreateVolume(volume.Strategy{
-					"type": volume.StrategyEmpty,
+			It("makes some attempt at locking the parent", func() {
+				_, err := repo.CreateVolume(volume.Strategy{
+					"type":   volume.StrategyCopyOnWrite,
+					"volume": someVolume.Handle,
 				}, volume.Properties{}, &zero)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				err = repo.DestroyVolume(someVolume.Handle)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
