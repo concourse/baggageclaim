@@ -95,25 +95,28 @@ func (repo *repository) DestroyVolume(handle string) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
+	logger := repo.logger.Session("destroy-volume", lager.Data{
+		"volume": handle,
+	})
+
 	err := repo.metadata(handle).StoreState(VolumeDestroyed)
 
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-set-volume-state-to-destroy", ErrDestroyVolumeFailed)
-		return err
+		logger.Error("failed-to-set-volume-state-to-destroy", err)
+		return ErrDestroyVolumeFailed
 	}
 
 	err = repo.destroyVolume(repo.dataPath(handle))
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-delete-data", ErrDestroyVolumeFailed)
-		return err
+		logger.Error("failed-to-delete-data", err)
+		return ErrDestroyVolumeFailed
 	}
 
 	err = os.RemoveAll(repo.metadataPath(handle))
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-delete-metadata", ErrDestroyVolumeFailed)
-		return err
+		logger.Error("failed-to-delete-metadata", err)
+		return ErrDestroyVolumeFailed
 	}
-
 	return nil
 }
 
@@ -142,28 +145,33 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	newVolumeMetadataPath := repo.metadataPath(handle)
 	err := os.Mkdir(newVolumeMetadataPath, 0755)
 	if err != nil {
-		return repo.handleError(err, "failed-to-create-metadata-dir", ErrCreateVolumeFailed)
+		logger.Error("failed-to-create-metadata-dir", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	metadata := repo.metadata(handle)
 	err = metadata.StoreProperties(properties)
 	if err != nil {
-		return repo.handleError(err, "failed-to-create-properties-file", ErrCreateVolumeFailed)
+		logger.Error("failed-to-create-properties-file", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	err = metadata.StoreTTL(ttl)
 	if err != nil {
-		return repo.handleError(err, "failed-to-create-ttl-file", ErrCreateVolumeFailed)
+		logger.Error("failed-to-create-ttl-file", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	expiresAt, err := metadata.ExpiresAt()
 	if err != nil {
-		return repo.handleError(err, "failed-to-read-expires-at", ErrCreateVolumeFailed)
+		logger.Error("failed-to-read-expires-at", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	err = metadata.StoreState(CreatingVolume)
 	if err != nil {
-		return repo.handleError(err, "failed-to-create-state-file", ErrCreateVolumeFailed)
+		logger.Error("failed-to-create-state-file", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	newVolumeDataPath := repo.dataPath(handle)
@@ -175,7 +183,8 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 
 	err = metadata.StoreState(VolumeActive)
 	if err != nil {
-		return repo.handleError(err, "failed-to-create-state-file", ErrCreateVolumeFailed)
+		logger.Error("failed-to-create-state-file", err)
+		return Volume{}, ErrCreateVolumeFailed
 	}
 
 	return Volume{
@@ -188,9 +197,11 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 }
 
 func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error) {
+	logger := repo.logger.Session("list-volumes", lager.Data{})
+
 	volumeDirs, err := ioutil.ReadDir(repo.volumeDir)
 	if err != nil {
-		repo.logger.Error("failed-to-list-dirs", err, lager.Data{
+		logger.Error("failed-to-list-dirs", err, lager.Data{
 			"volume-dir": repo.volumeDir,
 		})
 
@@ -202,7 +213,7 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 	for _, volumeDir := range volumeDirs {
 		vol, err := repo.GetVolume(volumeDir.Name())
 		if err != nil {
-			repo.logger.Error("failed-to-get-volume", err, lager.Data{
+			logger.Error("failed-to-get-volume", err, lager.Data{
 				"volume": volumeDir.Name(),
 			})
 			return nil, err
@@ -221,28 +232,36 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 }
 
 func (repo *repository) GetVolume(handle string) (Volume, error) {
+	logger := repo.logger.Session("get-volume", lager.Data{
+		"volume": handle,
+	})
+
 	if !repo.volumeActive(handle) {
 		return Volume{}, nil
 	}
 
 	if !repo.volumeExists(handle) {
-		return repo.handleError(errors.New("volume-does-not-exist"), "failed-to-get-volume", ErrGetVolumeFailed)
+		logger.Error("failed-to-get-volume", errors.New("volume-does-not-exist"))
+		return Volume{}, ErrGetVolumeFailed
 	}
 
 	metadata := repo.metadata(handle)
 	volumeProperties, err := metadata.Properties()
 	if err != nil {
-		return repo.handleError(err, "failed-to-read-properties", ErrGetVolumeFailed)
+		logger.Error("failed-to-read-properties", err)
+		return Volume{}, ErrGetVolumeFailed
 	}
 
 	ttl, err := metadata.TTL()
 	if err != nil {
-		return repo.handleError(err, "failed-to-read-ttl", ErrGetVolumeFailed)
+		logger.Error("failed-to-read-ttl", err)
+		return Volume{}, ErrGetVolumeFailed
 	}
 
 	expiresAt, err := metadata.ExpiresAt()
 	if err != nil {
-		return repo.handleError(err, "failed-to-read-expires-at", ErrGetVolumeFailed)
+		logger.Error("failed-to-read-expires-at", err)
+		return Volume{}, ErrGetVolumeFailed
 	}
 
 	return Volume{
@@ -258,22 +277,24 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
+	logger := repo.logger.Session("set-property")
+
 	md := repo.metadata(handle)
 
 	properties, err := md.Properties()
 	if err != nil {
-		repo.logger.Error("failed-to-read-properties", err, lager.Data{
+		logger.Error("failed-to-read-properties", err, lager.Data{
 			"volume": handle,
 		})
-		return err
+		return ErrSetPropertyFailed
 	}
 
 	properties = properties.UpdateProperty(propertyName, propertyValue)
 
 	err = md.StoreProperties(properties)
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-store-properties", ErrSetPropertyFailed)
-		return err
+		logger.Error("failed-to-store-properties", err)
+		return ErrSetPropertyFailed
 	}
 
 	return nil
@@ -283,21 +304,20 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
+	logger := repo.logger.Session("set-ttl")
+
 	err := repo.metadata(handle).StoreTTL(TTL(ttl))
 	if err != nil {
-		_, err = repo.handleError(err, "failed-to-store-ttl", ErrSetTTLFailed)
-		return err
+		logger.Error("failed-to-store-ttl", err)
+		return ErrSetTTLFailed
 	}
 
 	return nil
 }
 
-func (repo *repository) handleError(internalError error, errorMsg string, externalError error) (Volume, error) {
-	repo.logger.Error(errorMsg, internalError)
-	return Volume{}, externalError
-}
-
 func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
+	logger = repo.logger.Session("do-strategy")
+
 	switch strategyName {
 	case StrategyEmpty:
 		err := repo.createEmptyVolume(newVolumeDataPath)
@@ -356,7 +376,7 @@ func (repo *repository) deleteVolumeMetadataDir(id string) {
 	err := os.RemoveAll(repo.metadataPath(id))
 	if err != nil {
 		repo.logger.Error("failed-to-cleanup", err, lager.Data{
-			"handle": id,
+			"volume": id,
 		})
 	}
 }
