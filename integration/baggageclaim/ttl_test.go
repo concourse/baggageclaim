@@ -54,7 +54,7 @@ var _ = Describe("TTL's", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(volumes).Should(HaveLen(1))
 
-		Eventually(client.GetVolumes, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume))
+		Eventually(client.GetVolumes, 2*time.Second).ShouldNot(ContainElement(emptyVolume))
 	})
 
 	currentHandles := func() []string {
@@ -78,13 +78,71 @@ var _ = Describe("TTL's", func() {
 			emptyVolume, err := client.CreateEmptyVolume(spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
+			Consistently(currentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle))
 
 			err = client.SetProperty(emptyVolume.Handle, "name", "value")
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
-			Eventually(currentHandles, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume.Handle))
+			Consistently(currentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle))
+			Eventually(currentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle))
+		})
+
+		It("pauses the parent if you create a cow volume", func() {
+			spec := integration.VolumeSpec{
+				TTL: 2,
+			}
+			parentVolume, err := client.CreateEmptyVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle))
+
+			childVolume, err := client.CreateCOWVolume(integration.VolumeSpec{
+				ParentHandle: parentVolume.Handle,
+				TTL:          4,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle))
+			Eventually(currentHandles, 2*time.Second).ShouldNot(ContainElement(childVolume.Handle))
+
+			Eventually(currentHandles, 3*time.Second).ShouldNot(ContainElement(parentVolume.Handle))
+		})
+
+		It("pauses the parent as long as *any* child volumes are present", func() {
+			spec := integration.VolumeSpec{
+				TTL: 2,
+			}
+			parentVolume, err := client.CreateEmptyVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Consistently(currentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle))
+
+			childVolume1, err := client.CreateCOWVolume(integration.VolumeSpec{
+				ParentHandle: parentVolume.Handle,
+				TTL:          4,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			childVolume2, err := client.CreateCOWVolume(integration.VolumeSpec{
+				ParentHandle: parentVolume.Handle,
+				TTL:          9,
+			})
+			Ω(err).ShouldNot(HaveOccurred())
+
+			By("the parent should stay paused")
+			Consistently(currentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle))
+
+			By("the first child should be removed")
+			Eventually(currentHandles, 2*time.Second).ShouldNot(ContainElement(childVolume1.Handle))
+
+			By("the parent should still be paused")
+			Consistently(currentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle))
+
+			By("the second child should be removed")
+			Eventually(currentHandles, 3*time.Second).ShouldNot(ContainElement(childVolume2.Handle))
+
+			By("the parent should be removed")
+			Eventually(currentHandles, 3*time.Second).ShouldNot(ContainElement(parentVolume.Handle))
 		})
 
 		It("resets to a new value if you update the ttl", func() {
@@ -97,8 +155,8 @@ var _ = Describe("TTL's", func() {
 			err = client.SetTTL(emptyVolume.Handle, 3)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Consistently(currentHandles, 2*time.Second, 500*time.Millisecond).Should(ContainElement(emptyVolume.Handle))
-			Eventually(currentHandles, 2*time.Second, 500*time.Millisecond).ShouldNot(ContainElement(emptyVolume.Handle))
+			Consistently(currentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle))
+			Eventually(currentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle))
 		})
 	})
 })

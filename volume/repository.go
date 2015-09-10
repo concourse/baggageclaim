@@ -64,6 +64,8 @@ type Repository interface {
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
 	SetTTL(handle string, ttl uint) error
+
+	VolumeParent(handle string) (string, bool, error)
 }
 
 type repository struct {
@@ -193,7 +195,7 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	}
 
 	newVolumeDataPath := repo.dataPath(handle)
-	err = repo.doStrategy(strategyName, newVolumeDataPath, strategy, logger)
+	err = repo.doStrategy(strategyName, handle, newVolumeDataPath, strategy, logger)
 	if err != nil {
 		repo.deleteVolumeMetadataDir(handle)
 		return Volume{}, err
@@ -253,7 +255,6 @@ func (repo *repository) GetVolume(handle string) (Volume, error) {
 	logger := repo.logger.Session("get-volume", lager.Data{
 		"volume": handle,
 	})
-
 
 	if !repo.volumeExists(handle) {
 		logger.Error("failed-to-get-volume", errors.New("volume-does-not-exist"))
@@ -330,7 +331,20 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	return nil
 }
 
-func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
+func (repo *repository) VolumeParent(handle string) (string, bool, error) {
+	parentDir, err := filepath.EvalSymlinks(filepath.Join(repo.metadataPath(handle), "parent"))
+	if os.IsNotExist(err) {
+		return "", false, nil
+	}
+
+	if err != nil {
+		return "", false, err
+	}
+
+	return filepath.Base(parentDir), true, nil
+}
+
+func (repo *repository) doStrategy(strategyName string, newVolumeHandle string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
 	logger = repo.logger.Session("do-strategy")
 
 	switch strategyName {
@@ -362,6 +376,12 @@ func (repo *repository) doStrategy(strategyName string, newVolumeDataPath string
 		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
+			return ErrCreateVolumeFailed
+		}
+
+		err = os.Symlink(repo.metadataPath(parentHandle), filepath.Join(repo.metadataPath(newVolumeHandle), "parent"))
+		if err != nil {
+			logger.Error("failed-to-symlink-to-parent", err)
 			return ErrCreateVolumeFailed
 		}
 

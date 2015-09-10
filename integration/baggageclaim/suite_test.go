@@ -49,6 +49,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Ω(err).ShouldNot(HaveOccurred())
 
 	baggageClaimPath = suiteData.BaggageClaimPath
+
+	// poll less frequently
+	SetDefaultEventuallyPollingInterval(100 * time.Millisecond)
+	SetDefaultConsistentlyPollingInterval(100 * time.Millisecond)
 })
 
 var _ = SynchronizedAfterSuite(func() {}, func() {

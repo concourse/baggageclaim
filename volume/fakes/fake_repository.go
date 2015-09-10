@@ -64,6 +64,16 @@ type FakeRepository struct {
 	setTTLReturns struct {
 		result1 error
 	}
+	VolumeParentStub        func(handle string) (string, bool, error)
+	volumeParentMutex       sync.RWMutex
+	volumeParentArgsForCall []struct {
+		handle string
+	}
+	volumeParentReturns struct {
+		result1 string
+		result2 bool
+		result3 error
+	}
 }
 
 func (fake *FakeRepository) ListVolumes(queryProperties volume.Properties) (volume.Volumes, error) {
@@ -264,6 +274,40 @@ func (fake *FakeRepository) SetTTLReturns(result1 error) {
 	fake.setTTLReturns = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeRepository) VolumeParent(handle string) (string, bool, error) {
+	fake.volumeParentMutex.Lock()
+	fake.volumeParentArgsForCall = append(fake.volumeParentArgsForCall, struct {
+		handle string
+	}{handle})
+	fake.volumeParentMutex.Unlock()
+	if fake.VolumeParentStub != nil {
+		return fake.VolumeParentStub(handle)
+	} else {
+		return fake.volumeParentReturns.result1, fake.volumeParentReturns.result2, fake.volumeParentReturns.result3
+	}
+}
+
+func (fake *FakeRepository) VolumeParentCallCount() int {
+	fake.volumeParentMutex.RLock()
+	defer fake.volumeParentMutex.RUnlock()
+	return len(fake.volumeParentArgsForCall)
+}
+
+func (fake *FakeRepository) VolumeParentArgsForCall(i int) string {
+	fake.volumeParentMutex.RLock()
+	defer fake.volumeParentMutex.RUnlock()
+	return fake.volumeParentArgsForCall[i].handle
+}
+
+func (fake *FakeRepository) VolumeParentReturns(result1 string, result2 bool, result3 error) {
+	fake.VolumeParentStub = nil
+	fake.volumeParentReturns = struct {
+		result1 string
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
 }
 
 var _ volume.Repository = new(FakeRepository)

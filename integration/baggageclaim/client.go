@@ -18,8 +18,9 @@ type Client struct {
 }
 
 type VolumeSpec struct {
-	Properties volume.Properties
-	TTL        uint
+	Properties   volume.Properties
+	ParentHandle string
+	TTL          uint
 }
 
 func NewClient(
@@ -33,14 +34,15 @@ func NewClient(
 	}
 }
 
-func (c *Client) CreateCOWVolume(parentHandle string, properties volume.Properties) (volume.Volume, error) {
+func (c *Client) CreateCOWVolume(volumeSpec VolumeSpec) (volume.Volume, error) {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(api.VolumeRequest{
 		Strategy: volume.Strategy{
 			"type":   "cow",
-			"volume": parentHandle,
+			"volume": volumeSpec.ParentHandle,
 		},
-		Properties: properties,
+		TTL:        &volumeSpec.TTL,
+		Properties: volumeSpec.Properties,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)

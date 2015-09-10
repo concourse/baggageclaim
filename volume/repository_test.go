@@ -187,12 +187,20 @@ var _ = Describe("Repository", func() {
 		})
 
 		Describe("creating a new volume", func() {
-			It("cows", func() {
+			FIt("cows", func() {
 				childVolume, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
 					"volume": someVolume.Handle,
 				}, volume.Properties{}, &zero)
 				Ω(err).ShouldNot(HaveOccurred())
+
+				childsParentFile := filepath.Join(volumeDir, "live", childVolume.Handle, "parent")
+				Ω(childsParentFile).Should(BeADirectory())
+
+				parentPath, err := filepath.EvalSymlinks(childsParentFile)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				Ω(parentPath).Should(Equal(filepath.Join(volumeDir, "live", someVolume.Handle)))
 
 				childFilePath := filepath.Join(childVolume.Path, "this-should-only-be-in-the-child")
 				err = ioutil.WriteFile(childFilePath, []byte("contents"), 0755)

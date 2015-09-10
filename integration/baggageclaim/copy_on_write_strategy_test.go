@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim/integration/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
@@ -54,7 +53,9 @@ var _ = Describe("Copy On Write Strategy", func() {
 				dataInParent := writeData(parentVolume.Path)
 				Ω(dataExistsInVolume(dataInParent, parentVolume.Path)).To(BeTrue())
 
-				childVolume, err := client.CreateCOWVolume(parentVolume.Handle, volume.Properties{})
+				childVolume, err := client.CreateCOWVolume(integration.VolumeSpec{
+					ParentHandle: parentVolume.Handle,
+				})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(dataExistsInVolume(dataInParent, childVolume.Path)).To(BeTrue())
