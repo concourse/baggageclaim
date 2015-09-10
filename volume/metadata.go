@@ -12,11 +12,6 @@ type VolumeState string
 const (
 	propertiesFileName = "properties.json"
 	ttlFileName        = "ttl.json"
-	stateFileName      = "state.json"
-
-	VolumeDestroyed VolumeState = "destroyed"
-	VolumeActive    VolumeState = "active"
-	CreatingVolume  VolumeState = "creating"
 )
 
 type Metadata struct {
@@ -53,49 +48,6 @@ func (pf *propertiesFile) Properties() (Properties, error) {
 	}
 
 	return properties, nil
-}
-
-// State File
-func (md *Metadata) VolumeState() (VolumeState, error) {
-	volumeStateProperties, err := md.stateFile().Properties()
-	if err != nil {
-		return "", err
-	}
-	return volumeStateProperties.State, nil
-}
-
-func (md *Metadata) StoreState(volumeState VolumeState) error {
-	return md.stateFile().WriteState(volumeState)
-}
-
-func (md *Metadata) stateFile() *stateFile {
-	return &stateFile{path: filepath.Join(md.path, stateFileName)}
-}
-
-type stateFile struct {
-	path string
-}
-
-type stateProperties struct {
-	State VolumeState `json:"state"`
-}
-
-func (sf *stateFile) Properties() (stateProperties, error) {
-	var properties stateProperties
-
-	err := readMetadataFile(sf.path, &properties)
-	if err != nil {
-		return stateProperties{}, err
-	}
-
-	return properties, nil
-}
-
-func (sf *stateFile) WriteState(volumeState VolumeState) error {
-	properties := stateProperties{
-		State: volumeState,
-	}
-	return writeMetadataFile(sf.path, properties)
 }
 
 // TTL File

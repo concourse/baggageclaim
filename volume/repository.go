@@ -69,8 +69,10 @@ type Repository interface {
 }
 
 type repository struct {
-	volumeDir  string
-	limboDir   string
+	initDir string
+	liveDir string
+	deadDir string
+
 	driver     Driver
 	locker     LockManager
 	defaultTTL TTL
@@ -79,8 +81,9 @@ type repository struct {
 }
 
 const (
-	liveDir = "live"
-	deadDir = "dead"
+	initDirname = "init" // volumes being initialized
+	liveDirname = "live" // volumes accessible via API
+	deadDirname = "dead" // volumes being torn down
 )
 
 func NewRepository(
@@ -89,24 +92,31 @@ func NewRepository(
 	locker LockManager,
 	parentDir string,
 ) (Repository, error) {
-	volumeDir := filepath.Join(parentDir, liveDir)
-	err := os.MkdirAll(volumeDir, 0755)
+	initDir := filepath.Join(parentDir, initDirname)
+	err := os.MkdirAll(initDir, 0755)
 	if err != nil {
 		return nil, err
 	}
 
-	limboDir := filepath.Join(parentDir, deadDir)
-	err = os.MkdirAll(limboDir, 0755)
+	liveDir := filepath.Join(parentDir, liveDirname)
+	err = os.MkdirAll(liveDir, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	deadDir := filepath.Join(parentDir, deadDirname)
+	err = os.MkdirAll(deadDir, 0755)
 	if err != nil {
 		return nil, err
 	}
 
 	return &repository{
-		volumeDir: volumeDir,
-		limboDir:  limboDir,
-		logger:    logger,
-		driver:    driver,
-		locker:    locker,
+		initDir: initDir,
+		liveDir: liveDir,
+		deadDir: deadDir,
+		logger:  logger,
+		driver:  driver,
+		locker:  locker,
 	}, nil
 }
 
@@ -118,19 +128,19 @@ func (repo *repository) DestroyVolume(handle string) error {
 		"volume": handle,
 	})
 
-	err := os.Rename(repo.metadataPath(handle), repo.deadPath(handle))
+	err := os.Rename(repo.liveMetadataPath(handle), repo.deadMetadataPath(handle))
 	if err != nil {
 		logger.Error("failed-to-move-to-dead", err)
 		return ErrDestroyVolumeFailed
 	}
 
-	err = repo.destroyVolume(repo.deadPath(handle))
+	err = repo.driver.DestroyVolume(repo.deadDataPath(handle))
 	if err != nil {
 		logger.Error("failed-to-delete-data", err)
 		return ErrDestroyVolumeFailed
 	}
 
-	err = os.RemoveAll(repo.deadPath(handle))
+	err = os.RemoveAll(repo.deadMetadataPath(handle))
 	if err != nil {
 		logger.Error("failed-to-delete-metadata", err)
 		return ErrDestroyVolumeFailed
@@ -161,14 +171,16 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	ttl := TTL(ttlInSeconds)
 
 	handle := repo.generateHandle()
-	newVolumeMetadataPath := repo.metadataPath(handle)
+
+	newVolumeMetadataPath := repo.initMetadataPath(handle)
 	err := os.Mkdir(newVolumeMetadataPath, 0755)
 	if err != nil {
 		logger.Error("failed-to-create-metadata-dir", err)
 		return Volume{}, ErrCreateVolumeFailed
 	}
 
-	metadata := repo.metadata(handle)
+	metadata := repo.initMetadata(handle)
+
 	err = metadata.StoreProperties(properties)
 	if err != nil {
 		logger.Error("failed-to-create-properties-file", err)
@@ -187,27 +199,23 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		return Volume{}, ErrCreateVolumeFailed
 	}
 
-	err = metadata.StoreState(CreatingVolume)
-	if err != nil {
-		logger.Error("failed-to-create-state-file", err)
-		return Volume{}, ErrCreateVolumeFailed
-	}
+	newVolumeDataPath := repo.initDataPath(handle)
 
-	newVolumeDataPath := repo.dataPath(handle)
-	err = repo.doStrategy(strategyName, handle, newVolumeDataPath, strategy, logger)
+	err = repo.doStrategy(strategyName, newVolumeMetadataPath, newVolumeDataPath, strategy, logger)
 	if err != nil {
-		repo.deleteVolumeMetadataDir(handle)
+		repo.cleanupFailedInitVolumeMetadataDir(handle)
 		return Volume{}, err
 	}
 
-	err = metadata.StoreState(VolumeActive)
+	err = os.Rename(repo.initMetadataPath(handle), repo.liveMetadataPath(handle))
 	if err != nil {
-		logger.Error("failed-to-create-state-file", err)
-		return Volume{}, ErrCreateVolumeFailed
+		repo.cleanupFailedInitVolumeMetadataDir(handle)
+		logger.Error("failed-to-move-from-init-to-live", err)
+		return Volume{}, err
 	}
 
 	return Volume{
-		Path:       newVolumeDataPath,
+		Path:       repo.liveDataPath(handle),
 		Handle:     handle,
 		Properties: properties,
 		TTL:        ttl,
@@ -218,22 +226,22 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error) {
 	logger := repo.logger.Session("list-volumes", lager.Data{})
 
-	volumeDirs, err := ioutil.ReadDir(repo.volumeDir)
+	liveDirs, err := ioutil.ReadDir(repo.liveDir)
 	if err != nil {
 		logger.Error("failed-to-list-dirs", err, lager.Data{
-			"volume-dir": repo.volumeDir,
+			"volume-dir": repo.liveDir,
 		})
 
 		return Volumes{}, ErrListVolumesFailed
 	}
 
-	response := make(Volumes, 0, len(volumeDirs))
+	response := make(Volumes, 0, len(liveDirs))
 
-	for _, volumeDir := range volumeDirs {
-		vol, err := repo.GetVolume(volumeDir.Name())
+	for _, liveDir := range liveDirs {
+		vol, err := repo.GetVolume(liveDir.Name())
 		if err != nil {
 			logger.Error("failed-to-get-volume", err, lager.Data{
-				"volume": volumeDir.Name(),
+				"volume": liveDir.Name(),
 			})
 			return nil, err
 		}
@@ -260,7 +268,7 @@ func (repo *repository) GetVolume(handle string) (Volume, error) {
 		return Volume{}, ErrGetVolumeFailed
 	}
 
-	metadata := repo.metadata(handle)
+	metadata := repo.liveMetadata(handle)
 	volumeProperties, err := metadata.Properties()
 	if err != nil {
 		logger.Error("failed-to-read-properties", err)
@@ -281,7 +289,7 @@ func (repo *repository) GetVolume(handle string) (Volume, error) {
 
 	return Volume{
 		Handle:     handle,
-		Path:       repo.dataPath(handle),
+		Path:       repo.liveDataPath(handle),
 		Properties: volumeProperties,
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
@@ -294,7 +302,7 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 
 	logger := repo.logger.Session("set-property")
 
-	md := repo.metadata(handle)
+	md := repo.liveMetadata(handle)
 
 	properties, err := md.Properties()
 	if err != nil {
@@ -321,7 +329,7 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 
 	logger := repo.logger.Session("set-ttl")
 
-	err := repo.metadata(handle).StoreTTL(TTL(ttl))
+	err := repo.liveMetadata(handle).StoreTTL(TTL(ttl))
 	if err != nil {
 		logger.Error("failed-to-store-ttl", err)
 		return ErrSetTTLFailed
@@ -331,7 +339,7 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 }
 
 func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
-	parentDir, err := filepath.EvalSymlinks(filepath.Join(repo.metadataPath(handle), "parent"))
+	parentDir, err := filepath.EvalSymlinks(filepath.Join(repo.liveMetadataPath(handle), "parent"))
 	if os.IsNotExist(err) {
 		return Volume{}, false, nil
 	}
@@ -350,7 +358,7 @@ func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
 	return parentVolume, true, nil
 }
 
-func (repo *repository) doStrategy(strategyName string, newVolumeHandle string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
+func (repo *repository) doStrategy(strategyName string, newVolumeMetadataPath string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
 	logger = repo.logger.Session("do-strategy")
 
 	switch strategyName {
@@ -378,14 +386,14 @@ func (repo *repository) doStrategy(strategyName string, newVolumeHandle string, 
 			return ErrParentVolumeNotFound
 		}
 
-		parentDataPath := repo.dataPath(parentHandle)
+		parentDataPath := repo.liveDataPath(parentHandle)
 		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
 			return ErrCreateVolumeFailed
 		}
 
-		err = os.Symlink(repo.metadataPath(parentHandle), filepath.Join(repo.metadataPath(newVolumeHandle), "parent"))
+		err = os.Symlink(repo.liveMetadataPath(parentHandle), filepath.Join(newVolumeMetadataPath, "parent"))
 		if err != nil {
 			logger.Error("failed-to-symlink-to-parent", err)
 			return ErrCreateVolumeFailed
@@ -401,33 +409,45 @@ func (repo *repository) doStrategy(strategyName string, newVolumeHandle string, 
 	return nil
 }
 
-func (repo *repository) metadataPath(id string) string {
-	return filepath.Join(repo.volumeDir, id)
+func (repo *repository) initMetadataPath(id string) string {
+	return filepath.Join(repo.initDir, id)
 }
 
-func (repo *repository) deadPath(id string) string {
-	return filepath.Join(repo.limboDir, id)
+func (repo *repository) initDataPath(id string) string {
+	return filepath.Join(repo.initDir, id, "volume")
 }
 
-func (repo *repository) metadata(id string) *Metadata {
-	return &Metadata{path: repo.metadataPath(id)}
+func (repo *repository) initMetadata(id string) *Metadata {
+	return &Metadata{path: repo.initMetadataPath(id)}
 }
 
-func (repo *repository) dataPath(id string) string {
-	return filepath.Join(repo.metadataPath(id), "volume")
+func (repo *repository) liveMetadataPath(id string) string {
+	return filepath.Join(repo.liveDir, id)
 }
 
-func (repo *repository) deleteVolumeMetadataDir(id string) {
-	err := os.RemoveAll(repo.metadataPath(id))
+func (repo *repository) liveDataPath(id string) string {
+	return filepath.Join(repo.liveMetadataPath(id), "volume")
+}
+
+func (repo *repository) liveMetadata(id string) *Metadata {
+	return &Metadata{path: repo.liveMetadataPath(id)}
+}
+
+func (repo *repository) deadMetadataPath(id string) string {
+	return filepath.Join(repo.deadDir, id)
+}
+
+func (repo *repository) deadDataPath(id string) string {
+	return filepath.Join(repo.deadDir, id, "volume")
+}
+
+func (repo *repository) cleanupFailedInitVolumeMetadataDir(id string) {
+	err := os.RemoveAll(repo.initMetadataPath(id))
 	if err != nil {
 		repo.logger.Error("failed-to-cleanup", err, lager.Data{
 			"volume": id,
 		})
 	}
-}
-
-func (repo *repository) destroyVolume(limboPath string) error {
-	return repo.driver.DestroyVolume(filepath.Join(limboPath, "volume"))
 }
 
 func (repo *repository) createEmptyVolume(volumePath string) error {
@@ -447,18 +467,8 @@ func (repo *repository) generateHandle() string {
 	return handle.String()
 }
 
-func (repo *repository) volumeActive(handle string) bool {
-	volumeState, err := repo.metadata(handle).VolumeState()
-
-	if err != nil {
-		return false
-	}
-
-	return volumeState == VolumeActive
-}
-
 func (repo *repository) volumeExists(handle string) bool {
-	info, err := os.Stat(repo.metadataPath(handle))
+	info, err := os.Stat(repo.liveMetadataPath(handle))
 	if err != nil {
 		return false
 	}
