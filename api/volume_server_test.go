@@ -45,8 +45,8 @@ var _ = Describe("Volume Server", func() {
 			&driver.NaiveDriver{},
 			volume.NewLockManager(),
 			volumeDir,
-			volume.TTL(60),
 		)
+
 		Ω(err).ShouldNot(HaveOccurred())
 
 		handler, err = api.NewHandler(logger, repo)
@@ -181,16 +181,14 @@ var _ = Describe("Volume Server", func() {
 			Ω(volumes).Should(HaveLen(1))
 		})
 
-		It("can have it's ttl updated", func() {
+		It("can have its ttl updated", func() {
 			body := &bytes.Buffer{}
-
-			one := uint(1)
 
 			err := json.NewEncoder(body).Encode(api.VolumeRequest{
 				Strategy: volume.Strategy{
 					"type": "empty",
 				},
-				TTL: &one,
+				TTLInSeconds: 1,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
@@ -240,35 +238,6 @@ var _ = Describe("Volume Server", func() {
 			request, _ := http.NewRequest("POST", "/volumes", body)
 
 			handler.ServeHTTP(recorder, request)
-		})
-
-		Context("when no TTL is given", func() {
-			BeforeEach(func() {
-				body = &bytes.Buffer{}
-				json.NewEncoder(body).Encode(api.VolumeRequest{
-					Strategy: volume.Strategy{
-						"type": "empty",
-					},
-				})
-			})
-
-			It("sets it to the default", func() {
-				var response volume.Volume
-				err := json.NewDecoder(recorder.Body).Decode(&response)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				recorder = httptest.NewRecorder()
-				request, _ := http.NewRequest("GET", "/volumes", nil)
-				handler.ServeHTTP(recorder, request)
-				Ω(recorder.Code).Should(Equal(200))
-
-				var volumes volume.Volumes
-				err = json.NewDecoder(recorder.Body).Decode(&volumes)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(volumes).Should(HaveLen(1))
-				Ω(volumes[0].TTL).Should(Equal(volume.TTL(60)))
-			})
 		})
 
 		Context("when there are properties given", func() {

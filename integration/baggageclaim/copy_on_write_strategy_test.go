@@ -47,7 +47,9 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{})
+				parentVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{
+					TTLInSeconds: 3600,
+				})
 				Ω(err).ShouldNot(HaveOccurred())
 
 				dataInParent := writeData(parentVolume.Path)
@@ -55,6 +57,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 				childVolume, err := client.CreateCOWVolume(integration.VolumeSpec{
 					ParentHandle: parentVolume.Handle,
+					TTLInSeconds: 3600,
 				})
 				Ω(err).ShouldNot(HaveOccurred())
 

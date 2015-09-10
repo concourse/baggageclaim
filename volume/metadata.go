@@ -118,7 +118,7 @@ func (md *Metadata) ExpiresAt() (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	return properties.ExpiresAt, nil
+	return time.Unix(properties.ExpiresAt, 0), nil
 }
 
 func (md *Metadata) ttlFile() *ttlFile {
@@ -130,16 +130,15 @@ type ttlFile struct {
 }
 
 type ttlProperties struct {
-	TTL       TTL       `json:"ttl"`
-	ExpiresAt time.Time `json:"expires_at"`
+	TTL       TTL   `json:"ttl"`
+	ExpiresAt int64 `json:"expires_at"`
 }
 
 func (tf *ttlFile) WriteTTL(ttl TTL) error {
-	properties := ttlProperties{
+	return writeMetadataFile(tf.path, ttlProperties{
 		TTL:       ttl,
-		ExpiresAt: time.Now().Add(ttl.Duration()),
-	}
-	return writeMetadataFile(tf.path, properties)
+		ExpiresAt: time.Now().Add(ttl.Duration()).Unix(),
+	})
 }
 
 func (tf *ttlFile) Properties() (ttlProperties, error) {

@@ -23,8 +23,6 @@ var _ = Describe("Repository", func() {
 		fakeLocker *fakes.FakeLockManager
 	)
 
-	zero := uint(0)
-
 	BeforeEach(func() {
 		var err error
 		volumeDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
@@ -50,12 +48,12 @@ var _ = Describe("Repository", func() {
 			var err error
 			fakeDriver = new(fakes.FakeDriver)
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, volumeDir, volume.TTL(60))
+			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			someVolume, err = repo.CreateVolume(volume.Strategy{
 				"type": volume.StrategyEmpty,
-			}, volume.Properties{}, &zero)
+			}, volume.Properties{}, 0)
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 
@@ -169,12 +167,12 @@ var _ = Describe("Repository", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, volumeDir, volume.TTL(60))
+			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			someVolume, err = repo.CreateVolume(volume.Strategy{
 				"type": volume.StrategyEmpty,
-			}, volume.Properties{}, &zero)
+			}, volume.Properties{}, 0)
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 
@@ -187,11 +185,11 @@ var _ = Describe("Repository", func() {
 		})
 
 		Describe("creating a new volume", func() {
-			FIt("cows", func() {
+			It("cows", func() {
 				childVolume, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
 					"volume": someVolume.Handle,
-				}, volume.Properties{}, &zero)
+				}, volume.Properties{}, 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				childsParentFile := filepath.Join(volumeDir, "live", childVolume.Handle, "parent")
@@ -215,7 +213,7 @@ var _ = Describe("Repository", func() {
 				_, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
 					"volume": someVolume.Handle,
-				}, volume.Properties{}, &zero)
+				}, volume.Properties{}, 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
@@ -242,7 +240,7 @@ var _ = Describe("Repository", func() {
 			It("makes some attempt at locking", func() {
 				someVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
-				}, volume.Properties{}, &zero)
+				}, volume.Properties{}, 0)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				err = repo.DestroyVolume(someVolume.Handle)

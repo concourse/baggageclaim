@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
@@ -12,7 +14,7 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/bomberman"
+	"github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -41,10 +43,10 @@ var driverType = flag.String(
 	"the backend driver to use for filesystems",
 )
 
-var defaultTTL = flag.Uint(
-	"defaultTTL",
-	86400, // 1 day in seconds
-	"default volume ttl",
+var reapInterval = flag.Duration(
+	"reapInterval",
+	10*time.Second,
+	"interval on which to reap expired containers",
 )
 
 func main() {
@@ -68,31 +70,33 @@ func main() {
 		volumeDriver = &driver.NaiveDriver{}
 	}
 
-	ttl := volume.TTL(*defaultTTL)
 	locker := volume.NewLockManager()
 	volumeRepo, err := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDriver,
 		locker,
 		*volumeDir,
-		ttl,
 	)
+
 	if err != nil {
 		logger.Fatal("failed-to-initialize-repo", err)
 	}
 
-	daBombRepo := bomberman.NewBombermanRepository(volumeRepo, logger.Session("bomberman"))
-
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
-		daBombRepo,
+		volumeRepo,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)
 	}
 
+	clock := clock.NewClock()
+
+	morbidReality := reaper.NewReaper(clock, volumeRepo)
+
 	memberGrouper := []grouper.Member{
 		{"api", http_server.New(listenAddr, apiHandler)},
+		{"reaper", reaper.NewRunner(logger, clock, *reapInterval, morbidReality.Reap)},
 	}
 
 	group := grouper.NewParallel(os.Interrupt, memberGrouper)

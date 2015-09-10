@@ -1,4 +1,4 @@
-package timebomb_test
+package reaper_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestTimeBomb(t *testing.T) {
+func TestReaper(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "TimeBomb Suite")
+	RunSpecs(t, "Reaper Suite")
 }

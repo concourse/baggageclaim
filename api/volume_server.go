@@ -12,9 +12,9 @@ import (
 const httpUnprocessableEntity = 422
 
 type VolumeRequest struct {
-	Strategy   volume.Strategy   `json:"strategy"`
-	Properties volume.Properties `json:"properties"`
-	TTL        *uint             `json:"ttl,omitempty"`
+	Strategy     volume.Strategy   `json:"strategy"`
+	Properties   volume.Properties `json:"properties"`
+	TTLInSeconds uint              `json:"ttl,omitempty"`
 }
 
 type PropertyRequest struct {
@@ -50,7 +50,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	createdVolume, err := vs.volumeRepo.CreateVolume(
 		request.Strategy,
 		request.Properties,
-		request.TTL,
+		request.TTLInSeconds,
 	)
 
 	if err != nil {

@@ -59,13 +59,13 @@ type Driver interface {
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	GetVolume(handle string) (Volume, error)
-	CreateVolume(strategy Strategy, properties Properties, ttl *uint) (Volume, error)
+	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
 	SetTTL(handle string, ttl uint) error
 
-	VolumeParent(handle string) (string, bool, error)
+	VolumeParent(handle string) (Volume, bool, error)
 }
 
 type repository struct {
@@ -88,7 +88,6 @@ func NewRepository(
 	driver Driver,
 	locker LockManager,
 	parentDir string,
-	defaultTTL TTL,
 ) (Repository, error) {
 	volumeDir := filepath.Join(parentDir, liveDir)
 	err := os.MkdirAll(volumeDir, 0755)
@@ -103,12 +102,11 @@ func NewRepository(
 	}
 
 	return &repository{
-		volumeDir:  volumeDir,
-		limboDir:   limboDir,
-		logger:     logger,
-		driver:     driver,
-		locker:     locker,
-		defaultTTL: defaultTTL,
+		volumeDir: volumeDir,
+		limboDir:  limboDir,
+		logger:    logger,
+		driver:    driver,
+		locker:    locker,
 	}, nil
 }
 
@@ -146,7 +144,11 @@ func (ttl TTL) Duration() time.Duration {
 	return time.Duration(ttl) * time.Second
 }
 
-func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInt *uint) (Volume, error) {
+func (ttl TTL) IsUnlimited() bool {
+	return ttl == 0
+}
+
+func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
 	strategyName, found := strategy["type"]
 	if !found {
 		return Volume{}, ErrMissingStrategy
@@ -156,10 +158,7 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		"strategy": strategyName,
 	})
 
-	ttl := TTL(repo.defaultTTL)
-	if ttlInt != nil {
-		ttl = TTL(*ttlInt)
-	}
+	ttl := TTL(ttlInSeconds)
 
 	handle := repo.generateHandle()
 	newVolumeMetadataPath := repo.metadataPath(handle)
@@ -331,17 +330,24 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	return nil
 }
 
-func (repo *repository) VolumeParent(handle string) (string, bool, error) {
+func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
 	parentDir, err := filepath.EvalSymlinks(filepath.Join(repo.metadataPath(handle), "parent"))
 	if os.IsNotExist(err) {
-		return "", false, nil
+		return Volume{}, false, nil
 	}
 
 	if err != nil {
-		return "", false, err
+		return Volume{}, false, err
 	}
 
-	return filepath.Base(parentDir), true, nil
+	parentHandle := filepath.Base(parentDir)
+
+	parentVolume, err := repo.GetVolume(parentHandle)
+	if err != nil {
+		return Volume{}, false, err
+	}
+
+	return parentVolume, true, nil
 }
 
 func (repo *repository) doStrategy(strategyName string, newVolumeHandle string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {

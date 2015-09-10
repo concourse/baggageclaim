@@ -20,7 +20,7 @@ type Client struct {
 type VolumeSpec struct {
 	Properties   volume.Properties
 	ParentHandle string
-	TTL          uint
+	TTLInSeconds uint
 }
 
 func NewClient(
@@ -41,8 +41,8 @@ func (c *Client) CreateCOWVolume(volumeSpec VolumeSpec) (volume.Volume, error) {
 			"type":   "cow",
 			"volume": volumeSpec.ParentHandle,
 		},
-		TTL:        &volumeSpec.TTL,
-		Properties: volumeSpec.Properties,
+		TTLInSeconds: volumeSpec.TTLInSeconds,
+		Properties:   volumeSpec.Properties,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
@@ -75,8 +75,8 @@ func (c *Client) CreateEmptyVolume(volumeSpec VolumeSpec) (volume.Volume, error)
 		Strategy: volume.Strategy{
 			"type": "empty",
 		},
-		Properties: volumeSpec.Properties,
-		TTL:        &volumeSpec.TTL,
+		Properties:   volumeSpec.Properties,
+		TTLInSeconds: volumeSpec.TTLInSeconds,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
