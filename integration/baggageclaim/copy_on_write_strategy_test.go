@@ -9,13 +9,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/concourse/baggageclaim/integration/baggageclaim"
+	"github.com/concourse/baggageclaim"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
 	var (
 		runner *BaggageClaimRunner
-		client *integration.Client
+		client baggageclaim.Client
 	)
 
 	BeforeEach(func() {
@@ -47,29 +47,29 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{
+				parentVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{
 					TTLInSeconds: 3600,
 				})
 				Ω(err).ShouldNot(HaveOccurred())
 
-				dataInParent := writeData(parentVolume.Path)
-				Ω(dataExistsInVolume(dataInParent, parentVolume.Path)).To(BeTrue())
+				dataInParent := writeData(parentVolume.Path())
+				Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
-				childVolume, err := client.CreateCOWVolume(integration.VolumeSpec{
-					ParentHandle: parentVolume.Handle,
+				childVolume, err := client.CreateCOWVolume(baggageclaim.VolumeSpec{
+					ParentHandle: parentVolume.Handle(),
 					TTLInSeconds: 3600,
 				})
 				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(dataExistsInVolume(dataInParent, childVolume.Path)).To(BeTrue())
+				Ω(dataExistsInVolume(dataInParent, childVolume.Path())).To(BeTrue())
 
-				newDataInParent := writeData(parentVolume.Path)
-				Ω(dataExistsInVolume(newDataInParent, parentVolume.Path)).To(BeTrue())
-				Ω(dataExistsInVolume(newDataInParent, childVolume.Path)).To(BeFalse())
+				newDataInParent := writeData(parentVolume.Path())
+				Ω(dataExistsInVolume(newDataInParent, parentVolume.Path())).To(BeTrue())
+				Ω(dataExistsInVolume(newDataInParent, childVolume.Path())).To(BeFalse())
 
-				dataInChild := writeData(childVolume.Path)
-				Ω(dataExistsInVolume(dataInChild, childVolume.Path)).To(BeTrue())
-				Ω(dataExistsInVolume(dataInChild, parentVolume.Path)).To(BeFalse())
+				dataInChild := writeData(childVolume.Path())
+				Ω(dataExistsInVolume(dataInChild, childVolume.Path())).To(BeTrue())
+				Ω(dataExistsInVolume(dataInChild, parentVolume.Path())).To(BeFalse())
 			})
 		})
 	})

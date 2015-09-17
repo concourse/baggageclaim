@@ -10,7 +10,7 @@ import (
 )
 
 func TestDriver(t *testing.T) {
-	suiteName := "Driver Suire"
+	suiteName := "Driver Suite"
 	if runtime.GOOS != "linux" {
 		suiteName = suiteName + " - skipping btrfs tests because non-linux"
 	}

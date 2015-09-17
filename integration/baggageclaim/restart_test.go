@@ -4,13 +4,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/concourse/baggageclaim/integration/baggageclaim"
+	"github.com/concourse/baggageclaim"
 )
 
 var _ = Describe("Restarting", func() {
 	var (
 		runner *BaggageClaimRunner
-		client *integration.Client
+		client baggageclaim.Client
 	)
 
 	BeforeEach(func() {
@@ -26,17 +26,13 @@ var _ = Describe("Restarting", func() {
 	})
 
 	It("can get volumes after the process restarts", func() {
-		createdVolume, err := client.CreateEmptyVolume(integration.VolumeSpec{})
+		createdVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
 		Ω(err).ShouldNot(HaveOccurred())
 
-		volumes, err := client.GetVolumes()
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(volumes).Should(ConsistOf(createdVolume))
+		Ω(runner.CurrentHandles()).Should(ConsistOf(createdVolume.Handle()))
 
 		runner.Bounce()
 
-		volumesAfterRestart, err := client.GetVolumes()
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(volumesAfterRestart).Should(ConsistOf(createdVolume))
+		Ω(runner.CurrentHandles()).Should(ConsistOf(createdVolume.Handle()))
 	})
 })

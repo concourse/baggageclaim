@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/concourse/baggageclaim/integration/baggageclaim"
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tedsuo/ifrit"
@@ -108,8 +109,8 @@ func (bcr *BaggageClaimRunner) Cleanup() {
 	Ω(err).ShouldNot(HaveOccurred())
 }
 
-func (bcr *BaggageClaimRunner) Client() *integration.Client {
-	return integration.NewClient(fmt.Sprintf("http://localhost:%d", bcr.port))
+func (bcr *BaggageClaimRunner) Client() baggageclaim.Client {
+	return client.New(fmt.Sprintf("http://localhost:%d", bcr.port))
 }
 
 func (bcr *BaggageClaimRunner) VolumeDir() string {
@@ -118,4 +119,17 @@ func (bcr *BaggageClaimRunner) VolumeDir() string {
 
 func (bcr *BaggageClaimRunner) Port() int {
 	return bcr.port
+}
+
+func (bcr *BaggageClaimRunner) CurrentHandles() []string {
+	volumes, err := bcr.Client().GetVolumes()
+	Ω(err).ShouldNot(HaveOccurred())
+
+	handles := []string{}
+
+	for _, v := range volumes {
+		handles = append(handles, v.Handle())
+	}
+
+	return handles
 }

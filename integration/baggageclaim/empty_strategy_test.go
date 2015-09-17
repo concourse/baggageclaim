@@ -4,14 +4,14 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/concourse/baggageclaim/integration/baggageclaim"
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Empty Strategy", func() {
 	var (
 		runner *BaggageClaimRunner
-		client *integration.Client
+		client baggageclaim.Client
 	)
 
 	BeforeEach(func() {
@@ -32,12 +32,12 @@ var _ = Describe("Empty Strategy", func() {
 
 		Describe("POST /volumes", func() {
 			var (
-				firstVolume volume.Volume
+				firstVolume baggageclaim.Volume
 			)
 
 			JustBeforeEach(func() {
 				var err error
-				firstVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{})
+				firstVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
 				Ω(err).ShouldNot(HaveOccurred())
 			})
 
@@ -47,7 +47,7 @@ var _ = Describe("Empty Strategy", func() {
 				)
 
 				JustBeforeEach(func() {
-					createdDir = firstVolume.Path
+					createdDir = firstVolume.Path()
 				})
 
 				It("is in the volume dir", func() {
@@ -60,21 +60,21 @@ var _ = Describe("Empty Strategy", func() {
 
 				Context("on a second request", func() {
 					var (
-						secondVolume volume.Volume
+						secondVolume baggageclaim.Volume
 					)
 
 					JustBeforeEach(func() {
 						var err error
-						secondVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{})
+						secondVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
 						Ω(err).ShouldNot(HaveOccurred())
 					})
 
 					It("creates a new directory", func() {
-						Ω(createdDir).ShouldNot(Equal(secondVolume.Path))
+						Ω(createdDir).ShouldNot(Equal(secondVolume.Path()))
 					})
 
 					It("creates a new handle", func() {
-						Ω(firstVolume.Handle).ShouldNot(Equal(secondVolume.Handle))
+						Ω(firstVolume.Handle).ShouldNot(Equal(secondVolume.Handle()))
 					})
 				})
 			})
@@ -82,7 +82,7 @@ var _ = Describe("Empty Strategy", func() {
 
 		Describe("GET /volumes", func() {
 			var (
-				volumes volume.Volumes
+				volumes baggageclaim.Volumes
 			)
 
 			JustBeforeEach(func() {
@@ -96,16 +96,16 @@ var _ = Describe("Empty Strategy", func() {
 			})
 
 			Context("when a volume has been created", func() {
-				var createdVolume volume.Volume
+				var createdVolume baggageclaim.Volume
 
 				BeforeEach(func() {
 					var err error
-					createdVolume, err = client.CreateEmptyVolume(integration.VolumeSpec{Properties: properties})
+					createdVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{Properties: properties})
 					Ω(err).ShouldNot(HaveOccurred())
 				})
 
 				It("returns it", func() {
-					Ω(volumes).Should(ConsistOf(createdVolume))
+					Ω(runner.CurrentHandles()).Should(ConsistOf(createdVolume.Handle()))
 				})
 			})
 		})
