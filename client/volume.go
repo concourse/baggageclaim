@@ -78,6 +78,8 @@ func (cv *clientVolume) heartbeat(pacemaker clock.Ticker) {
 	defer cv.heartbeating.Done()
 	defer pacemaker.Stop()
 
+	cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+
 	for {
 		select {
 		case <-pacemaker.C():

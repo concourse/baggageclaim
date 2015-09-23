@@ -32,10 +32,6 @@ var _ = Describe("Volume", func() {
 
 		hbVol.Heartbeat(30*time.Second, fakeClock)
 
-		Ω(fakeClient.SetTTLCallCount()).Should(Equal(0))
-
-		fakeClock.Increment(30 * time.Second)
-
 		Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
 		handle, ttl := fakeClient.SetTTLArgsForCall(0)
 		Ω(handle).Should(Equal("some-handle"))
@@ -48,10 +44,17 @@ var _ = Describe("Volume", func() {
 		Ω(handle).Should(Equal("some-handle"))
 		Ω(ttl).Should(Equal(uint(1)))
 
+		fakeClock.Increment(30 * time.Second)
+
+		Eventually(fakeClient.SetTTLCallCount).Should(Equal(3))
+		handle, ttl = fakeClient.SetTTLArgsForCall(2)
+		Ω(handle).Should(Equal("some-handle"))
+		Ω(ttl).Should(Equal(uint(1)))
+
 		hbVol.Release()
 
 		fakeClock.Increment(30 * time.Second)
 
-		Consistently(fakeClient.SetTTLCallCount).Should(Equal(2))
+		Consistently(fakeClient.SetTTLCallCount).Should(Equal(3))
 	})
 })
