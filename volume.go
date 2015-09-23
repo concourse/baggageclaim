@@ -7,6 +7,8 @@ import (
 	"github.com/pivotal-golang/clock"
 )
 
+//go:generate counterfeiter . Volume
+
 type Volume interface {
 	Handle() string
 	Path() string
