@@ -193,11 +193,16 @@ func (c *client) SetTTL(handle string, ttl uint) error {
 		return err
 	}
 
+	defer response.Body.Close()
+
+	if response.StatusCode == 404 {
+		return baggageclaim.ErrVolumeNotFound
+	}
+
 	if response.StatusCode != 204 {
 		return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 	}
 
-	return response.Body.Close()
 	return nil
 }
 
@@ -220,9 +225,15 @@ func (c *client) SetProperty(handle string, propertyName string, propertyValue s
 		return err
 	}
 
+	defer response.Body.Close()
+
+	if response.StatusCode == 404 {
+		return baggageclaim.ErrVolumeNotFound
+	}
+
 	if response.StatusCode != 204 {
 		return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 	}
 
-	return response.Body.Close()
+	return nil
 }

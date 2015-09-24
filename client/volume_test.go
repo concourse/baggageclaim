@@ -3,6 +3,7 @@ package client_test
 import (
 	"time"
 
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/client"
 	"github.com/concourse/baggageclaim/fakes"
 	"github.com/concourse/baggageclaim/volume"
@@ -56,5 +57,57 @@ var _ = Describe("Volume", func() {
 		fakeClock.Increment(30 * time.Second)
 
 		Consistently(fakeClient.SetTTLCallCount).Should(Equal(3))
+	})
+
+	Context("when the volume disappears while heartbeating", func() {
+		It("gives up", func() {
+			hbVol := client.NewVolume(fakeClient, vol)
+
+			hbVol.Heartbeat(30*time.Second, fakeClock)
+
+			Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
+			handle, ttl := fakeClient.SetTTLArgsForCall(0)
+			Ω(handle).Should(Equal("some-handle"))
+			Ω(ttl).Should(Equal(uint(1)))
+
+			fakeClock.Increment(30 * time.Second)
+
+			Eventually(fakeClient.SetTTLCallCount).Should(Equal(2))
+			handle, ttl = fakeClient.SetTTLArgsForCall(1)
+			Ω(handle).Should(Equal("some-handle"))
+			Ω(ttl).Should(Equal(uint(1)))
+
+			fakeClient.SetTTLReturns(baggageclaim.ErrVolumeNotFound)
+
+			fakeClock.Increment(30 * time.Second)
+
+			Eventually(fakeClient.SetTTLCallCount).Should(Equal(3))
+			handle, ttl = fakeClient.SetTTLArgsForCall(2)
+			Ω(handle).Should(Equal("some-handle"))
+			Ω(ttl).Should(Equal(uint(1)))
+
+			fakeClock.Increment(30 * time.Second)
+
+			Consistently(fakeClient.SetTTLCallCount).Should(Equal(3))
+		})
+	})
+
+	Context("when the volume disappears immediately", func() {
+		It("gives up", func() {
+			hbVol := client.NewVolume(fakeClient, vol)
+
+			fakeClient.SetTTLReturns(baggageclaim.ErrVolumeNotFound)
+
+			hbVol.Heartbeat(30*time.Second, fakeClock)
+
+			Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
+			handle, ttl := fakeClient.SetTTLArgsForCall(0)
+			Ω(handle).Should(Equal("some-handle"))
+			Ω(ttl).Should(Equal(uint(1)))
+
+			fakeClock.Increment(30 * time.Second)
+
+			Consistently(fakeClient.SetTTLCallCount).Should(Equal(1))
+		})
 	})
 })

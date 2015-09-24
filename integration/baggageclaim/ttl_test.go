@@ -129,5 +129,18 @@ var _ = Describe("TTL's", func() {
 			Consistently(runner.CurrentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle()))
 			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
 		})
+
+		It("returns ErrVolumeNotFound when setting the TTL after it's expired", func() {
+			spec := baggageclaim.VolumeSpec{
+				TTLInSeconds: 1,
+			}
+			emptyVolume, err := client.CreateEmptyVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
+
+			err = client.SetTTL(emptyVolume.Handle(), 1)
+			Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
+		})
 	})
 })

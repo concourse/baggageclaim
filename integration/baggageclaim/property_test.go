@@ -81,4 +81,9 @@ var _ = Describe("Properties", func() {
 			"another-property": "another-value",
 		}))
 	})
+
+	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
+		err := client.SetProperty("bogus", "some", "property")
+		Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
+	})
 })

@@ -116,7 +116,12 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 
 	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
 	if err != nil {
-		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
+		if err == volume.ErrVolumeDoesNotExist {
+			respondWithError(w, volume.ErrSetPropertyFailed, http.StatusNotFound)
+		} else {
+			respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
+		}
+
 		return
 	}
 
@@ -137,7 +142,12 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 
 	err = vs.volumeRepo.SetTTL(handle, ttl)
 	if err != nil {
-		respondWithError(w, volume.ErrSetTTLFailed, http.StatusInternalServerError)
+		if err == volume.ErrVolumeDoesNotExist {
+			respondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
+		} else {
+			respondWithError(w, volume.ErrSetTTLFailed, http.StatusInternalServerError)
+		}
+
 		return
 	}
 

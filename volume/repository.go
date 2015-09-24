@@ -41,6 +41,7 @@ var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
+var ErrVolumeDoesNotExist = errors.New("volume does not exist")
 
 var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
 var ErrParentVolumeNotFound = errors.New("parent volume not found")
@@ -309,7 +310,7 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 		logger.Error("failed-to-read-properties", err, lager.Data{
 			"volume": handle,
 		})
-		return ErrSetPropertyFailed
+		return err
 	}
 
 	properties = properties.UpdateProperty(propertyName, propertyValue)
@@ -317,7 +318,7 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 	err = md.StoreProperties(properties)
 	if err != nil {
 		logger.Error("failed-to-store-properties", err)
-		return ErrSetPropertyFailed
+		return err
 	}
 
 	return nil
@@ -332,7 +333,7 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	err := repo.liveMetadata(handle).StoreTTL(TTL(ttl))
 	if err != nil {
 		logger.Error("failed-to-store-ttl", err)
-		return ErrSetTTLFailed
+		return err
 	}
 
 	return nil

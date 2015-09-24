@@ -14,31 +14,31 @@ type FakeVolume struct {
 	HandleStub        func() string
 	handleMutex       sync.RWMutex
 	handleArgsForCall []struct{}
-	handleReturns struct {
+	handleReturns     struct {
 		result1 string
 	}
 	PathStub        func() string
 	pathMutex       sync.RWMutex
 	pathArgsForCall []struct{}
-	pathReturns struct {
+	pathReturns     struct {
 		result1 string
 	}
 	TTLStub        func() uint
 	tTLMutex       sync.RWMutex
 	tTLArgsForCall []struct{}
-	tTLReturns struct {
+	tTLReturns     struct {
 		result1 uint
 	}
 	ExpiresAtStub        func() time.Time
 	expiresAtMutex       sync.RWMutex
 	expiresAtArgsForCall []struct{}
-	expiresAtReturns struct {
+	expiresAtReturns     struct {
 		result1 time.Time
 	}
 	PropertiesStub        func() volume.Properties
 	propertiesMutex       sync.RWMutex
 	propertiesArgsForCall []struct{}
-	propertiesReturns struct {
+	propertiesReturns     struct {
 		result1 volume.Properties
 	}
 	HeartbeatStub        func(time.Duration, clock.Clock)

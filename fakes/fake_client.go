@@ -38,7 +38,7 @@ type FakeClient struct {
 	GetVolumesStub        func() (baggageclaim.Volumes, error)
 	getVolumesMutex       sync.RWMutex
 	getVolumesArgsForCall []struct{}
-	getVolumesReturns struct {
+	getVolumesReturns     struct {
 		result1 baggageclaim.Volumes
 		result2 error
 	}

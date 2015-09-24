@@ -78,12 +78,19 @@ func (cv *clientVolume) heartbeat(pacemaker clock.Ticker) {
 	defer cv.heartbeating.Done()
 	defer pacemaker.Stop()
 
-	cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+	err := cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+	if err == baggageclaim.ErrVolumeNotFound {
+		return
+	}
 
 	for {
 		select {
 		case <-pacemaker.C():
-			cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+			err := cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+			if err == baggageclaim.ErrVolumeNotFound {
+				return
+			}
+
 		case <-cv.stopHeartbeating:
 			return
 		}

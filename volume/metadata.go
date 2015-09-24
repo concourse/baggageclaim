@@ -106,6 +106,10 @@ func (tf *ttlFile) Properties() (ttlProperties, error) {
 func readMetadataFile(path string, properties interface{}) error {
 	file, err := os.Open(path)
 	if err != nil {
+		if _, ok := err.(*os.PathError); ok {
+			return ErrVolumeDoesNotExist
+		}
+
 		return err
 	}
 	defer file.Close()
@@ -124,8 +128,13 @@ func writeMetadataFile(path string, properties interface{}) error {
 		0644,
 	)
 	if err != nil {
+		if _, ok := err.(*os.PathError); ok {
+			return ErrVolumeDoesNotExist
+		}
+
 		return err
 	}
+
 	defer file.Close()
 
 	return json.NewEncoder(file).Encode(properties)
