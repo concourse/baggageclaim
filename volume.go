@@ -5,6 +5,7 @@ import (
 
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/clock"
+	"github.com/pivotal-golang/lager"
 )
 
 //go:generate counterfeiter . Volume
@@ -16,7 +17,7 @@ type Volume interface {
 	ExpiresAt() time.Time
 	Properties() volume.Properties
 
-	Heartbeat(time.Duration, clock.Clock)
+	Heartbeat(lager.Logger, time.Duration, clock.Clock)
 	Release()
 }
 

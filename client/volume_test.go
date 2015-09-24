@@ -8,6 +8,7 @@ import (
 	"github.com/concourse/baggageclaim/fakes"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/clock/fakeclock"
+	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -31,7 +32,7 @@ var _ = Describe("Volume", func() {
 	It("can heartbeat itself", func() {
 		hbVol := client.NewVolume(fakeClient, vol)
 
-		hbVol.Heartbeat(30*time.Second, fakeClock)
+		hbVol.Heartbeat(lagertest.NewTestLogger("test"), 30*time.Second, fakeClock)
 
 		Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
 		handle, ttl := fakeClient.SetTTLArgsForCall(0)
@@ -63,7 +64,7 @@ var _ = Describe("Volume", func() {
 		It("gives up", func() {
 			hbVol := client.NewVolume(fakeClient, vol)
 
-			hbVol.Heartbeat(30*time.Second, fakeClock)
+			hbVol.Heartbeat(lagertest.NewTestLogger("test"), 30*time.Second, fakeClock)
 
 			Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
 			handle, ttl := fakeClient.SetTTLArgsForCall(0)
@@ -98,7 +99,7 @@ var _ = Describe("Volume", func() {
 
 			fakeClient.SetTTLReturns(baggageclaim.ErrVolumeNotFound)
 
-			hbVol.Heartbeat(30*time.Second, fakeClock)
+			hbVol.Heartbeat(lagertest.NewTestLogger("test"), 30*time.Second, fakeClock)
 
 			Eventually(fakeClient.SetTTLCallCount).Should(Equal(1))
 			handle, ttl := fakeClient.SetTTLArgsForCall(0)

@@ -8,6 +8,7 @@ import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/clock"
+	"github.com/pivotal-golang/lager"
 )
 
 type FakeVolume struct {
@@ -41,11 +42,12 @@ type FakeVolume struct {
 	propertiesReturns     struct {
 		result1 volume.Properties
 	}
-	HeartbeatStub        func(time.Duration, clock.Clock)
+	HeartbeatStub        func(lager.Logger, time.Duration, clock.Clock)
 	heartbeatMutex       sync.RWMutex
 	heartbeatArgsForCall []struct {
-		arg1 time.Duration
-		arg2 clock.Clock
+		arg1 lager.Logger
+		arg2 time.Duration
+		arg3 clock.Clock
 	}
 	ReleaseStub        func()
 	releaseMutex       sync.RWMutex
@@ -172,15 +174,16 @@ func (fake *FakeVolume) PropertiesReturns(result1 volume.Properties) {
 	}{result1}
 }
 
-func (fake *FakeVolume) Heartbeat(arg1 time.Duration, arg2 clock.Clock) {
+func (fake *FakeVolume) Heartbeat(arg1 lager.Logger, arg2 time.Duration, arg3 clock.Clock) {
 	fake.heartbeatMutex.Lock()
 	fake.heartbeatArgsForCall = append(fake.heartbeatArgsForCall, struct {
-		arg1 time.Duration
-		arg2 clock.Clock
-	}{arg1, arg2})
+		arg1 lager.Logger
+		arg2 time.Duration
+		arg3 clock.Clock
+	}{arg1, arg2, arg3})
 	fake.heartbeatMutex.Unlock()
 	if fake.HeartbeatStub != nil {
-		fake.HeartbeatStub(arg1, arg2)
+		fake.HeartbeatStub(arg1, arg2, arg3)
 	}
 }
 
@@ -190,10 +193,10 @@ func (fake *FakeVolume) HeartbeatCallCount() int {
 	return len(fake.heartbeatArgsForCall)
 }
 
-func (fake *FakeVolume) HeartbeatArgsForCall(i int) (time.Duration, clock.Clock) {
+func (fake *FakeVolume) HeartbeatArgsForCall(i int) (lager.Logger, time.Duration, clock.Clock) {
 	fake.heartbeatMutex.RLock()
 	defer fake.heartbeatMutex.RUnlock()
-	return fake.heartbeatArgsForCall[i].arg1, fake.heartbeatArgsForCall[i].arg2
+	return fake.heartbeatArgsForCall[i].arg1, fake.heartbeatArgsForCall[i].arg2, fake.heartbeatArgsForCall[i].arg3
 }
 
 func (fake *FakeVolume) Release() {
