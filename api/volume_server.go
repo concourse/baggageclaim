@@ -4,26 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
 
 const httpUnprocessableEntity = 422
-
-type VolumeRequest struct {
-	Strategy     volume.Strategy   `json:"strategy"`
-	Properties   volume.Properties `json:"properties"`
-	TTLInSeconds uint              `json:"ttl,omitempty"`
-}
-
-type PropertyRequest struct {
-	Value string `json:"value"`
-}
-
-type TTLRequest struct {
-	Value uint `json:"value"`
-}
 
 type VolumeServer struct {
 	volumeRepo volume.Repository
@@ -39,7 +26,7 @@ func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository) *VolumeS
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
-	var request VolumeRequest
+	var request baggageclaim.VolumeRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	req.Body.Close()
 	if err != nil {
@@ -47,9 +34,21 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if request.Strategy == nil {
+		respondWithError(w, volume.ErrCreateVolumeFailed, httpUnprocessableEntity)
+		return
+	}
+
+	var strategy volume.Strategy
+	err = json.Unmarshal(*request.Strategy, &strategy)
+	if err != nil {
+		respondWithError(w, volume.ErrCreateVolumeFailed, http.StatusBadRequest)
+		return
+	}
+
 	createdVolume, err := vs.volumeRepo.CreateVolume(
-		request.Strategy,
-		request.Properties,
+		strategy,
+		volume.Properties(request.Properties),
 		request.TTLInSeconds,
 	)
 
@@ -81,7 +80,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
+func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	properties, err := ConvertQueryToProperties(req.URL.Query())
@@ -101,8 +100,24 @@ func (vs *VolumeServer) GetVolumes(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	handle := rata.Param(req, "handle")
+
+	vol, err := vs.volumeRepo.GetVolume(handle)
+	if err != nil {
+		respondWithError(w, volume.ErrGetVolumeFailed, http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(vol); err != nil {
+		vs.logger.Error("failed-to-encode", err)
+	}
+}
+
 func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
-	var request PropertyRequest
+	var request baggageclaim.PropertyRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
 		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusBadRequest)
@@ -129,7 +144,7 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 }
 
 func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
-	var request TTLRequest
+	var request baggageclaim.TTLRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
 		respondWithError(w, volume.ErrSetTTLFailed, http.StatusBadRequest)

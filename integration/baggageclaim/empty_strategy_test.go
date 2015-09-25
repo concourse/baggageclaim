@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 )
 
 var _ = Describe("Empty Strategy", func() {
@@ -26,7 +25,7 @@ var _ = Describe("Empty Strategy", func() {
 	})
 
 	Describe("API", func() {
-		properties := volume.Properties{
+		properties := baggageclaim.VolumeProperties{
 			"name": "value",
 		}
 
@@ -37,7 +36,7 @@ var _ = Describe("Empty Strategy", func() {
 
 			JustBeforeEach(func() {
 				var err error
-				firstVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
+				firstVolume, err = client.CreateVolume(baggageclaim.VolumeSpec{})
 				Ω(err).ShouldNot(HaveOccurred())
 			})
 
@@ -65,7 +64,7 @@ var _ = Describe("Empty Strategy", func() {
 
 					JustBeforeEach(func() {
 						var err error
-						secondVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
+						secondVolume, err = client.CreateVolume(baggageclaim.VolumeSpec{})
 						Ω(err).ShouldNot(HaveOccurred())
 					})
 
@@ -87,7 +86,7 @@ var _ = Describe("Empty Strategy", func() {
 
 			JustBeforeEach(func() {
 				var err error
-				volumes, err = client.GetVolumes()
+				volumes, err = client.ListVolumes(baggageclaim.VolumeProperties{})
 				Ω(err).ShouldNot(HaveOccurred())
 			})
 
@@ -100,7 +99,7 @@ var _ = Describe("Empty Strategy", func() {
 
 				BeforeEach(func() {
 					var err error
-					createdVolume, err = client.CreateEmptyVolume(baggageclaim.VolumeSpec{Properties: properties})
+					createdVolume, err = client.CreateVolume(baggageclaim.VolumeSpec{Properties: properties})
 					Ω(err).ShouldNot(HaveOccurred())
 				})
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/concourse/baggageclaim/reaper"
 	"github.com/pivotal-golang/clock/fakeclock"
+	"github.com/pivotal-golang/lager"
 	"github.com/pivotal-golang/lager/lagertest"
 	"github.com/tedsuo/ifrit"
 
@@ -35,7 +36,7 @@ var _ = Describe("Runner", func() {
 			lagertest.NewTestLogger("test"),
 			fakeClock,
 			interval,
-			func() error {
+			func(lager.Logger) error {
 				return <-results
 			},
 		))

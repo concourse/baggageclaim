@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
-	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -24,30 +22,43 @@ type FakeVolume struct {
 	pathReturns     struct {
 		result1 string
 	}
-	TTLStub        func() uint
-	tTLMutex       sync.RWMutex
-	tTLArgsForCall []struct{}
-	tTLReturns     struct {
+	SetTTLStub        func(timeInSeconds uint) error
+	setTTLMutex       sync.RWMutex
+	setTTLArgsForCall []struct {
+		timeInSeconds uint
+	}
+	setTTLReturns struct {
+		result1 error
+	}
+	SetPropertyStub        func(string, string) error
+	setPropertyMutex       sync.RWMutex
+	setPropertyArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	setPropertyReturns struct {
+		result1 error
+	}
+	ExpirationStub        func() (uint, time.Time, error)
+	expirationMutex       sync.RWMutex
+	expirationArgsForCall []struct{}
+	expirationReturns     struct {
 		result1 uint
+		result2 time.Time
+		result3 error
 	}
-	ExpiresAtStub        func() time.Time
-	expiresAtMutex       sync.RWMutex
-	expiresAtArgsForCall []struct{}
-	expiresAtReturns     struct {
-		result1 time.Time
-	}
-	PropertiesStub        func() volume.Properties
+	PropertiesStub        func() (baggageclaim.VolumeProperties, error)
 	propertiesMutex       sync.RWMutex
 	propertiesArgsForCall []struct{}
 	propertiesReturns     struct {
-		result1 volume.Properties
+		result1 baggageclaim.VolumeProperties
+		result2 error
 	}
-	HeartbeatStub        func(lager.Logger, time.Duration, clock.Clock)
+	HeartbeatStub        func(logger lager.Logger, ttlInSeconds uint)
 	heartbeatMutex       sync.RWMutex
 	heartbeatArgsForCall []struct {
-		arg1 lager.Logger
-		arg2 time.Duration
-		arg3 clock.Clock
+		logger       lager.Logger
+		ttlInSeconds uint
 	}
 	ReleaseStub        func()
 	releaseMutex       sync.RWMutex
@@ -102,62 +113,105 @@ func (fake *FakeVolume) PathReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeVolume) TTL() uint {
-	fake.tTLMutex.Lock()
-	fake.tTLArgsForCall = append(fake.tTLArgsForCall, struct{}{})
-	fake.tTLMutex.Unlock()
-	if fake.TTLStub != nil {
-		return fake.TTLStub()
+func (fake *FakeVolume) SetTTL(timeInSeconds uint) error {
+	fake.setTTLMutex.Lock()
+	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
+		timeInSeconds uint
+	}{timeInSeconds})
+	fake.setTTLMutex.Unlock()
+	if fake.SetTTLStub != nil {
+		return fake.SetTTLStub(timeInSeconds)
 	} else {
-		return fake.tTLReturns.result1
+		return fake.setTTLReturns.result1
 	}
 }
 
-func (fake *FakeVolume) TTLCallCount() int {
-	fake.tTLMutex.RLock()
-	defer fake.tTLMutex.RUnlock()
-	return len(fake.tTLArgsForCall)
+func (fake *FakeVolume) SetTTLCallCount() int {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	return len(fake.setTTLArgsForCall)
 }
 
-func (fake *FakeVolume) TTLReturns(result1 uint) {
-	fake.TTLStub = nil
-	fake.tTLReturns = struct {
+func (fake *FakeVolume) SetTTLArgsForCall(i int) uint {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	return fake.setTTLArgsForCall[i].timeInSeconds
+}
+
+func (fake *FakeVolume) SetTTLReturns(result1 error) {
+	fake.SetTTLStub = nil
+	fake.setTTLReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolume) SetProperty(arg1 string, arg2 string) error {
+	fake.setPropertyMutex.Lock()
+	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	fake.setPropertyMutex.Unlock()
+	if fake.SetPropertyStub != nil {
+		return fake.SetPropertyStub(arg1, arg2)
+	} else {
+		return fake.setPropertyReturns.result1
+	}
+}
+
+func (fake *FakeVolume) SetPropertyCallCount() int {
+	fake.setPropertyMutex.RLock()
+	defer fake.setPropertyMutex.RUnlock()
+	return len(fake.setPropertyArgsForCall)
+}
+
+func (fake *FakeVolume) SetPropertyArgsForCall(i int) (string, string) {
+	fake.setPropertyMutex.RLock()
+	defer fake.setPropertyMutex.RUnlock()
+	return fake.setPropertyArgsForCall[i].arg1, fake.setPropertyArgsForCall[i].arg2
+}
+
+func (fake *FakeVolume) SetPropertyReturns(result1 error) {
+	fake.SetPropertyStub = nil
+	fake.setPropertyReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolume) Expiration() (uint, time.Time, error) {
+	fake.expirationMutex.Lock()
+	fake.expirationArgsForCall = append(fake.expirationArgsForCall, struct{}{})
+	fake.expirationMutex.Unlock()
+	if fake.ExpirationStub != nil {
+		return fake.ExpirationStub()
+	} else {
+		return fake.expirationReturns.result1, fake.expirationReturns.result2, fake.expirationReturns.result3
+	}
+}
+
+func (fake *FakeVolume) ExpirationCallCount() int {
+	fake.expirationMutex.RLock()
+	defer fake.expirationMutex.RUnlock()
+	return len(fake.expirationArgsForCall)
+}
+
+func (fake *FakeVolume) ExpirationReturns(result1 uint, result2 time.Time, result3 error) {
+	fake.ExpirationStub = nil
+	fake.expirationReturns = struct {
 		result1 uint
-	}{result1}
+		result2 time.Time
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeVolume) ExpiresAt() time.Time {
-	fake.expiresAtMutex.Lock()
-	fake.expiresAtArgsForCall = append(fake.expiresAtArgsForCall, struct{}{})
-	fake.expiresAtMutex.Unlock()
-	if fake.ExpiresAtStub != nil {
-		return fake.ExpiresAtStub()
-	} else {
-		return fake.expiresAtReturns.result1
-	}
-}
-
-func (fake *FakeVolume) ExpiresAtCallCount() int {
-	fake.expiresAtMutex.RLock()
-	defer fake.expiresAtMutex.RUnlock()
-	return len(fake.expiresAtArgsForCall)
-}
-
-func (fake *FakeVolume) ExpiresAtReturns(result1 time.Time) {
-	fake.ExpiresAtStub = nil
-	fake.expiresAtReturns = struct {
-		result1 time.Time
-	}{result1}
-}
-
-func (fake *FakeVolume) Properties() volume.Properties {
+func (fake *FakeVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	fake.propertiesMutex.Lock()
 	fake.propertiesArgsForCall = append(fake.propertiesArgsForCall, struct{}{})
 	fake.propertiesMutex.Unlock()
 	if fake.PropertiesStub != nil {
 		return fake.PropertiesStub()
 	} else {
-		return fake.propertiesReturns.result1
+		return fake.propertiesReturns.result1, fake.propertiesReturns.result2
 	}
 }
 
@@ -167,23 +221,23 @@ func (fake *FakeVolume) PropertiesCallCount() int {
 	return len(fake.propertiesArgsForCall)
 }
 
-func (fake *FakeVolume) PropertiesReturns(result1 volume.Properties) {
+func (fake *FakeVolume) PropertiesReturns(result1 baggageclaim.VolumeProperties, result2 error) {
 	fake.PropertiesStub = nil
 	fake.propertiesReturns = struct {
-		result1 volume.Properties
-	}{result1}
+		result1 baggageclaim.VolumeProperties
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeVolume) Heartbeat(arg1 lager.Logger, arg2 time.Duration, arg3 clock.Clock) {
+func (fake *FakeVolume) Heartbeat(logger lager.Logger, ttlInSeconds uint) {
 	fake.heartbeatMutex.Lock()
 	fake.heartbeatArgsForCall = append(fake.heartbeatArgsForCall, struct {
-		arg1 lager.Logger
-		arg2 time.Duration
-		arg3 clock.Clock
-	}{arg1, arg2, arg3})
+		logger       lager.Logger
+		ttlInSeconds uint
+	}{logger, ttlInSeconds})
 	fake.heartbeatMutex.Unlock()
 	if fake.HeartbeatStub != nil {
-		fake.HeartbeatStub(arg1, arg2, arg3)
+		fake.HeartbeatStub(logger, ttlInSeconds)
 	}
 }
 
@@ -193,10 +247,10 @@ func (fake *FakeVolume) HeartbeatCallCount() int {
 	return len(fake.heartbeatArgsForCall)
 }
 
-func (fake *FakeVolume) HeartbeatArgsForCall(i int) (lager.Logger, time.Duration, clock.Clock) {
+func (fake *FakeVolume) HeartbeatArgsForCall(i int) (lager.Logger, uint) {
 	fake.heartbeatMutex.RLock()
 	defer fake.heartbeatMutex.RUnlock()
-	return fake.heartbeatArgsForCall[i].arg1, fake.heartbeatArgsForCall[i].arg2, fake.heartbeatArgsForCall[i].arg3
+	return fake.heartbeatArgsForCall[i].logger, fake.heartbeatArgsForCall[i].ttlInSeconds
 }
 
 func (fake *FakeVolume) Release() {

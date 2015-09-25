@@ -16,6 +16,7 @@ import (
 
 	"github.com/pivotal-golang/lager/lagertest"
 
+	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
@@ -76,17 +77,17 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	Describe("querying for volumes with properties", func() {
-		props := volume.Properties{
+		props := baggageclaim.VolumeProperties{
 			"property-query": "value",
 		}
 
 		It("finds volumes that have a property", func() {
 			body := &bytes.Buffer{}
 
-			err := json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: volume.Strategy{
+			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Strategy: encStrategy(volume.Strategy{
 					"type": "empty",
-				},
+				}),
 				Properties: props,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -97,10 +98,10 @@ var _ = Describe("Volume Server", func() {
 			Ω(recorder.Code).Should(Equal(201))
 
 			body.Reset()
-			err = json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: volume.Strategy{
+			err = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Strategy: encStrategy(volume.Strategy{
 					"type": "empty",
-				},
+				}),
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
@@ -134,11 +135,11 @@ var _ = Describe("Volume Server", func() {
 		It("can have it's properties updated", func() {
 			body := &bytes.Buffer{}
 
-			err := json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: volume.Strategy{
+			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Strategy: encStrategy(volume.Strategy{
 					"type": "empty",
-				},
-				Properties: volume.Properties{
+				}),
+				Properties: baggageclaim.VolumeProperties{
 					"property-name": "property-val",
 				},
 			})
@@ -159,7 +160,7 @@ var _ = Describe("Volume Server", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(volumes).Should(HaveLen(1))
 
-			err = json.NewEncoder(body).Encode(api.PropertyRequest{
+			err = json.NewEncoder(body).Encode(baggageclaim.PropertyRequest{
 				Value: "other-val",
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -184,10 +185,10 @@ var _ = Describe("Volume Server", func() {
 		It("can have its ttl updated", func() {
 			body := &bytes.Buffer{}
 
-			err := json.NewEncoder(body).Encode(api.VolumeRequest{
-				Strategy: volume.Strategy{
+			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Strategy: encStrategy(volume.Strategy{
 					"type": "empty",
-				},
+				}),
 				TTLInSeconds: 1,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -202,7 +203,7 @@ var _ = Describe("Volume Server", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(firstVolume.TTL).Should(Equal(volume.TTL(1)))
 
-			err = json.NewEncoder(body).Encode(api.TTLRequest{
+			err = json.NewEncoder(body).Encode(baggageclaim.TTLRequest{
 				Value: 2,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -241,19 +242,19 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		Context("when there are properties given", func() {
-			var properties volume.Properties
+			var properties baggageclaim.VolumeProperties
 
 			Context("with valid properties", func() {
 				BeforeEach(func() {
-					properties = volume.Properties{
+					properties = baggageclaim.VolumeProperties{
 						"property-name": "property-value",
 					}
 
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(api.VolumeRequest{
-						Strategy: volume.Strategy{
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(volume.Strategy{
 							"type": "empty",
-						},
+						}),
 						Properties: properties,
 					})
 				})
@@ -269,7 +270,7 @@ var _ = Describe("Volume Server", func() {
 					propertiesContents, err := ioutil.ReadFile(propertiesPath)
 					Ω(err).ShouldNot(HaveOccurred())
 
-					var storedProperties volume.Properties
+					var storedProperties baggageclaim.VolumeProperties
 					err = json.Unmarshal(propertiesContents, &storedProperties)
 					Ω(err).ShouldNot(HaveOccurred())
 
@@ -285,10 +286,10 @@ var _ = Describe("Volume Server", func() {
 		Context("when there are no properties given", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
-				json.NewEncoder(body).Encode(api.VolumeRequest{
-					Strategy: volume.Strategy{
+				json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Strategy: encStrategy(volume.Strategy{
 						"type": "empty",
-					},
+					}),
 				})
 			})
 
@@ -344,10 +345,10 @@ var _ = Describe("Volume Server", func() {
 			Context("when an unrecognized strategy is submitted", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(api.VolumeRequest{
-						Strategy: volume.Strategy{
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(volume.Strategy{
 							"type": "grime",
-						},
+						}),
 					})
 				})
 
@@ -370,10 +371,10 @@ var _ = Describe("Volume Server", func() {
 			Context("when the strategy is cow but not parent volume is provided", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(api.VolumeRequest{
-						Strategy: volume.Strategy{
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(volume.Strategy{
 							"type": "cow",
-						},
+						}),
 					})
 				})
 
@@ -396,11 +397,11 @@ var _ = Describe("Volume Server", func() {
 			Context("when the strategy is cow and the parent volume does not exist", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(api.VolumeRequest{
-						Strategy: volume.Strategy{
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(volume.Strategy{
 							"type":   "cow",
 							"volume": "#pain",
-						},
+						}),
 					})
 				})
 
@@ -422,3 +423,12 @@ var _ = Describe("Volume Server", func() {
 		})
 	})
 })
+
+func encStrategy(strategy volume.Strategy) *json.RawMessage {
+	bytes, err := json.Marshal(strategy)
+	Ω(err).ShouldNot(HaveOccurred())
+
+	msg := json.RawMessage(bytes)
+
+	return &msg
+}

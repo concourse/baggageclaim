@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -26,64 +25,73 @@ var _ = Describe("Properties", func() {
 	})
 
 	It("can manage properties", func() {
-		emptyVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{
-			Properties: volume.Properties{
+		emptyVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			Properties: baggageclaim.VolumeProperties{
 				"property-name": "property-value",
 			},
 		})
 		Ω(err).ShouldNot(HaveOccurred())
 
-		err = client.SetProperty(emptyVolume.Handle(), "another-property", "another-value")
+		err = emptyVolume.SetProperty("another-property", "another-value")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		someVolume, err := client.GetVolume(emptyVolume.Handle())
+		someVolume, err := client.LookupVolume(emptyVolume.Handle())
 		Ω(err).ShouldNot(HaveOccurred())
 
-		Ω(someVolume.Properties()).Should(Equal(volume.Properties{
+		Ω(someVolume.Properties()).Should(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "another-value",
 		}))
 
-		err = client.SetProperty(someVolume.Handle(), "another-property", "yet-another-value")
+		err = someVolume.SetProperty("another-property", "yet-another-value")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		someVolume, err = client.GetVolume(someVolume.Handle())
+		someVolume, err = client.LookupVolume(someVolume.Handle())
 		Ω(err).ShouldNot(HaveOccurred())
 
-		Ω(someVolume.Properties()).Should(Equal(volume.Properties{
+		Ω(someVolume.Properties()).Should(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "yet-another-value",
 		}))
 	})
 
 	It("can find a volume by its properties", func() {
-		_, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
+		_, err := client.CreateVolume(baggageclaim.VolumeSpec{})
 		Ω(err).ShouldNot(HaveOccurred())
 
-		emptyVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{
-			Properties: volume.Properties{
+		emptyVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			Properties: baggageclaim.VolumeProperties{
 				"property-name": "property-value",
 			},
 		})
 		Ω(err).ShouldNot(HaveOccurred())
 
-		err = client.SetProperty(emptyVolume.Handle(), "another-property", "another-value")
+		err = emptyVolume.SetProperty("another-property", "another-value")
 		Ω(err).ShouldNot(HaveOccurred())
 
-		foundVolumes, err := client.FindVolumes(baggageclaim.VolumeProperties{
+		foundVolumes, err := client.ListVolumes(baggageclaim.VolumeProperties{
 			"another-property": "another-value",
 		})
 		Ω(err).ShouldNot(HaveOccurred())
 
 		Ω(foundVolumes).Should(HaveLen(1))
-		Ω(foundVolumes[0].Properties()).Should(Equal(volume.Properties{
+		Ω(foundVolumes[0].Properties()).Should(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "another-value",
 		}))
 	})
 
 	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
-		err := client.SetProperty("bogus", "some", "property")
+		volume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			TTLInSeconds: 1,
+		})
+		Ω(err).ShouldNot(HaveOccurred())
+
+		Eventually(func() ([]baggageclaim.Volume, error) {
+			return client.ListVolumes(nil)
+		}).Should(BeEmpty())
+
+		err = volume.SetProperty("some", "property")
 		Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
 	})
 })

@@ -6,6 +6,7 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pivotal-golang/clock"
+	"github.com/pivotal-golang/lager"
 )
 
 type Reaper struct {
@@ -23,7 +24,7 @@ func NewReaper(
 	}
 }
 
-func (reaper *Reaper) Reap() error {
+func (reaper *Reaper) Reap(logger lager.Logger) error {
 	volumes, err := reaper.repo.ListVolumes(volume.Properties{})
 	if err != nil {
 		return fmt.Errorf("failed to list volumes: %s", err)
@@ -56,6 +57,11 @@ func (reaper *Reaper) Reap() error {
 		}
 
 		if reapingTime.After(volume.ExpiresAt) {
+			logger.Info("reaping", lager.Data{
+				"handle": volume.Handle,
+				"ttl":    volume.TTL,
+			})
+
 			err = reaper.repo.DestroyVolume(volume.Handle)
 			if err != nil {
 				destroyErrs = multierror.Append(

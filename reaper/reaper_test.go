@@ -8,6 +8,7 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/fakes"
 	"github.com/pivotal-golang/clock/fakeclock"
+	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -34,7 +35,7 @@ var _ = Describe("Reaper", func() {
 		var reapErr error
 
 		JustBeforeEach(func() {
-			reapErr = reaper.Reap()
+			reapErr = reaper.Reap(lagertest.NewTestLogger("test"))
 		})
 
 		Context("when listing the volumes works", func() {

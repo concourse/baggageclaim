@@ -26,7 +26,7 @@ var _ = Describe("Restarting", func() {
 	})
 
 	It("can get volumes after the process restarts", func() {
-		createdVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{})
+		createdVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{})
 		Ω(err).ShouldNot(HaveOccurred())
 
 		Ω(runner.CurrentHandles()).Should(ConsistOf(createdVolume.Handle()))

@@ -17,7 +17,7 @@ func NewRunner(
 	logger lager.Logger,
 	clock clock.Clock,
 	interval time.Duration,
-	reapFunc func() error,
+	reapFunc func(lager.Logger) error,
 ) ifrit.Runner {
 	return ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
 		close(ready)
@@ -30,7 +30,7 @@ func NewRunner(
 
 			select {
 			case <-ticker.C():
-				err := reapFunc()
+				err := reapFunc(tickLog)
 				if err != nil {
 					tickLog.Error("failed-to-reap", err)
 				}

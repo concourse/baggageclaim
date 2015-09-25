@@ -47,7 +47,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateEmptyVolume(baggageclaim.VolumeSpec{
+				parentVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
 					TTLInSeconds: 3600,
 				})
 				Ω(err).ShouldNot(HaveOccurred())
@@ -55,8 +55,10 @@ var _ = Describe("Copy On Write Strategy", func() {
 				dataInParent := writeData(parentVolume.Path())
 				Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
-				childVolume, err := client.CreateCOWVolume(baggageclaim.VolumeSpec{
-					ParentHandle: parentVolume.Handle(),
+				childVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+					Strategy: baggageclaim.COWStrategy{
+						Parent: parentVolume,
+					},
 					TTLInSeconds: 3600,
 				})
 				Ω(err).ShouldNot(HaveOccurred())

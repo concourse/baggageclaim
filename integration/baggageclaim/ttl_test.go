@@ -7,6 +7,7 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pivotal-golang/lager/lagertest"
 )
 
 var _ = Describe("TTL's", func() {
@@ -31,44 +32,64 @@ var _ = Describe("TTL's", func() {
 		spec := baggageclaim.VolumeSpec{
 			TTLInSeconds: 10,
 		}
-		emptyVolume, err := client.CreateEmptyVolume(spec)
+
+		emptyVolume, err := client.CreateVolume(spec)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		expiresAt := time.Now().Add(volume.TTL(10).Duration())
 
-		someVolume, err := client.GetVolume(emptyVolume.Handle())
+		someVolume, err := client.LookupVolume(emptyVolume.Handle())
 		Ω(err).ShouldNot(HaveOccurred())
 
-		Ω(someVolume.TTL()).Should(Equal(uint(10)))
-		Ω(someVolume.ExpiresAt()).Should(BeTemporally("~", expiresAt, 1*time.Second))
+		ttl, expiresAt, err := someVolume.Expiration()
+		Ω(err).ShouldNot(HaveOccurred())
+		Ω(ttl).Should(Equal(uint(10)))
+		Ω(expiresAt).Should(BeTemporally("~", expiresAt, 1*time.Second))
 	})
 
 	It("removes the volume after the ttl duration", func() {
 		spec := baggageclaim.VolumeSpec{
 			TTLInSeconds: 1,
 		}
-		emptyVolume, err := client.CreateEmptyVolume(spec)
+		emptyVolume, err := client.CreateVolume(spec)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		volumes, err := client.GetVolumes()
+		volumes, err := client.ListVolumes(nil)
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(volumes).Should(HaveLen(1))
 
 		Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
 	})
 
-	Context("resetting the ttl", func() {
+	Describe("heartbeating", func() {
+		It("keeps the container alive, and lets it expire once released", func() {
+			spec := baggageclaim.VolumeSpec{}
+
+			volume, err := client.CreateVolume(spec)
+			Ω(err).ShouldNot(HaveOccurred())
+
+			volume.Heartbeat(lagertest.NewTestLogger("test"), 2)
+
+			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
+
+			volume.Release()
+
+			Eventually(runner.CurrentHandles, 3*time.Second).Should(BeEmpty())
+		})
+	})
+
+	Describe("resetting the ttl", func() {
 		It("pauses the parent if you create a cow volume", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 2,
 			}
-			parentVolume, err := client.CreateEmptyVolume(spec)
+			parentVolume, err := client.CreateVolume(spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume, err := client.CreateCOWVolume(baggageclaim.VolumeSpec{
-				ParentHandle: parentVolume.Handle(),
+			childVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 4,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -83,19 +104,19 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 2,
 			}
-			parentVolume, err := client.CreateEmptyVolume(spec)
+			parentVolume, err := client.CreateVolume(spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume1, err := client.CreateCOWVolume(baggageclaim.VolumeSpec{
-				ParentHandle: parentVolume.Handle(),
+			childVolume1, err := client.CreateVolume(baggageclaim.VolumeSpec{
+				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 4,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
-			childVolume2, err := client.CreateCOWVolume(baggageclaim.VolumeSpec{
-				ParentHandle: parentVolume.Handle(),
+			childVolume2, err := client.CreateVolume(baggageclaim.VolumeSpec{
+				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 9,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
@@ -120,10 +141,10 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 1,
 			}
-			emptyVolume, err := client.CreateEmptyVolume(spec)
+			emptyVolume, err := client.CreateVolume(spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			err = client.SetTTL(emptyVolume.Handle(), 3)
+			err = emptyVolume.SetTTL(3)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle()))
@@ -134,12 +155,12 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 1,
 			}
-			emptyVolume, err := client.CreateEmptyVolume(spec)
+			emptyVolume, err := client.CreateVolume(spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
 
-			err = client.SetTTL(emptyVolume.Handle(), 1)
+			err = emptyVolume.SetTTL(1)
 			Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
 		})
 	})

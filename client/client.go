@@ -7,8 +7,6 @@ import (
 	"net/http"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/volume"
 	"github.com/tedsuo/rata"
 )
 
@@ -21,9 +19,7 @@ type client struct {
 	httpClient       *http.Client
 }
 
-func New(
-	apiURL string,
-) Client {
+func New(apiURL string) Client {
 	return &client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
 		httpClient: &http.Client{
@@ -32,13 +28,15 @@ func New(
 	}
 }
 
-func (c *client) CreateCOWVolume(volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
+func (c *client) CreateVolume(volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
+	strategy := volumeSpec.Strategy
+	if strategy == nil {
+		strategy = baggageclaim.EmptyStrategy{}
+	}
+
 	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(api.VolumeRequest{
-		Strategy: volume.Strategy{
-			"type":   "cow",
-			"volume": volumeSpec.ParentHandle,
-		},
+	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
+		Strategy:     strategy.Encode(),
 		TTLInSeconds: volumeSpec.TTLInSeconds,
 		Properties:   volumeSpec.Properties,
 	})
@@ -48,6 +46,7 @@ func (c *client) CreateCOWVolume(volumeSpec baggageclaim.VolumeSpec) (baggagecla
 	if err != nil {
 		return nil, err
 	}
+
 	defer response.Body.Close()
 
 	if response.StatusCode != 201 {
@@ -58,126 +57,105 @@ func (c *client) CreateCOWVolume(volumeSpec baggageclaim.VolumeSpec) (baggagecla
 		return nil, fmt.Errorf("unexpected content-type of: %s", header)
 	}
 
-	var volumeResponse volume.Volume
+	var volumeResponse baggageclaim.VolumeResponse
 	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewVolume(c, volumeResponse), nil
+	return c.newVolume(volumeResponse.Handle, volumeResponse.Path), nil
 }
 
-func (c *client) CreateEmptyVolume(volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
-	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(api.VolumeRequest{
-		Strategy: volume.Strategy{
-			"type": "empty",
-		},
-		Properties:   volumeSpec.Properties,
-		TTLInSeconds: volumeSpec.TTLInSeconds,
-	})
+func (c *client) ListVolumes(properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
+	if properties == nil {
+		properties = baggageclaim.VolumeProperties{}
+	}
 
-	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-	response, err := c.httpClient.Do(request)
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.ListVolumes, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
-
-	if response.StatusCode != 201 {
-		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
-	}
-
-	if header := response.Header.Get("Content-Type"); header != "application/json" {
-		return nil, fmt.Errorf("unexpected content-type of: %s", header)
-	}
-
-	var volumeResponse volume.Volume
-	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewVolume(c, volumeResponse), nil
-}
-
-func (c *client) FindVolumes(properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
-	request, _ := c.requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
 
 	queryString := request.URL.Query()
 	for key, val := range properties {
 		queryString.Add(key, val)
 	}
+
 	request.URL.RawQuery = queryString.Encode()
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return baggageclaim.Volumes{}, err
+		return nil, err
 	}
 
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return baggageclaim.Volumes{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
-		return baggageclaim.Volumes{}, fmt.Errorf("unexpected content-type of: %s", header)
+		return nil, fmt.Errorf("unexpected content-type of: %s", header)
 	}
 
-	var volumesResponse volume.Volumes
+	var volumesResponse []baggageclaim.VolumeResponse
 	err = json.NewDecoder(response.Body).Decode(&volumesResponse)
-	if err != nil {
-		return baggageclaim.Volumes{}, err
-	}
-
-	return NewVolumes(c, volumesResponse), nil
-}
-
-func (c *client) GetVolumes() (baggageclaim.Volumes, error) {
-	request, _ := c.requestGenerator.CreateRequest(baggageclaim.GetVolumes, nil, nil)
-	response, err := c.httpClient.Do(request)
-	if err != nil {
-		return baggageclaim.Volumes{}, err
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode != 200 {
-		return baggageclaim.Volumes{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
-	}
-
-	if header := response.Header.Get("Content-Type"); header != "application/json" {
-		return baggageclaim.Volumes{}, fmt.Errorf("unexpected content-type of: %s", header)
-	}
-
-	var volumesResponse volume.Volumes
-	err = json.NewDecoder(response.Body).Decode(&volumesResponse)
-	if err != nil {
-		return baggageclaim.Volumes{}, err
-	}
-
-	return NewVolumes(c, volumesResponse), nil
-}
-
-func (c *client) GetVolume(handle string) (baggageclaim.Volume, error) {
-	volumesResponse, err := c.GetVolumes()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, volumeResponse := range volumesResponse {
-		if volumeResponse.Handle() == handle {
-			return volumeResponse, nil
-		}
+	var volumes baggageclaim.Volumes
+	for _, vr := range volumesResponse {
+		volumes = append(volumes, c.newVolume(vr.Handle, vr.Path))
 	}
 
-	return nil, fmt.Errorf("no volumes matching handle: %s", handle)
+	return volumes, nil
 }
 
-func (c *client) SetTTL(handle string, ttl uint) error {
+func (c *client) LookupVolume(handle string) (baggageclaim.Volume, error) {
+	volumeResponse, err := c.getVolumeResponse(handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.newVolume(volumeResponse.Handle, volumeResponse.Path), nil
+}
+
+func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, error) {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolume, rata.Params{
+		"handle": handle,
+	}, nil)
+	if err != nil {
+		return baggageclaim.VolumeResponse{}, err
+	}
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return baggageclaim.VolumeResponse{}, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return baggageclaim.VolumeResponse{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	}
+
+	if header := response.Header.Get("Content-Type"); header != "application/json" {
+		return baggageclaim.VolumeResponse{}, fmt.Errorf("unexpected content-type of: %s", header)
+	}
+
+	var volumeResponse baggageclaim.VolumeResponse
+	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
+	if err != nil {
+		return baggageclaim.VolumeResponse{}, err
+	}
+
+	return volumeResponse, nil
+}
+
+func (c *client) setTTL(handle string, ttl uint) error {
 	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(api.TTLRequest{
+	json.NewEncoder(buffer).Encode(baggageclaim.TTLRequest{
 		Value: ttl,
 	})
 
@@ -185,7 +163,7 @@ func (c *client) SetTTL(handle string, ttl uint) error {
 		"handle": handle,
 	}, buffer)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	response, err := c.httpClient.Do(request)
@@ -206,9 +184,9 @@ func (c *client) SetTTL(handle string, ttl uint) error {
 	return nil
 }
 
-func (c *client) SetProperty(handle string, propertyName string, propertyValue string) error {
+func (c *client) setProperty(handle string, propertyName string, propertyValue string) error {
 	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(api.PropertyRequest{
+	json.NewEncoder(buffer).Encode(baggageclaim.PropertyRequest{
 		Value: propertyValue,
 	})
 
@@ -217,7 +195,7 @@ func (c *client) SetProperty(handle string, propertyName string, propertyValue s
 		"property": propertyName,
 	}, buffer)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	response, err := c.httpClient.Do(request)

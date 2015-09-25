@@ -5,63 +5,70 @@ import (
 	"time"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
-	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 )
 
 type clientVolume struct {
-	repoVolume volume.Volume
+	handle string
+	path   string
 
-	bcClient baggageclaim.Client
+	bcClient *client
 
 	releaseOnce      sync.Once
 	heartbeating     *sync.WaitGroup
 	stopHeartbeating chan interface{}
 }
 
-func NewVolume(c baggageclaim.Client, v volume.Volume) baggageclaim.Volume {
+func (client *client) newVolume(handle string, path string) baggageclaim.Volume {
 	return &clientVolume{
-		repoVolume:       v,
-		bcClient:         c,
+		handle: handle,
+		path:   path,
+
+		bcClient:         client,
 		heartbeating:     new(sync.WaitGroup),
 		stopHeartbeating: make(chan interface{}),
 	}
 }
 
-func NewVolumes(c baggageclaim.Client, vs volume.Volumes) baggageclaim.Volumes {
-	var vols baggageclaim.Volumes
-
-	for _, v := range vs {
-		vols = append(vols, NewVolume(c, v))
-	}
-
-	return vols
-}
-
 func (cv *clientVolume) Handle() string {
-	return cv.repoVolume.Handle
+	return cv.handle
 }
 
 func (cv *clientVolume) Path() string {
-	return cv.repoVolume.Path
+	return cv.path
 }
 
-func (cv *clientVolume) Properties() volume.Properties {
-	return cv.repoVolume.Properties
+func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
+	vr, err := cv.bcClient.getVolumeResponse(cv.handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return vr.Properties, nil
 }
 
-func (cv *clientVolume) TTL() uint {
-	return uint(cv.repoVolume.TTL)
+func (cv *clientVolume) Expiration() (uint, time.Time, error) {
+	vr, err := cv.bcClient.getVolumeResponse(cv.handle)
+	if err != nil {
+		return 0, time.Time{}, err
+	}
+
+	return vr.TTL, vr.ExpiresAt, nil
 }
 
-func (cv *clientVolume) ExpiresAt() time.Time {
-	return cv.repoVolume.ExpiresAt
+func (cv *clientVolume) SetTTL(timeInSeconds uint) error {
+	return cv.bcClient.setTTL(cv.handle, timeInSeconds)
 }
 
-func (cv *clientVolume) Heartbeat(logger lager.Logger, interval time.Duration, clock clock.Clock) {
+func (cv *clientVolume) SetProperty(name string, value string) error {
+	return cv.bcClient.setProperty(cv.handle, name, value)
+}
+
+func (cv *clientVolume) Heartbeat(logger lager.Logger, ttlInSeconds uint) {
+	interval := (time.Duration(ttlInSeconds) * time.Second) / 2
+
 	cv.heartbeating.Add(1)
-	go cv.heartbeat(logger.Session("heartbeating"), clock.NewTicker(interval))
+	go cv.heartbeat(logger.Session("heartbeating"), ttlInSeconds, time.NewTicker(interval))
 
 	return
 }
@@ -75,21 +82,21 @@ func (cv *clientVolume) Release() {
 	return
 }
 
-func (cv *clientVolume) heartbeat(logger lager.Logger, pacemaker clock.Ticker) {
+func (cv *clientVolume) heartbeat(logger lager.Logger, ttlInSeconds uint, pacemaker *time.Ticker) {
 	defer cv.heartbeating.Done()
 	defer pacemaker.Stop()
 
 	logger.Debug("start")
 	defer logger.Debug("done")
 
-	if !cv.heartbeatTick(logger.Session("initial-heartbeat")) {
+	if !cv.heartbeatTick(logger.Session("initial-heartbeat"), ttlInSeconds) {
 		return
 	}
 
 	for {
 		select {
-		case <-pacemaker.C():
-			if !cv.heartbeatTick(logger.Session("tick")) {
+		case <-pacemaker.C:
+			if !cv.heartbeatTick(logger.Session("tick"), ttlInSeconds) {
 				return
 			}
 
@@ -99,10 +106,10 @@ func (cv *clientVolume) heartbeat(logger lager.Logger, pacemaker clock.Ticker) {
 	}
 }
 
-func (cv *clientVolume) heartbeatTick(logger lager.Logger) bool {
+func (cv *clientVolume) heartbeatTick(logger lager.Logger, ttlInSeconds uint) bool {
 	logger.Debug("start")
 
-	err := cv.bcClient.SetTTL(cv.Handle(), uint(cv.repoVolume.TTL))
+	err := cv.SetTTL(ttlInSeconds)
 	if err == baggageclaim.ErrVolumeNotFound {
 		logger.Info("volume-disappeared")
 		return false

@@ -122,7 +122,7 @@ func (bcr *BaggageClaimRunner) Port() int {
 }
 
 func (bcr *BaggageClaimRunner) CurrentHandles() []string {
-	volumes, err := bcr.Client().GetVolumes()
+	volumes, err := bcr.Client().ListVolumes(nil)
 	Ω(err).ShouldNot(HaveOccurred())
 
 	handles := []string{}
