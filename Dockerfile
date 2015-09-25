@@ -1,3 +1,5 @@
 FROM golang:1.5
 
-RUN apt-get update && apt-get -y install btrfs-tools
+RUN apt-get update && apt-get -y install \
+    file \
+    btrfs-tools
