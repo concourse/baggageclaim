@@ -1,10 +1,6 @@
 package volume_test
 
 import (
-	"math"
-	"runtime"
-	"strconv"
-
 	"github.com/concourse/baggageclaim/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -68,21 +64,6 @@ var _ = Describe("KeyedLock", func() {
 					lockManager.Unlock("key")
 				}).To(Panic())
 			})
-		})
-	})
-
-	Describe("Reap unused locks", func() {
-		It("does not leak", func() {
-			var beforeStats, afterStats runtime.MemStats
-			runtime.ReadMemStats(&beforeStats)
-			for i := 0; i < 10000; i++ {
-				k := strconv.Itoa(i)
-				lockManager.Lock(k)
-				lockManager.Unlock(k)
-			}
-			runtime.ReadMemStats(&afterStats)
-
-			Expect(math.Abs(float64(afterStats.HeapObjects - beforeStats.HeapObjects))).To(BeNumerically("<", 10000))
 		})
 	})
 })
