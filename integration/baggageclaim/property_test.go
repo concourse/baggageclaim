@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	"time"
+
 	"github.com/concourse/baggageclaim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -89,7 +91,7 @@ var _ = Describe("Properties", func() {
 
 		Eventually(func() ([]baggageclaim.Volume, error) {
 			return client.ListVolumes(nil)
-		}).Should(BeEmpty())
+		}, 2*time.Second).Should(BeEmpty())
 
 		err = volume.SetProperty("some", "property")
 		Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
