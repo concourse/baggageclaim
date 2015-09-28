@@ -15,12 +15,15 @@ import (
 	"github.com/concourse/baggageclaim/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pivotal-golang/lager"
+	"github.com/pivotal-golang/lager/lagertest"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/ginkgomon"
 
 	"github.com/onsi/gomega/gexec"
 )
 
+var logger lager.Logger
 var baggageClaimPath string
 
 func TestIntegration(t *testing.T) {
@@ -49,6 +52,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	err := json.Unmarshal(data, &suiteData)
 	Ω(err).ShouldNot(HaveOccurred())
 
+	logger = lagertest.NewTestLogger("test")
 	baggageClaimPath = suiteData.BaggageClaimPath
 
 	// poll less frequently
@@ -122,13 +126,14 @@ func (bcr *BaggageClaimRunner) Port() int {
 }
 
 func (bcr *BaggageClaimRunner) CurrentHandles() []string {
-	volumes, err := bcr.Client().ListVolumes(nil)
+	volumes, err := bcr.Client().ListVolumes(logger, nil)
 	Ω(err).ShouldNot(HaveOccurred())
 
 	handles := []string{}
 
 	for _, v := range volumes {
 		handles = append(handles, v.Handle())
+		v.Release()
 	}
 
 	return handles

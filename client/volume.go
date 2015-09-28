@@ -19,15 +19,19 @@ type clientVolume struct {
 	stopHeartbeating chan interface{}
 }
 
-func (client *client) newVolume(handle string, path string) baggageclaim.Volume {
-	return &clientVolume{
-		handle: handle,
-		path:   path,
+func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) baggageclaim.Volume {
+	volume := &clientVolume{
+		handle: apiVolume.Handle,
+		path:   apiVolume.Path,
 
 		bcClient:         client,
 		heartbeating:     new(sync.WaitGroup),
 		stopHeartbeating: make(chan interface{}),
 	}
+
+	volume.startHeartbeating(logger, apiVolume.TTL)
+
+	return volume
 }
 
 func (cv *clientVolume) Handle() string {
@@ -64,20 +68,24 @@ func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.handle, name, value)
 }
 
-func (cv *clientVolume) Heartbeat(logger lager.Logger, ttlInSeconds uint) {
-	interval := (time.Duration(ttlInSeconds) * time.Second) / 2
-
-	cv.heartbeating.Add(1)
-	go cv.heartbeat(logger.Session("heartbeating"), ttlInSeconds, time.NewTicker(interval))
-
-	return
-}
-
 func (cv *clientVolume) Release() {
 	cv.releaseOnce.Do(func() {
 		close(cv.stopHeartbeating)
 		cv.heartbeating.Wait()
 	})
+
+	return
+}
+
+func (cv *clientVolume) startHeartbeating(logger lager.Logger, ttlInSeconds uint) {
+	if ttlInSeconds == 0 {
+		return
+	}
+
+	interval := (time.Duration(ttlInSeconds) * time.Second) / 2
+
+	cv.heartbeating.Add(1)
+	go cv.heartbeat(logger.Session("heartbeating"), ttlInSeconds, time.NewTicker(interval))
 
 	return
 }

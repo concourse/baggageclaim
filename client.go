@@ -10,9 +10,9 @@ import (
 //go:generate counterfeiter . Client
 
 type Client interface {
-	CreateVolume(VolumeSpec) (Volume, error)
-	ListVolumes(properties VolumeProperties) (Volumes, error)
-	LookupVolume(handle string) (Volume, error)
+	CreateVolume(lager.Logger, VolumeSpec) (Volume, error)
+	ListVolumes(lager.Logger, VolumeProperties) (Volumes, error)
+	LookupVolume(lager.Logger, string) (Volume, error)
 }
 
 //go:generate counterfeiter . Volume
@@ -27,7 +27,6 @@ type Volume interface {
 	Expiration() (uint, time.Time, error)
 	Properties() (VolumeProperties, error)
 
-	Heartbeat(logger lager.Logger, ttlInSeconds uint)
 	Release()
 }
 

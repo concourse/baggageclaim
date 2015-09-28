@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/pivotal-golang/lager"
 )
 
 type FakeVolume struct {
@@ -53,12 +52,6 @@ type FakeVolume struct {
 	propertiesReturns     struct {
 		result1 baggageclaim.VolumeProperties
 		result2 error
-	}
-	HeartbeatStub        func(logger lager.Logger, ttlInSeconds uint)
-	heartbeatMutex       sync.RWMutex
-	heartbeatArgsForCall []struct {
-		logger       lager.Logger
-		ttlInSeconds uint
 	}
 	ReleaseStub        func()
 	releaseMutex       sync.RWMutex
@@ -227,30 +220,6 @@ func (fake *FakeVolume) PropertiesReturns(result1 baggageclaim.VolumeProperties,
 		result1 baggageclaim.VolumeProperties
 		result2 error
 	}{result1, result2}
-}
-
-func (fake *FakeVolume) Heartbeat(logger lager.Logger, ttlInSeconds uint) {
-	fake.heartbeatMutex.Lock()
-	fake.heartbeatArgsForCall = append(fake.heartbeatArgsForCall, struct {
-		logger       lager.Logger
-		ttlInSeconds uint
-	}{logger, ttlInSeconds})
-	fake.heartbeatMutex.Unlock()
-	if fake.HeartbeatStub != nil {
-		fake.HeartbeatStub(logger, ttlInSeconds)
-	}
-}
-
-func (fake *FakeVolume) HeartbeatCallCount() int {
-	fake.heartbeatMutex.RLock()
-	defer fake.heartbeatMutex.RUnlock()
-	return len(fake.heartbeatArgsForCall)
-}
-
-func (fake *FakeVolume) HeartbeatArgsForCall(i int) (lager.Logger, uint) {
-	fake.heartbeatMutex.RLock()
-	defer fake.heartbeatMutex.RUnlock()
-	return fake.heartbeatArgsForCall[i].logger, fake.heartbeatArgsForCall[i].ttlInSeconds
 }
 
 func (fake *FakeVolume) Release() {

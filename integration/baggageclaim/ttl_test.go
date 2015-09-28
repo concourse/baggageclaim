@@ -7,7 +7,6 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/pivotal-golang/lager/lagertest"
 )
 
 var _ = Describe("TTL's", func() {
@@ -33,12 +32,12 @@ var _ = Describe("TTL's", func() {
 			TTLInSeconds: 10,
 		}
 
-		emptyVolume, err := client.CreateVolume(spec)
+		emptyVolume, err := client.CreateVolume(logger, spec)
 		Ω(err).ShouldNot(HaveOccurred())
 
 		expiresAt := time.Now().Add(volume.TTL(10).Duration())
 
-		someVolume, err := client.LookupVolume(emptyVolume.Handle())
+		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
 		Ω(err).ShouldNot(HaveOccurred())
 
 		ttl, expiresAt, err := someVolume.Expiration()
@@ -51,30 +50,37 @@ var _ = Describe("TTL's", func() {
 		spec := baggageclaim.VolumeSpec{
 			TTLInSeconds: 1,
 		}
-		emptyVolume, err := client.CreateVolume(spec)
+
+		emptyVolume, err := client.CreateVolume(logger, spec)
 		Ω(err).ShouldNot(HaveOccurred())
 
-		volumes, err := client.ListVolumes(nil)
+		emptyVolume.Release()
+
+		volumes, err := client.ListVolumes(logger, nil)
 		Ω(err).ShouldNot(HaveOccurred())
 		Ω(volumes).Should(HaveLen(1))
+		volumes[0].Release()
 
-		Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
+		time.Sleep(2 * time.Second)
+
+		Expect(runner.CurrentHandles()).To(BeEmpty())
 	})
 
 	Describe("heartbeating", func() {
 		It("keeps the container alive, and lets it expire once released", func() {
-			spec := baggageclaim.VolumeSpec{}
+			spec := baggageclaim.VolumeSpec{TTLInSeconds: 2}
 
-			volume, err := client.CreateVolume(spec)
+			volume, err := client.CreateVolume(logger, spec)
 			Ω(err).ShouldNot(HaveOccurred())
-
-			volume.Heartbeat(lagertest.NewTestLogger("test"), 2)
 
 			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
 
 			volume.Release()
 
-			Eventually(runner.CurrentHandles, 3*time.Second).Should(BeEmpty())
+			// note: don't use Eventually; CurrentHandles causes it to heartbeat
+
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).To(BeEmpty())
 		})
 	})
 
@@ -83,82 +89,108 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 2,
 			}
-			parentVolume, err := client.CreateVolume(spec)
+
+			parentVolume, err := client.CreateVolume(logger, spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 4,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle()))
-			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(childVolume.Handle()))
+			parentVolume.Release()
 
-			Eventually(runner.CurrentHandles, 3*time.Second).ShouldNot(ContainElement(parentVolume.Handle()))
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
+
+			childVolume.Release()
+
+			time.Sleep(5 * time.Second)
+			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume.Handle()))
+
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).ToNot(ContainElement(parentVolume.Handle()))
 		})
 
 		It("pauses the parent as long as *any* child volumes are present", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 2,
 			}
-			parentVolume, err := client.CreateVolume(spec)
+			parentVolume, err := client.CreateVolume(logger, spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume1, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			childVolume1, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
-				TTLInSeconds: 4,
+				TTLInSeconds: 2,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
 
-			childVolume2, err := client.CreateVolume(baggageclaim.VolumeSpec{
+			childVolume2, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
-				TTLInSeconds: 9,
+				TTLInSeconds: 2,
 			})
 			Ω(err).ShouldNot(HaveOccurred())
+
+			parentVolume.Release()
 
 			By("the parent should stay paused")
-			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle()))
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
 
 			By("the first child should be removed")
-			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(childVolume1.Handle()))
+			childVolume1.Release()
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume1.Handle()))
 
 			By("the parent should still be paused")
-			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(parentVolume.Handle()))
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
 
 			By("the second child should be removed")
-			Eventually(runner.CurrentHandles, 3*time.Second).ShouldNot(ContainElement(childVolume2.Handle()))
+			childVolume2.Release()
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume2.Handle()))
 
 			By("the parent should be removed")
-			Eventually(runner.CurrentHandles, 3*time.Second).ShouldNot(ContainElement(parentVolume.Handle()))
+			time.Sleep(3 * time.Second)
+			Expect(runner.CurrentHandles()).ToNot(ContainElement(parentVolume.Handle()))
 		})
 
 		It("resets to a new value if you update the ttl", func() {
 			spec := baggageclaim.VolumeSpec{
-				TTLInSeconds: 1,
+				TTLInSeconds: 2,
 			}
-			emptyVolume, err := client.CreateVolume(spec)
+
+			emptyVolume, err := client.CreateVolume(logger, spec)
 			Ω(err).ShouldNot(HaveOccurred())
+
+			ttl, _, err := emptyVolume.Expiration()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(ttl).Should(Equal(uint(2)))
 
 			err = emptyVolume.SetTTL(3)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Consistently(runner.CurrentHandles, 2*time.Second).Should(ContainElement(emptyVolume.Handle()))
-			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
+			ttl, _, err = emptyVolume.Expiration()
+			Ω(err).ShouldNot(HaveOccurred())
+			Ω(ttl).Should(Equal(uint(3)))
 		})
 
 		It("returns ErrVolumeNotFound when setting the TTL after it's expired", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTLInSeconds: 1,
 			}
-			emptyVolume, err := client.CreateVolume(spec)
+
+			emptyVolume, err := client.CreateVolume(logger, spec)
 			Ω(err).ShouldNot(HaveOccurred())
 
-			Eventually(runner.CurrentHandles, 2*time.Second).ShouldNot(ContainElement(emptyVolume.Handle()))
+			emptyVolume.Release()
+			time.Sleep(2 * time.Second)
 
 			err = emptyVolume.SetTTL(1)
 			Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))

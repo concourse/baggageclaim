@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
 
@@ -28,7 +29,7 @@ func New(apiURL string) Client {
 	}
 }
 
-func (c *client) CreateVolume(volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
+func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
 	strategy := volumeSpec.Strategy
 	if strategy == nil {
 		strategy = baggageclaim.EmptyStrategy{}
@@ -63,10 +64,10 @@ func (c *client) CreateVolume(volumeSpec baggageclaim.VolumeSpec) (baggageclaim.
 		return nil, err
 	}
 
-	return c.newVolume(volumeResponse.Handle, volumeResponse.Path), nil
+	return c.newVolume(logger, volumeResponse), nil
 }
 
-func (c *client) ListVolumes(properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
+func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
 	if properties == nil {
 		properties = baggageclaim.VolumeProperties{}
 	}
@@ -106,19 +107,19 @@ func (c *client) ListVolumes(properties baggageclaim.VolumeProperties) (baggagec
 
 	var volumes baggageclaim.Volumes
 	for _, vr := range volumesResponse {
-		volumes = append(volumes, c.newVolume(vr.Handle, vr.Path))
+		volumes = append(volumes, c.newVolume(logger, vr))
 	}
 
 	return volumes, nil
 }
 
-func (c *client) LookupVolume(handle string) (baggageclaim.Volume, error) {
+func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, error) {
 	volumeResponse, err := c.getVolumeResponse(handle)
 	if err != nil {
 		return nil, err
 	}
 
-	return c.newVolume(volumeResponse.Handle, volumeResponse.Path), nil
+	return c.newVolume(logger, volumeResponse), nil
 }
 
 func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, error) {
