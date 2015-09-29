@@ -23,7 +23,9 @@ func New(apiURL string) Client {
 	return &client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
 		httpClient: &http.Client{
-			Transport: &http.Transport{},
+			Transport: &http.Transport{
+				DisableKeepAlives: true,
+			},
 		},
 	}
 }
