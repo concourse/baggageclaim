@@ -41,7 +41,7 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 		fi
 
 		if ! file $IMAGE_PATH | grep BTRFS; then
-			mkfs.btrfs --nodiscard $lo
+			mkfs.btrfs --nodiscard $IMAGE_PATH
 		fi
 
 		mkdir -p $MOUNT_PATH
