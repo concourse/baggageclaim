@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/lager"
 )
@@ -24,9 +25,6 @@ type Volume struct {
 	Properties Properties `json:"properties"`
 	TTL        TTL        `json:"ttl,omitempty"`
 	ExpiresAt  time.Time  `json:"expires_at"`
-}
-
-type TTLProperties struct {
 }
 
 type Volumes []Volume
@@ -70,15 +68,16 @@ type Repository interface {
 }
 
 type repository struct {
+	logger lager.Logger
+
+	driver Driver
+	locker LockManager
+
+	namespacer uidjunk.Namespacer
+
 	initDir string
 	liveDir string
 	deadDir string
-
-	driver     Driver
-	locker     LockManager
-	defaultTTL TTL
-
-	logger lager.Logger
 }
 
 const (
@@ -91,6 +90,7 @@ func NewRepository(
 	logger lager.Logger,
 	driver Driver,
 	locker LockManager,
+	namespacer uidjunk.Namespacer,
 	parentDir string,
 ) (Repository, error) {
 	initDir := filepath.Join(parentDir, initDirname)
@@ -112,12 +112,13 @@ func NewRepository(
 	}
 
 	return &repository{
-		initDir: initDir,
-		liveDir: liveDir,
-		deadDir: deadDir,
-		logger:  logger,
-		driver:  driver,
-		locker:  locker,
+		logger:     logger,
+		driver:     driver,
+		locker:     locker,
+		namespacer: namespacer,
+		initDir:    initDir,
+		liveDir:    liveDir,
+		deadDir:    deadDir,
 	}, nil
 }
 
@@ -392,6 +393,14 @@ func (repo *repository) doStrategy(strategyName string, newVolumeMetadataPath st
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
 			return ErrCreateVolumeFailed
+		}
+
+		if strategy["privileged"] == "false" {
+			err = repo.namespacer.Namespace(newVolumeDataPath)
+			if err != nil {
+				logger.Error("failed-namespace-volume", err)
+				return ErrCreateVolumeFailed
+			}
 		}
 
 		err = os.Symlink(repo.liveMetadataPath(parentHandle), filepath.Join(newVolumeMetadataPath, "parent"))

@@ -18,6 +18,7 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -45,6 +46,7 @@ var _ = Describe("Volume Server", func() {
 			logger,
 			&driver.NaiveDriver{},
 			volume.NewLockManager(),
+			uidjunk.NoopNamespacer{},
 			volumeDir,
 		)
 

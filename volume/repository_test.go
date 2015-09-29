@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim/fs"
+	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/concourse/baggageclaim/volume/fakes"
@@ -48,7 +49,7 @@ var _ = Describe("Repository", func() {
 			var err error
 			fakeDriver = new(fakes.FakeDriver)
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, volumeDir)
+			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, uidjunk.NoopNamespacer{}, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			someVolume, err = repo.CreateVolume(volume.Strategy{
@@ -167,7 +168,7 @@ var _ = Describe("Repository", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, volumeDir)
+			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, uidjunk.NoopNamespacer{}, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 
 			someVolume, err = repo.CreateVolume(volume.Strategy{

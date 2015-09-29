@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/pivotal-golang/clock"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/reaper"
+	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -70,11 +72,45 @@ func main() {
 		volumeDriver = &driver.NaiveDriver{}
 	}
 
+	var namespacer uidjunk.Namespacer
+	if runtime.GOOS == "linux" {
+		maxId := uidjunk.Min(
+			uidjunk.MustGetMaxValidUID(),
+			uidjunk.MustGetMaxValidGID(),
+		)
+
+		mappingList := uidjunk.MappingList{
+			{
+				FromID: 0,
+				ToID:   maxId,
+				Size:   1,
+			},
+			{
+				FromID: 1,
+				ToID:   1,
+				Size:   maxId - 1,
+			},
+		}
+
+		uidTranslator := uidjunk.NewUidTranslator(
+			mappingList,
+			mappingList,
+		)
+
+		namespacer = &uidjunk.UidNamespacer{
+			Translator: uidTranslator,
+			Logger:     logger.Session("uid-namespacer"),
+		}
+	} else {
+		namespacer = uidjunk.NoopNamespacer{}
+	}
+
 	locker := volume.NewLockManager()
 	volumeRepo, err := volume.NewRepository(
 		logger.Session("repository"),
 		volumeDriver,
 		locker,
+		namespacer,
 		*volumeDir,
 	)
 

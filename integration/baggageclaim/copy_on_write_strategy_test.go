@@ -5,11 +5,14 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
+	"syscall"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/uidjunk"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
@@ -72,6 +75,75 @@ var _ = Describe("Copy On Write Strategy", func() {
 				dataInChild := writeData(childVolume.Path())
 				Ω(dataExistsInVolume(dataInChild, childVolume.Path())).To(BeTrue())
 				Ω(dataExistsInVolume(dataInChild, parentVolume.Path())).To(BeFalse())
+			})
+
+			Context("when not privileged", func() {
+				It("maps uid 0 to (MAX_UID)", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+						TTLInSeconds: 3600,
+					})
+					Ω(err).ShouldNot(HaveOccurred())
+
+					dataInParent := writeData(parentVolume.Path())
+					Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+
+					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+						Strategy: baggageclaim.COWStrategy{
+							Parent:     parentVolume,
+							Privileged: false,
+						},
+						TTLInSeconds: 3600,
+					})
+					Ω(err).ShouldNot(HaveOccurred())
+
+					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
+					Expect(err).ToNot(HaveOccurred())
+
+					maxUID := uidjunk.MustGetMaxValidUID()
+					maxGID := uidjunk.MustGetMaxValidGID()
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
+					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+				})
+			})
+
+			Context("when privileged", func() {
+				It("maps uid 0 to uid 0 (no namespacing)", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+						TTLInSeconds: 3600,
+					})
+					Ω(err).ShouldNot(HaveOccurred())
+
+					dataInParent := writeData(parentVolume.Path())
+					Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+
+					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+						Strategy: baggageclaim.COWStrategy{
+							Parent:     parentVolume,
+							Privileged: true,
+						},
+						TTLInSeconds: 3600,
+					})
+					Ω(err).ShouldNot(HaveOccurred())
+
+					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
+					Expect(err).ToNot(HaveOccurred())
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(0)))
+					Expect(sysStat.Gid).To(Equal(uint32(0)))
+				})
 			})
 		})
 	})

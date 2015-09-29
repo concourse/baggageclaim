@@ -173,6 +173,8 @@ var _ = Describe("TTL's", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 			Ω(ttl).Should(Equal(uint(2)))
 
+			emptyVolume.Release()
+
 			err = emptyVolume.SetTTL(3)
 			Ω(err).ShouldNot(HaveOccurred())
 
