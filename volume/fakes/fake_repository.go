@@ -26,12 +26,13 @@ type FakeRepository struct {
 		result1 volume.Volume
 		result2 error
 	}
-	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint) (volume.Volume, error)
+	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, privileged bool) (volume.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
 		strategy     volume.Strategy
 		properties   volume.Properties
 		ttlInSeconds uint
+		privileged   bool
 	}
 	createVolumeReturns struct {
 		result1 volume.Volume
@@ -142,16 +143,17 @@ func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 erro
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) CreateVolume(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint) (volume.Volume, error) {
+func (fake *FakeRepository) CreateVolume(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, privileged bool) (volume.Volume, error) {
 	fake.createVolumeMutex.Lock()
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
 		strategy     volume.Strategy
 		properties   volume.Properties
 		ttlInSeconds uint
-	}{strategy, properties, ttlInSeconds})
+		privileged   bool
+	}{strategy, properties, ttlInSeconds, privileged})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(strategy, properties, ttlInSeconds)
+		return fake.CreateVolumeStub(strategy, properties, ttlInSeconds, privileged)
 	} else {
 		return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 	}
@@ -163,10 +165,10 @@ func (fake *FakeRepository) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (volume.Strategy, volume.Properties, uint) {
+func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (volume.Strategy, volume.Properties, uint, bool) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
-	return fake.createVolumeArgsForCall[i].strategy, fake.createVolumeArgsForCall[i].properties, fake.createVolumeArgsForCall[i].ttlInSeconds
+	return fake.createVolumeArgsForCall[i].strategy, fake.createVolumeArgsForCall[i].properties, fake.createVolumeArgsForCall[i].ttlInSeconds, fake.createVolumeArgsForCall[i].privileged
 }
 
 func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {

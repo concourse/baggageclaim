@@ -50,6 +50,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		strategy,
 		volume.Properties(request.Properties),
 		request.TTLInSeconds,
+		request.Privileged,
 	)
 
 	if err != nil {

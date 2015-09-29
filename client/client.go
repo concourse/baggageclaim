@@ -40,6 +40,7 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 		Strategy:     strategy.Encode(),
 		TTLInSeconds: volumeSpec.TTLInSeconds,
 		Properties:   volumeSpec.Properties,
+		Privileged:   volumeSpec.Privileged,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)

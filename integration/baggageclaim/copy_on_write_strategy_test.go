@@ -94,9 +94,9 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
-							Parent:     parentVolume,
-							Privileged: false,
+							Parent: parentVolume,
 						},
+						Privileged:   false,
 						TTLInSeconds: 3600,
 					})
 					Ω(err).ShouldNot(HaveOccurred())
@@ -130,9 +130,9 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
-							Parent:     parentVolume,
-							Privileged: true,
+							Parent: parentVolume,
 						},
+						Privileged:   true,
 						TTLInSeconds: 3600,
 					})
 					Ω(err).ShouldNot(HaveOccurred())

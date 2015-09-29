@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim/fs"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/concourse/baggageclaim/volume/fakes"
@@ -20,8 +20,9 @@ import (
 
 var _ = Describe("Repository", func() {
 	var (
-		volumeDir  string
-		fakeLocker *fakes.FakeLockManager
+		volumeDir      string
+		fakeLocker     *fakes.FakeLockManager
+		fakeNamespacer *fake_namespacer.FakeNamespacer
 	)
 
 	BeforeEach(func() {
@@ -30,6 +31,7 @@ var _ = Describe("Repository", func() {
 		Ω(err).ShouldNot(HaveOccurred())
 
 		fakeLocker = new(fakes.FakeLockManager)
+		fakeNamespacer = new(fake_namespacer.FakeNamespacer)
 	})
 
 	AfterEach(func() {
@@ -41,98 +43,132 @@ var _ = Describe("Repository", func() {
 		var (
 			fakeDriver *fakes.FakeDriver
 			repo       volume.Repository
-
-			someVolume volume.Volume
 		)
 
 		BeforeEach(func() {
 			var err error
 			fakeDriver = new(fakes.FakeDriver)
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, uidjunk.NoopNamespacer{}, volumeDir)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			someVolume, err = repo.CreateVolume(volume.Strategy{
-				"type": volume.StrategyEmpty,
-			}, volume.Properties{}, 0)
+			repo, err = volume.NewRepository(logger, fakeDriver, fakeLocker, fakeNamespacer, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 
-		Describe("destroying a volume", func() {
-			It("calls DestroyVolume on the driver", func() {
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
+		Describe("creating a volume", func() {
+			Context("unprivileged", func() {
+				It("namespaces the volume during initialization", func() {
+					vol, err := repo.CreateVolume(volume.Strategy{
+						"type": volume.StrategyEmpty,
+					}, volume.Properties{}, 0, false)
+					Ω(err).ShouldNot(HaveOccurred())
 
-				err := repo.DestroyVolume(someVolume.Handle)
-				Ω(err).ShouldNot(HaveOccurred())
+					Expect(fakeNamespacer.NamespaceCallCount()).To(Equal(1))
 
-				Ω(fakeDriver.DestroyVolumeCallCount()).Should(Equal(1))
-				volumePath := fakeDriver.DestroyVolumeArgsForCall(0)
-
-				tombstone := filepath.Join(volumeDir, "dead", someVolume.Handle, "volume")
-				Ω(volumePath).Should(Equal(tombstone))
+					initDataDir := filepath.Join(volumeDir, "init", vol.Handle, "volume")
+					Expect(fakeNamespacer.NamespaceArgsForCall(0)).To(Equal(initDataDir))
+				})
 			})
 
-			It("deletes it from the disk", func() {
-				volumes, err := repo.ListVolumes(volume.Properties{})
-				Ω(err).ShouldNot(HaveOccurred())
-				Ω(volumes).Should(HaveLen(1))
+			Context("privileged", func() {
+				It("does not namespace the volume", func() {
+					_, err := repo.CreateVolume(volume.Strategy{
+						"type": volume.StrategyEmpty,
+					}, volume.Properties{}, 0, true)
+					Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
-
-				err = repo.DestroyVolume(someVolume.Handle)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				volumes, err = repo.ListVolumes(volume.Properties{})
-				Ω(err).ShouldNot(HaveOccurred())
-				Ω(volumes).Should(HaveLen(0))
-
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
-			})
-
-			It("removes it from listVolumes", func() {
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
-
-				err := repo.DestroyVolume(someVolume.Handle)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
-				Ω(filepath.Join(volumeDir, "dead", someVolume.Handle)).ShouldNot(BeADirectory())
-
-				Ω(repo.ListVolumes(volume.Properties{})).Should(BeEmpty())
-			})
-
-			It("makes some attempt at locking", func() {
-				err := repo.DestroyVolume(someVolume.Handle)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Expect(fakeNamespacer.NamespaceCallCount()).To(Equal(0))
+				})
 			})
 		})
 
-		Describe("setting properties on a volume", func() {
-			It("makes some attempt at locking", func() {
-				err := repo.SetProperty(someVolume.Handle, "hello", "goodbye")
-				Ω(err).ShouldNot(HaveOccurred())
+		Context("with a volume", func() {
+			var (
+				someVolume volume.Volume
+			)
 
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+			BeforeEach(func() {
+				var err error
+				someVolume, err = repo.CreateVolume(volume.Strategy{
+					"type": volume.StrategyEmpty,
+				}, volume.Properties{}, 0, false)
+				Ω(err).ShouldNot(HaveOccurred())
 			})
-		})
 
-		Describe("setting the TTL on a volume", func() {
-			It("makes some attempt at locking", func() {
-				err := repo.SetTTL(someVolume.Handle, 42)
-				Ω(err).ShouldNot(HaveOccurred())
+			Describe("destroying the volume", func() {
+				It("calls DestroyVolume on the driver", func() {
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					err := repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeDriver.DestroyVolumeCallCount()).Should(Equal(1))
+					volumePath := fakeDriver.DestroyVolumeArgsForCall(0)
+
+					tombstone := filepath.Join(volumeDir, "dead", someVolume.Handle, "volume")
+					Ω(volumePath).Should(Equal(tombstone))
+				})
+
+				It("deletes it from the disk", func() {
+					volumes, err := repo.ListVolumes(volume.Properties{})
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(volumes).Should(HaveLen(1))
+
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
+
+					err = repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					volumes, err = repo.ListVolumes(volume.Properties{})
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(volumes).Should(HaveLen(0))
+
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
+				})
+
+				It("removes it from listVolumes", func() {
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
+
+					err := repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
+					Ω(filepath.Join(volumeDir, "dead", someVolume.Handle)).ShouldNot(BeADirectory())
+
+					Ω(repo.ListVolumes(volume.Properties{})).Should(BeEmpty())
+				})
+
+				It("makes some attempt at locking", func() {
+					err := repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
+			})
+
+			Describe("setting properties on the volume", func() {
+				It("makes some attempt at locking", func() {
+					err := repo.SetProperty(someVolume.Handle, "hello", "goodbye")
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
+			})
+
+			Describe("setting the TTL on the volume", func() {
+				It("makes some attempt at locking", func() {
+					err := repo.SetTTL(someVolume.Handle, 42)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
 			})
 		})
 	})
@@ -149,8 +185,6 @@ var _ = Describe("Repository", func() {
 			fsDriver   *driver.BtrFSDriver
 			filesystem *fs.BtrfsFilesystem
 			repo       volume.Repository
-
-			someVolume volume.Volume
 		)
 
 		BeforeEach(func() {
@@ -168,12 +202,7 @@ var _ = Describe("Repository", func() {
 			Ω(err).ShouldNot(HaveOccurred())
 
 			logger := lagertest.NewTestLogger("repo")
-			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, uidjunk.NoopNamespacer{}, volumeDir)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			someVolume, err = repo.CreateVolume(volume.Strategy{
-				"type": volume.StrategyEmpty,
-			}, volume.Properties{}, 0)
+			repo, err = volume.NewRepository(logger, fsDriver, fakeLocker, fakeNamespacer, volumeDir)
 			Ω(err).ShouldNot(HaveOccurred())
 		})
 
@@ -187,10 +216,15 @@ var _ = Describe("Repository", func() {
 
 		Describe("creating a new volume", func() {
 			It("cows", func() {
+				parentVolume, err := repo.CreateVolume(volume.Strategy{
+					"type": volume.StrategyEmpty,
+				}, volume.Properties{}, 0, false)
+				Ω(err).ShouldNot(HaveOccurred())
+
 				childVolume, err := repo.CreateVolume(volume.Strategy{
 					"type":   volume.StrategyCopyOnWrite,
-					"volume": someVolume.Handle,
-				}, volume.Properties{}, 0)
+					"volume": parentVolume.Handle,
+				}, volume.Properties{}, 0, false)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				childsParentFile := filepath.Join(volumeDir, "live", childVolume.Handle, "parent")
@@ -199,82 +233,138 @@ var _ = Describe("Repository", func() {
 				parentPath, err := filepath.EvalSymlinks(childsParentFile)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				Ω(parentPath).Should(Equal(filepath.Join(volumeDir, "live", someVolume.Handle)))
+				Ω(parentPath).Should(Equal(filepath.Join(volumeDir, "live", parentVolume.Handle)))
 
 				childFilePath := filepath.Join(childVolume.Path, "this-should-only-be-in-the-child")
 				err = ioutil.WriteFile(childFilePath, []byte("contents"), 0755)
 				Ω(err).ShouldNot(HaveOccurred())
 				Ω(childFilePath).Should(BeARegularFile())
 
-				parentFilePath := filepath.Join(someVolume.Path, "this-should-only-be-in-the-child")
+				parentFilePath := filepath.Join(parentVolume.Path, "this-should-only-be-in-the-child")
 				Ω(parentFilePath).ShouldNot(BeADirectory())
 			})
 
 			It("makes some attempt at locking the parent", func() {
-				_, err := repo.CreateVolume(volume.Strategy{
-					"type":   volume.StrategyCopyOnWrite,
-					"volume": someVolume.Handle,
-				}, volume.Properties{}, 0)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
-			})
-		})
-
-		Describe("destroying a volume", func() {
-			It("deletes it", func() {
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
-
-				err := repo.DestroyVolume(someVolume.Handle)
-				Ω(err).ShouldNot(HaveOccurred())
-
-				volumes, err := repo.ListVolumes(volume.Properties{})
-				Ω(err).ShouldNot(HaveOccurred())
-				Ω(volumes).Should(HaveLen(0))
-
-				Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
-			})
-
-			It("makes some attempt at locking", func() {
-				someVolume, err := repo.CreateVolume(volume.Strategy{
+				parentVolume, err := repo.CreateVolume(volume.Strategy{
 					"type": volume.StrategyEmpty,
-				}, volume.Properties{}, 0)
+				}, volume.Properties{}, 0, false)
 				Ω(err).ShouldNot(HaveOccurred())
 
-				err = repo.DestroyVolume(someVolume.Handle)
+				_, err = repo.CreateVolume(volume.Strategy{
+					"type":   volume.StrategyCopyOnWrite,
+					"volume": parentVolume.Handle,
+				}, volume.Properties{}, 0, false)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(parentVolume.Handle))
 				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(parentVolume.Handle))
+			})
+
+			Context("unprivileged", func() {
+				It("namespaces the volume during initialization", func() {
+					parentVolume, err := repo.CreateVolume(volume.Strategy{
+						"type": volume.StrategyEmpty,
+					}, volume.Properties{}, 0, true)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					vol, err := repo.CreateVolume(volume.Strategy{
+						"type":   volume.StrategyCopyOnWrite,
+						"volume": parentVolume.Handle,
+					}, volume.Properties{}, 0, false)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Expect(fakeNamespacer.NamespaceCallCount()).To(Equal(1))
+
+					initDataDir := filepath.Join(volumeDir, "init", vol.Handle, "volume")
+					Expect(fakeNamespacer.NamespaceArgsForCall(0)).To(Equal(initDataDir))
+				})
+			})
+
+			Context("privileged", func() {
+				It("does not namespace the volume", func() {
+					parentVolume, err := repo.CreateVolume(volume.Strategy{
+						"type": volume.StrategyEmpty,
+					}, volume.Properties{}, 0, true)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					_, err = repo.CreateVolume(volume.Strategy{
+						"type":   volume.StrategyCopyOnWrite,
+						"volume": parentVolume.Handle,
+					}, volume.Properties{}, 0, true)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Expect(fakeNamespacer.NamespaceCallCount()).To(Equal(0))
+				})
 			})
 		})
 
-		Describe("setting properties on a volume", func() {
-			It("makes some attempt at locking", func() {
-				err := repo.SetProperty(someVolume.Handle, "hello", "goodbye")
-				Ω(err).ShouldNot(HaveOccurred())
+		Context("with a volume", func() {
+			var (
+				someVolume volume.Volume
+			)
 
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+			BeforeEach(func() {
+				var err error
+				someVolume, err = repo.CreateVolume(volume.Strategy{
+					"type": volume.StrategyEmpty,
+				}, volume.Properties{}, 0, false)
+				Ω(err).ShouldNot(HaveOccurred())
 			})
-		})
 
-		Describe("setting the TTL on a volume", func() {
-			It("makes some attempt at locking", func() {
-				err := repo.SetTTL(someVolume.Handle, 42)
-				Ω(err).ShouldNot(HaveOccurred())
+			Describe("destroying the volume", func() {
+				It("deletes it", func() {
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).Should(BeADirectory())
 
-				Ω(fakeLocker.LockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
-				Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
-				Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					err := repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					volumes, err := repo.ListVolumes(volume.Properties{})
+					Ω(err).ShouldNot(HaveOccurred())
+					Ω(volumes).Should(HaveLen(0))
+
+					Ω(filepath.Join(volumeDir, "live", someVolume.Handle)).ShouldNot(BeADirectory())
+				})
+
+				It("makes some attempt at locking", func() {
+					someVolume, err := repo.CreateVolume(volume.Strategy{
+						"type": volume.StrategyEmpty,
+					}, volume.Properties{}, 0, false)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					err = repo.DestroyVolume(someVolume.Handle)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
+			})
+
+			Describe("setting properties on the volume", func() {
+				It("makes some attempt at locking", func() {
+					err := repo.SetProperty(someVolume.Handle, "hello", "goodbye")
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
+			})
+
+			Describe("setting the TTL on the volume", func() {
+				It("makes some attempt at locking", func() {
+					err := repo.SetTTL(someVolume.Handle, 42)
+					Ω(err).ShouldNot(HaveOccurred())
+
+					Ω(fakeLocker.LockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.LockArgsForCall(0)).Should(Equal(someVolume.Handle))
+					Ω(fakeLocker.UnlockCallCount()).Should(Equal(1))
+					Ω(fakeLocker.UnlockArgsForCall(0)).Should(Equal(someVolume.Handle))
+				})
 			})
 		})
 	})

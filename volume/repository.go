@@ -58,7 +58,7 @@ type Driver interface {
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	GetVolume(handle string) (Volume, error)
-	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
+	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint, privileged bool) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
@@ -160,7 +160,7 @@ func (ttl TTL) IsUnlimited() bool {
 	return ttl == 0
 }
 
-func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
+func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint, privileged bool) (Volume, error) {
 	strategyName, found := strategy["type"]
 	if !found {
 		return Volume{}, ErrMissingStrategy
@@ -207,6 +207,14 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	if err != nil {
 		repo.cleanupFailedInitVolumeMetadataDir(handle)
 		return Volume{}, err
+	}
+
+	if !privileged {
+		err = repo.namespacer.Namespace(repo.initDataPath(handle))
+		if err != nil {
+			logger.Error("failed-namespace-volume", err)
+			return Volume{}, ErrCreateVolumeFailed
+		}
 	}
 
 	err = os.Rename(repo.initMetadataPath(handle), repo.liveMetadataPath(handle))
@@ -393,14 +401,6 @@ func (repo *repository) doStrategy(strategyName string, newVolumeMetadataPath st
 		if err != nil {
 			logger.Error("failed-to-copy-volume", err)
 			return ErrCreateVolumeFailed
-		}
-
-		if strategy["privileged"] == "false" {
-			err = repo.namespacer.Namespace(newVolumeDataPath)
-			if err != nil {
-				logger.Error("failed-namespace-volume", err)
-				return ErrCreateVolumeFailed
-			}
 		}
 
 		err = os.Symlink(repo.liveMetadataPath(parentHandle), filepath.Join(newVolumeMetadataPath, "parent"))

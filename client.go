@@ -38,6 +38,7 @@ type VolumeSpec struct {
 	Strategy     Strategy
 	Properties   VolumeProperties
 	TTLInSeconds uint
+	Privileged   bool
 }
 
 type Strategy interface {
@@ -45,21 +46,16 @@ type Strategy interface {
 }
 
 type COWStrategy struct {
-	Parent     Volume
-	Privileged bool
+	Parent Volume
 }
 
 func (strategy COWStrategy) Encode() *json.RawMessage {
-	privileged, _ := json.Marshal(strategy.Privileged)
-
 	payload, _ := json.Marshal(struct {
-		Type       string `json:"type"`
-		Volume     string `json:"volume"`
-		Privileged string `json:"privileged"`
+		Type   string `json:"type"`
+		Volume string `json:"volume"`
 	}{
-		Type:       "cow",
-		Volume:     strategy.Parent.Handle(),
-		Privileged: string(privileged),
+		Type:   "cow",
+		Volume: strategy.Parent.Handle(),
 	})
 
 	msg := json.RawMessage(payload)

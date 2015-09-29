@@ -9,6 +9,7 @@ type VolumeRequest struct {
 	Strategy     *json.RawMessage `json:"strategy"`
 	Properties   VolumeProperties `json:"properties"`
 	TTLInSeconds uint             `json:"ttl,omitempty"`
+	Privileged   bool             `json:"privileged,omitempty"`
 }
 
 type VolumeResponse struct {
