@@ -77,12 +77,22 @@ func (cv *clientVolume) Release() {
 	return
 }
 
+func IntervalForTTL(ttlInSeconds uint) time.Duration {
+	interval := (time.Duration(ttlInSeconds) * time.Second) / 2
+
+	if interval > time.Minute {
+		interval = time.Minute
+	}
+
+	return interval
+}
+
 func (cv *clientVolume) startHeartbeating(logger lager.Logger, ttlInSeconds uint) {
 	if ttlInSeconds == 0 {
 		return
 	}
 
-	interval := (time.Duration(ttlInSeconds) * time.Second) / 2
+	interval := IntervalForTTL(ttlInSeconds)
 
 	cv.heartbeating.Add(1)
 	go cv.heartbeat(logger.Session("heartbeating"), ttlInSeconds, time.NewTicker(interval))
