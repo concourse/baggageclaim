@@ -18,13 +18,14 @@ var _ = Describe("Query Parameters", func() {
 		values.Add("name3", "value3")
 
 		properties, err := api.ConvertQueryToProperties(values)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
-		Ω(properties).Should(Equal(volume.Properties{
+		Expect(properties).To(Equal(volume.Properties{
 			"name1": "value1",
 			"name2": "value2",
 			"name3": "value3",
 		}))
+
 	})
 
 	It("returns an error when a query parameter has multiple values", func() {
@@ -33,15 +34,15 @@ var _ = Describe("Query Parameters", func() {
 		values.Add("name1", "value2")
 
 		_, err := api.ConvertQueryToProperties(values)
-		Ω(err).Should(HaveOccurred())
+		Expect(err).To(HaveOccurred())
 	})
 
 	It("returns empty properties when there are no query parameters", func() {
 		values := url.Values{}
 
 		properties, err := api.ConvertQueryToProperties(values)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
-		Ω(properties).Should(BeEmpty())
+		Expect(properties).To(BeEmpty())
 	})
 })

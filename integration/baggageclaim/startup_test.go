@@ -26,7 +26,7 @@ var _ = Describe("Startup", func() {
 
 		var err error
 		process, err = gexec.Start(command, GinkgoWriter, GinkgoWriter)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(process.Err).Should(gbytes.Say("-volumeDir must be specified"))
 		Eventually(process).Should(gexec.Exit(1))

@@ -38,7 +38,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 			newFilePath := filepath.Join(volumePath, filename)
 
 			err := ioutil.WriteFile(newFilePath, []byte(filename), 0755)
-			Ω(err).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			return filename
 		}
@@ -53,10 +53,10 @@ var _ = Describe("Copy On Write Strategy", func() {
 				parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 					TTLInSeconds: 3600,
 				})
-				Ω(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 
 				dataInParent := writeData(parentVolume.Path())
-				Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+				Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
 				childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 					Strategy: baggageclaim.COWStrategy{
@@ -64,17 +64,17 @@ var _ = Describe("Copy On Write Strategy", func() {
 					},
 					TTLInSeconds: 3600,
 				})
-				Ω(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 
-				Ω(dataExistsInVolume(dataInParent, childVolume.Path())).To(BeTrue())
+				Expect(dataExistsInVolume(dataInParent, childVolume.Path())).To(BeTrue())
 
 				newDataInParent := writeData(parentVolume.Path())
-				Ω(dataExistsInVolume(newDataInParent, parentVolume.Path())).To(BeTrue())
-				Ω(dataExistsInVolume(newDataInParent, childVolume.Path())).To(BeFalse())
+				Expect(dataExistsInVolume(newDataInParent, parentVolume.Path())).To(BeTrue())
+				Expect(dataExistsInVolume(newDataInParent, childVolume.Path())).To(BeFalse())
 
 				dataInChild := writeData(childVolume.Path())
-				Ω(dataExistsInVolume(dataInChild, childVolume.Path())).To(BeTrue())
-				Ω(dataExistsInVolume(dataInChild, parentVolume.Path())).To(BeFalse())
+				Expect(dataExistsInVolume(dataInChild, childVolume.Path())).To(BeTrue())
+				Expect(dataExistsInVolume(dataInChild, parentVolume.Path())).To(BeFalse())
 			})
 
 			Context("when not privileged", func() {
@@ -87,10 +87,10 @@ var _ = Describe("Copy On Write Strategy", func() {
 					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						TTLInSeconds: 3600,
 					})
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
-					Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+					Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
 					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
@@ -99,7 +99,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						Privileged:   false,
 						TTLInSeconds: 3600,
 					})
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
 					Expect(err).ToNot(HaveOccurred())
@@ -123,10 +123,10 @@ var _ = Describe("Copy On Write Strategy", func() {
 					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						TTLInSeconds: 3600,
 					})
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
-					Ω(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+					Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
 					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
@@ -135,7 +135,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						Privileged:   true,
 						TTLInSeconds: 3600,
 					})
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
 					Expect(err).ToNot(HaveOccurred())

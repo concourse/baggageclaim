@@ -33,17 +33,17 @@ var _ = Describe("TTL's", func() {
 		}
 
 		emptyVolume, err := client.CreateVolume(logger, spec)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		expiresAt := time.Now().Add(volume.TTL(10).Duration())
 
 		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		ttl, expiresAt, err := someVolume.Expiration()
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(ttl).Should(Equal(uint(10)))
-		Ω(expiresAt).Should(BeTemporally("~", expiresAt, 1*time.Second))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ttl).To(Equal(uint(10)))
+		Expect(expiresAt).To(BeTemporally("~", expiresAt, 1*time.Second))
 	})
 
 	It("removes the volume after the ttl duration", func() {
@@ -52,13 +52,13 @@ var _ = Describe("TTL's", func() {
 		}
 
 		emptyVolume, err := client.CreateVolume(logger, spec)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		emptyVolume.Release()
 
 		volumes, err := client.ListVolumes(logger, nil)
-		Ω(err).ShouldNot(HaveOccurred())
-		Ω(volumes).Should(HaveLen(1))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(volumes).To(HaveLen(1))
 		volumes[0].Release()
 
 		time.Sleep(2 * time.Second)
@@ -71,7 +71,7 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{TTLInSeconds: 2}
 
 			volume, err := client.CreateVolume(logger, spec)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
 
@@ -91,7 +91,7 @@ var _ = Describe("TTL's", func() {
 			}
 
 			parentVolume, err := client.CreateVolume(logger, spec)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
@@ -99,7 +99,7 @@ var _ = Describe("TTL's", func() {
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 4,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			parentVolume.Release()
 
@@ -120,7 +120,7 @@ var _ = Describe("TTL's", func() {
 				TTLInSeconds: 2,
 			}
 			parentVolume, err := client.CreateVolume(logger, spec)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
@@ -128,13 +128,13 @@ var _ = Describe("TTL's", func() {
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 2,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			childVolume2, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 				Strategy:     baggageclaim.COWStrategy{Parent: parentVolume},
 				TTLInSeconds: 2,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			parentVolume.Release()
 
@@ -167,20 +167,20 @@ var _ = Describe("TTL's", func() {
 			}
 
 			emptyVolume, err := client.CreateVolume(logger, spec)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			ttl, _, err := emptyVolume.Expiration()
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(ttl).Should(Equal(uint(2)))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ttl).To(Equal(uint(2)))
 
 			emptyVolume.Release()
 
 			err = emptyVolume.SetTTL(3)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			ttl, _, err = emptyVolume.Expiration()
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(ttl).Should(Equal(uint(3)))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ttl).To(Equal(uint(3)))
 		})
 
 		It("returns ErrVolumeNotFound when setting the TTL after it's expired", func() {
@@ -189,13 +189,13 @@ var _ = Describe("TTL's", func() {
 			}
 
 			emptyVolume, err := client.CreateVolume(logger, spec)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			emptyVolume.Release()
 			time.Sleep(2 * time.Second)
 
 			err = emptyVolume.SetTTL(1)
-			Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
+			Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
 		})
 	})
 })

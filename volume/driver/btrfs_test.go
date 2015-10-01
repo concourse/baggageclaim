@@ -35,7 +35,7 @@ var _ = Describe("BtrFS", func() {
 	BeforeEach(func() {
 		var err error
 		tempDir, err = ioutil.TempDir("", "baggageclaim_driver_test")
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		logger := lagertest.NewTestLogger("fs")
 
@@ -44,15 +44,15 @@ var _ = Describe("BtrFS", func() {
 
 		filesystem = fs.New(logger, imagePath, volumeDir)
 		err = filesystem.Create(100 * 1024 * 1024)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		err := filesystem.Delete()
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		err = os.RemoveAll(tempDir)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("Lifecycle", func() {
@@ -63,21 +63,21 @@ var _ = Describe("BtrFS", func() {
 			subvolumePath := filepath.Join(volumeDir, "subvolume")
 
 			err := fsDriver.CreateVolume(subvolumePath)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
-			Ω(subvolumePath).Should(BeADirectory())
+			Expect(subvolumePath).To(BeADirectory())
 
 			checkSubvolume := exec.Command("btrfs", "subvolume", "show", subvolumePath)
 			session, err := gexec.Start(checkSubvolume, GinkgoWriter, GinkgoWriter)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(session).Should(gbytes.Say(subvolumePath))
 			Eventually(session).Should(gexec.Exit(0))
 
 			err = fsDriver.DestroyVolume(subvolumePath)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
-			Ω(subvolumePath).ShouldNot(BeADirectory())
+			Expect(subvolumePath).NotTo(BeADirectory())
 		})
 	})
 })

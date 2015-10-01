@@ -37,7 +37,7 @@ var _ = Describe("Empty Strategy", func() {
 			JustBeforeEach(func() {
 				var err error
 				firstVolume, err = client.CreateVolume(logger, baggageclaim.VolumeSpec{})
-				Ω(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			Describe("created directory", func() {
@@ -50,11 +50,11 @@ var _ = Describe("Empty Strategy", func() {
 				})
 
 				It("is in the volume dir", func() {
-					Ω(createdDir).Should(HavePrefix(runner.VolumeDir()))
+					Expect(createdDir).To(HavePrefix(runner.VolumeDir()))
 				})
 
 				It("creates the directory", func() {
-					Ω(createdDir).Should(BeADirectory())
+					Expect(createdDir).To(BeADirectory())
 				})
 
 				Context("on a second request", func() {
@@ -65,15 +65,15 @@ var _ = Describe("Empty Strategy", func() {
 					JustBeforeEach(func() {
 						var err error
 						secondVolume, err = client.CreateVolume(logger, baggageclaim.VolumeSpec{})
-						Ω(err).ShouldNot(HaveOccurred())
+						Expect(err).NotTo(HaveOccurred())
 					})
 
 					It("creates a new directory", func() {
-						Ω(createdDir).ShouldNot(Equal(secondVolume.Path()))
+						Expect(createdDir).NotTo(Equal(secondVolume.Path()))
 					})
 
 					It("creates a new handle", func() {
-						Ω(firstVolume.Handle).ShouldNot(Equal(secondVolume.Handle()))
+						Expect(firstVolume.Handle).NotTo(Equal(secondVolume.Handle()))
 					})
 				})
 			})
@@ -87,11 +87,11 @@ var _ = Describe("Empty Strategy", func() {
 			JustBeforeEach(func() {
 				var err error
 				volumes, err = client.ListVolumes(logger, baggageclaim.VolumeProperties{})
-				Ω(err).ShouldNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("returns an empty response", func() {
-				Ω(volumes).Should(BeEmpty())
+				Expect(volumes).To(BeEmpty())
 			})
 
 			Context("when a volume has been created", func() {
@@ -100,11 +100,11 @@ var _ = Describe("Empty Strategy", func() {
 				BeforeEach(func() {
 					var err error
 					createdVolume, err = client.CreateVolume(logger, baggageclaim.VolumeSpec{Properties: properties})
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 				})
 
 				It("returns it", func() {
-					Ω(runner.CurrentHandles()).Should(ConsistOf(createdVolume.Handle()))
+					Expect(runner.CurrentHandles()).To(ConsistOf(createdVolume.Handle()))
 				})
 			})
 		})

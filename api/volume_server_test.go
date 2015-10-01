@@ -35,7 +35,7 @@ var _ = Describe("Volume Server", func() {
 		var err error
 
 		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		volumeDir = tempDir
 	})
@@ -50,15 +50,15 @@ var _ = Describe("Volume Server", func() {
 			volumeDir,
 		)
 
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		handler, err = api.NewHandler(logger, repo)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		err := os.RemoveAll(tempDir)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("listing the volumes", func() {
@@ -73,7 +73,7 @@ var _ = Describe("Volume Server", func() {
 
 		Context("when there are no volumes", func() {
 			It("returns an empty array", func() {
-				Ω(recorder.Body).Should(MatchJSON(`[]`))
+				Expect(recorder.Body).To(MatchJSON(`[]`))
 			})
 		})
 	})
@@ -92,12 +92,12 @@ var _ = Describe("Volume Server", func() {
 				}),
 				Properties: props,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(201))
+			Expect(recorder.Code).To(Equal(201))
 
 			body.Reset()
 			err = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
@@ -105,23 +105,23 @@ var _ = Describe("Volume Server", func() {
 					"type": "empty",
 				}),
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("POST", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(201))
+			Expect(recorder.Code).To(Equal(201))
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("GET", "/volumes?property-query=value", nil)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(200))
+			Expect(recorder.Code).To(Equal(200))
 
 			var volumes volume.Volumes
 			err = json.NewDecoder(recorder.Body).Decode(&volumes)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
-			Ω(volumes).Should(HaveLen(1))
+			Expect(volumes).To(HaveLen(1))
 		})
 
 		It("returns an error if an invalid set of properties are specified", func() {
@@ -129,7 +129,7 @@ var _ = Describe("Volume Server", func() {
 			request, _ := http.NewRequest("GET", "/volumes?property-query=value&property-query=another-value", nil)
 			handler.ServeHTTP(recorder, request)
 
-			Ω(recorder.Code).Should(Equal(422))
+			Expect(recorder.Code).To(Equal(422))
 		})
 	})
 
@@ -145,43 +145,43 @@ var _ = Describe("Volume Server", func() {
 					"property-name": "property-val",
 				},
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(201))
+			Expect(recorder.Code).To(Equal(201))
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("GET", "/volumes?property-name=property-val", nil)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(200))
+			Expect(recorder.Code).To(Equal(200))
 
 			var volumes volume.Volumes
 			err = json.NewDecoder(recorder.Body).Decode(&volumes)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(volumes).Should(HaveLen(1))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(volumes).To(HaveLen(1))
 
 			err = json.NewEncoder(body).Encode(baggageclaim.PropertyRequest{
 				Value: "other-val",
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/properties/property-name", volumes[0].Handle), body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(http.StatusNoContent))
-			Ω(recorder.Body.String()).Should(BeEmpty())
+			Expect(recorder.Code).To(Equal(http.StatusNoContent))
+			Expect(recorder.Body.String()).To(BeEmpty())
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("GET", "/volumes?property-name=other-val", nil)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(200))
+			Expect(recorder.Code).To(Equal(200))
 
 			err = json.NewDecoder(recorder.Body).Decode(&volumes)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
-			Ω(volumes).Should(HaveLen(1))
+			Expect(volumes).To(HaveLen(1))
 		})
 
 		It("can have its ttl updated", func() {
@@ -193,40 +193,40 @@ var _ = Describe("Volume Server", func() {
 				}),
 				TTLInSeconds: 1,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder := httptest.NewRecorder()
 			request, _ := http.NewRequest("POST", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(201))
+			Expect(recorder.Code).To(Equal(201))
 
 			var firstVolume volume.Volume
 			err = json.NewDecoder(recorder.Body).Decode(&firstVolume)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(firstVolume.TTL).Should(Equal(volume.TTL(1)))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(firstVolume.TTL).To(Equal(volume.TTL(1)))
 
 			err = json.NewEncoder(body).Encode(baggageclaim.TTLRequest{
 				Value: 2,
 			})
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/ttl", firstVolume.Handle), body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(http.StatusNoContent))
-			Ω(recorder.Body.String()).Should(BeEmpty())
+			Expect(recorder.Code).To(Equal(http.StatusNoContent))
+			Expect(recorder.Body.String()).To(BeEmpty())
 
 			recorder = httptest.NewRecorder()
 			request, _ = http.NewRequest("GET", "/volumes", body)
 			handler.ServeHTTP(recorder, request)
-			Ω(recorder.Code).Should(Equal(200))
+			Expect(recorder.Code).To(Equal(200))
 
 			var volumes volume.Volumes
 			err = json.NewDecoder(recorder.Body).Decode(&volumes)
-			Ω(err).ShouldNot(HaveOccurred())
-			Ω(volumes).Should(HaveLen(1))
-			Ω(volumes[0].TTL).Should(Equal(volume.TTL(2)))
-			Ω(volumes[0].ExpiresAt).ShouldNot(Equal(firstVolume.ExpiresAt))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(volumes).To(HaveLen(1))
+			Expect(volumes[0].TTL).To(Equal(volume.TTL(2)))
+			Expect(volumes[0].ExpiresAt).NotTo(Equal(firstVolume.ExpiresAt))
 		})
 	})
 
@@ -264,23 +264,23 @@ var _ = Describe("Volume Server", func() {
 				It("creates the properties file", func() {
 					var response volume.Volume
 					err := json.NewDecoder(recorder.Body).Decode(&response)
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					propertiesPath := filepath.Join(volumeDir, "live", response.Handle, "properties.json")
-					Ω(propertiesPath).Should(BeAnExistingFile())
+					Expect(propertiesPath).To(BeAnExistingFile())
 
 					propertiesContents, err := ioutil.ReadFile(propertiesPath)
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
 					var storedProperties baggageclaim.VolumeProperties
 					err = json.Unmarshal(propertiesContents, &storedProperties)
-					Ω(err).ShouldNot(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
 
-					Ω(storedProperties).Should(Equal(properties))
+					Expect(storedProperties).To(Equal(properties))
 				})
 
 				It("returns the properties in the response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"property-name":"property-value"`))
+					Expect(recorder.Body).To(ContainSubstring(`"property-name":"property-value"`))
 				})
 			})
 		})
@@ -297,8 +297,8 @@ var _ = Describe("Volume Server", func() {
 
 			Context("when a new directory can be created", func() {
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"path":`))
-					Ω(recorder.Body).Should(ContainSubstring(`"handle":`))
+					Expect(recorder.Body).To(ContainSubstring(`"path":`))
+					Expect(recorder.Body).To(ContainSubstring(`"handle":`))
 				})
 			})
 
@@ -308,18 +308,18 @@ var _ = Describe("Volume Server", func() {
 				})
 
 				It("returns a 400 Bad Request response", func() {
-					Ω(recorder.Code).Should(Equal(http.StatusBadRequest))
+					Expect(recorder.Code).To(Equal(http.StatusBadRequest))
 				})
 
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
 				})
 
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
-					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
 			})
 
@@ -329,18 +329,18 @@ var _ = Describe("Volume Server", func() {
 				})
 
 				It("returns a 422 Unprocessable Entity response", func() {
-					Ω(recorder.Code).Should(Equal(422))
+					Expect(recorder.Code).To(Equal(422))
 				})
 
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
 				})
 
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
-					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
 			})
 
@@ -355,18 +355,18 @@ var _ = Describe("Volume Server", func() {
 				})
 
 				It("returns a 422 Unprocessable Entity response", func() {
-					Ω(recorder.Code).Should(Equal(422))
+					Expect(recorder.Code).To(Equal(422))
 				})
 
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
 				})
 
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
-					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
 			})
 
@@ -381,18 +381,18 @@ var _ = Describe("Volume Server", func() {
 				})
 
 				It("returns a 422 Unprocessable Entity response", func() {
-					Ω(recorder.Code).Should(Equal(422))
+					Expect(recorder.Code).To(Equal(422))
 				})
 
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
 				})
 
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
-					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
 			})
 
@@ -408,18 +408,18 @@ var _ = Describe("Volume Server", func() {
 				})
 
 				It("returns a 422 Unprocessable Entity response", func() {
-					Ω(recorder.Code).Should(Equal(422))
+					Expect(recorder.Code).To(Equal(422))
 				})
 
 				It("writes a nice JSON response", func() {
-					Ω(recorder.Body).Should(ContainSubstring(`"error":`))
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
 				})
 
 				It("does not create a volume", func() {
 					getRecorder := httptest.NewRecorder()
 					getReq, _ := http.NewRequest("GET", "/volumes", nil)
 					handler.ServeHTTP(getRecorder, getReq)
-					Ω(getRecorder.Body).Should(MatchJSON("[]"))
+					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
 			})
 		})
@@ -428,7 +428,7 @@ var _ = Describe("Volume Server", func() {
 
 func encStrategy(strategy volume.Strategy) *json.RawMessage {
 	bytes, err := json.Marshal(strategy)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	msg := json.RawMessage(bytes)
 

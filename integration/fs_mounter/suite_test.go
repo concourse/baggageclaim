@@ -33,18 +33,18 @@ type suiteData struct {
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fsmPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/fs_mounter")
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	data, err := json.Marshal(suiteData{
 		FSMounterPath: fsmPath,
 	})
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	return data
 }, func(data []byte) {
 	var suiteData suiteData
 	err := json.Unmarshal(data, &suiteData)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	fsMounterPath = suiteData.FSMounterPath
 })

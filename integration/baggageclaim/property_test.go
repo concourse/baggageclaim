@@ -32,67 +32,69 @@ var _ = Describe("Properties", func() {
 				"property-name": "property-value",
 			},
 		})
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		err = emptyVolume.SetProperty("another-property", "another-value")
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
-		Ω(someVolume.Properties()).Should(Equal(baggageclaim.VolumeProperties{
+		Expect(someVolume.Properties()).To(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "another-value",
 		}))
 
 		err = someVolume.SetProperty("another-property", "yet-another-value")
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		someVolume, err = client.LookupVolume(logger, someVolume.Handle())
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
-		Ω(someVolume.Properties()).Should(Equal(baggageclaim.VolumeProperties{
+		Expect(someVolume.Properties()).To(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "yet-another-value",
 		}))
+
 	})
 
 	It("can find a volume by its properties", func() {
 		_, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		emptyVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 			Properties: baggageclaim.VolumeProperties{
 				"property-name": "property-value",
 			},
 		})
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		err = emptyVolume.SetProperty("another-property", "another-value")
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		foundVolumes, err := client.ListVolumes(logger, baggageclaim.VolumeProperties{
 			"another-property": "another-value",
 		})
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
-		Ω(foundVolumes).Should(HaveLen(1))
-		Ω(foundVolumes[0].Properties()).Should(Equal(baggageclaim.VolumeProperties{
+		Expect(foundVolumes).To(HaveLen(1))
+		Expect(foundVolumes[0].Properties()).To(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
 			"another-property": "another-value",
 		}))
+
 	})
 
 	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
 		volume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
 			TTLInSeconds: 1,
 		})
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		volume.Release()
 		time.Sleep(2 * time.Second)
 
 		err = volume.SetProperty("some", "property")
-		Ω(err).Should(Equal(baggageclaim.ErrVolumeNotFound))
+		Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
 	})
 })

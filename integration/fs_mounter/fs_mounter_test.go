@@ -25,7 +25,7 @@ func mountAtPath(path string) string {
 	)
 
 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	Eventually(session, "10s").Should(gexec.Exit(0))
 
@@ -44,7 +44,7 @@ func unmountAtPath(path string) {
 	)
 
 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	Eventually(session, "10s").Should(gexec.Exit(0))
 
@@ -64,12 +64,12 @@ var _ = Describe("FS Mounter", func() {
 	BeforeEach(func() {
 		var err error
 		tempDir, err = ioutil.TempDir("", "fs_mounter_test")
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		err := os.RemoveAll(tempDir)
-		Ω(err).ShouldNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Context("when starting for the first time", func() {
@@ -90,7 +90,7 @@ var _ = Describe("FS Mounter", func() {
 			)
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
 		})
@@ -108,14 +108,14 @@ var _ = Describe("FS Mounter", func() {
 		It("is idepotent", func() {
 			path := filepath.Join(mountPath, "filez")
 			err := ioutil.WriteFile(path, []byte("contents"), 0755)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			mountPath = mountAtPath(tempDir)
 
 			contents, err := ioutil.ReadFile(path)
-			Ω(err).ShouldNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
-			Ω(string(contents)).Should(Equal("contents"))
+			Expect(string(contents)).To(Equal("contents"))
 		})
 	})
 })

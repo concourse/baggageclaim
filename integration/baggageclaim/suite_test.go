@@ -39,18 +39,18 @@ type suiteData struct {
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	bcPath, err := gexec.Build("github.com/concourse/baggageclaim/cmd/baggageclaim")
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	data, err := json.Marshal(suiteData{
 		BaggageClaimPath: bcPath,
 	})
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	return data
 }, func(data []byte) {
 	var suiteData suiteData
 	err := json.Unmarshal(data, &suiteData)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	logger = lagertest.NewTestLogger("test")
 	baggageClaimPath = suiteData.BaggageClaimPath
@@ -74,7 +74,7 @@ type BaggageClaimRunner struct {
 func NewRunner(path string) *BaggageClaimRunner {
 	port := 7788 + GinkgoParallelNode()
 	volumeDir, err := ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	return &BaggageClaimRunner{
 		path:      path,
@@ -110,7 +110,7 @@ func (bcr *BaggageClaimRunner) Bounce() {
 
 func (bcr *BaggageClaimRunner) Cleanup() {
 	err := os.RemoveAll(bcr.volumeDir)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func (bcr *BaggageClaimRunner) Client() baggageclaim.Client {
@@ -127,7 +127,7 @@ func (bcr *BaggageClaimRunner) Port() int {
 
 func (bcr *BaggageClaimRunner) CurrentHandles() []string {
 	volumes, err := bcr.Client().ListVolumes(logger, nil)
-	Ω(err).ShouldNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	handles := []string{}
 
