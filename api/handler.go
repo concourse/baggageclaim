@@ -32,7 +32,7 @@ type errorResponse struct {
 	Message string `json:"error"`
 }
 
-func respondWithError(w http.ResponseWriter, err error, statusCode ...int) {
+func RespondWithError(w http.ResponseWriter, err error, statusCode ...int) {
 	var code int
 
 	if len(statusCode) > 0 {

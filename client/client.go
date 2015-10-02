@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 )
@@ -67,7 +68,11 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 		return nil, err
 	}
 
-	return c.newVolume(logger, volumeResponse), nil
+	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
+	if !initialHeartbeatSuccess {
+		return nil, volume.ErrVolumeDoesNotExist
+	}
+	return v, nil
 }
 
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
@@ -110,19 +115,27 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 
 	var volumes baggageclaim.Volumes
 	for _, vr := range volumesResponse {
-		volumes = append(volumes, c.newVolume(logger, vr))
+		v, initialHeartbeatSuccess := c.newVolume(logger, vr)
+		if initialHeartbeatSuccess {
+			volumes = append(volumes, v)
+		}
 	}
 
 	return volumes, nil
 }
 
 func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, error) {
+
 	volumeResponse, err := c.getVolumeResponse(handle)
 	if err != nil {
 		return nil, err
 	}
 
-	return c.newVolume(logger, volumeResponse), nil
+	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
+	if !initialHeartbeatSuccess {
+		return nil, volume.ErrVolumeDoesNotExist
+	}
+	return v, nil
 }
 
 func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, error) {

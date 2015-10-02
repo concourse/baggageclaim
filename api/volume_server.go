@@ -30,19 +30,19 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	err := json.NewDecoder(req.Body).Decode(&request)
 	req.Body.Close()
 	if err != nil {
-		respondWithError(w, volume.ErrCreateVolumeFailed, http.StatusBadRequest)
+		RespondWithError(w, volume.ErrCreateVolumeFailed, http.StatusBadRequest)
 		return
 	}
 
 	if request.Strategy == nil {
-		respondWithError(w, volume.ErrCreateVolumeFailed, httpUnprocessableEntity)
+		RespondWithError(w, volume.ErrCreateVolumeFailed, httpUnprocessableEntity)
 		return
 	}
 
 	var strategy volume.Strategy
 	err = json.Unmarshal(*request.Strategy, &strategy)
 	if err != nil {
-		respondWithError(w, volume.ErrCreateVolumeFailed, http.StatusBadRequest)
+		RespondWithError(w, volume.ErrCreateVolumeFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		default:
 			code = http.StatusInternalServerError
 		}
-		respondWithError(w, volume.ErrCreateVolumeFailed, code)
+		RespondWithError(w, volume.ErrCreateVolumeFailed, code)
 		return
 	}
 
@@ -86,13 +86,13 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 
 	properties, err := ConvertQueryToProperties(req.URL.Query())
 	if err != nil {
-		respondWithError(w, err, httpUnprocessableEntity)
+		RespondWithError(w, err, httpUnprocessableEntity)
 		return
 	}
 
 	volumes, err := vs.volumeRepo.ListVolumes(properties)
 	if err != nil {
-		respondWithError(w, volume.ErrListVolumesFailed, http.StatusInternalServerError)
+		RespondWithError(w, volume.ErrListVolumesFailed, http.StatusInternalServerError)
 		return
 	}
 
@@ -108,7 +108,7 @@ func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
 
 	vol, err := vs.volumeRepo.GetVolume(handle)
 	if err != nil {
-		respondWithError(w, volume.ErrGetVolumeFailed, http.StatusInternalServerError)
+		RespondWithError(w, volume.ErrGetVolumeFailed, http.StatusInternalServerError)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	var request baggageclaim.PropertyRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
-		respondWithError(w, volume.ErrSetPropertyFailed, http.StatusBadRequest)
+		RespondWithError(w, volume.ErrSetPropertyFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -133,9 +133,9 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
-			respondWithError(w, volume.ErrSetPropertyFailed, http.StatusNotFound)
+			RespondWithError(w, volume.ErrSetPropertyFailed, http.StatusNotFound)
 		} else {
-			respondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
+			RespondWithError(w, volume.ErrSetPropertyFailed, http.StatusInternalServerError)
 		}
 
 		return
@@ -148,7 +148,7 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 	var request baggageclaim.TTLRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
-		respondWithError(w, volume.ErrSetTTLFailed, http.StatusBadRequest)
+		RespondWithError(w, volume.ErrSetTTLFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -159,9 +159,9 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 	err = vs.volumeRepo.SetTTL(handle, ttl)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
-			respondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
+			RespondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
 		} else {
-			respondWithError(w, volume.ErrSetTTLFailed, http.StatusInternalServerError)
+			RespondWithError(w, volume.ErrSetTTLFailed, http.StatusInternalServerError)
 		}
 
 		return

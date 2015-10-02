@@ -82,6 +82,25 @@ var _ = Describe("TTL's", func() {
 			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).To(BeEmpty())
 		})
+
+		Context("When you look up a volume by handle", func() {
+			It("heartbeats the volume once before returning it", func() {
+				spec := baggageclaim.VolumeSpec{
+					TTLInSeconds: 5,
+				}
+
+				emptyVolume, err := client.CreateVolume(logger, spec)
+				Ω(err).ShouldNot(HaveOccurred())
+
+				time.Sleep(2 * time.Second)
+
+				_, err = client.LookupVolume(logger, emptyVolume.Handle())
+
+				_, expiresAt, err := emptyVolume.Expiration()
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(expiresAt).Should(BeTemporally("~", time.Now().Add(5*time.Second), 1*time.Second))
+			})
+		})
 	})
 
 	Describe("resetting the ttl", func() {

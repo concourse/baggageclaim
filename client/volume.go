@@ -19,7 +19,7 @@ type clientVolume struct {
 	stopHeartbeating chan interface{}
 }
 
-func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) baggageclaim.Volume {
+func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
 	volume := &clientVolume{
 		handle: apiVolume.Handle,
 		path:   apiVolume.Path,
@@ -29,9 +29,9 @@ func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.Volu
 		stopHeartbeating: make(chan interface{}),
 	}
 
-	volume.startHeartbeating(logger, apiVolume.TTL)
+	initialHeartbeatSuccess := volume.startHeartbeating(logger, apiVolume.TTL)
 
-	return volume
+	return volume, initialHeartbeatSuccess
 }
 
 func (cv *clientVolume) Handle() string {
@@ -87,17 +87,21 @@ func IntervalForTTL(ttlInSeconds uint) time.Duration {
 	return interval
 }
 
-func (cv *clientVolume) startHeartbeating(logger lager.Logger, ttlInSeconds uint) {
+func (cv *clientVolume) startHeartbeating(logger lager.Logger, ttlInSeconds uint) bool {
 	if ttlInSeconds == 0 {
-		return
+		return true
 	}
 
 	interval := IntervalForTTL(ttlInSeconds)
 
+	if !cv.heartbeatTick(logger.Session("initial-heartbeat"), ttlInSeconds) {
+		return false
+	}
+
 	cv.heartbeating.Add(1)
 	go cv.heartbeat(logger.Session("heartbeating"), ttlInSeconds, time.NewTicker(interval))
 
-	return
+	return true
 }
 
 func (cv *clientVolume) heartbeat(logger lager.Logger, ttlInSeconds uint, pacemaker *time.Ticker) {
@@ -106,10 +110,6 @@ func (cv *clientVolume) heartbeat(logger lager.Logger, ttlInSeconds uint, pacema
 
 	logger.Debug("start")
 	defer logger.Debug("done")
-
-	if !cv.heartbeatTick(logger.Session("initial-heartbeat"), ttlInSeconds) {
-		return
-	}
 
 	for {
 		select {
