@@ -13,11 +13,11 @@ type VolumeRequest struct {
 }
 
 type VolumeResponse struct {
-	Handle     string           `json:"handle"`
-	Path       string           `json:"path"`
-	Properties VolumeProperties `json:"properties"`
-	TTL        uint             `json:"ttl,omitempty"`
-	ExpiresAt  time.Time        `json:"expires_at"`
+	Handle       string           `json:"handle"`
+	Path         string           `json:"path"`
+	Properties   VolumeProperties `json:"properties"`
+	TTLInSeconds uint             `json:"ttl,omitempty"`
+	ExpiresAt    time.Time        `json:"expires_at"`
 }
 
 type PropertyRequest struct {

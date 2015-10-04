@@ -50,9 +50,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-					TTLInSeconds: 3600,
-				})
+				parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
 				Expect(err).NotTo(HaveOccurred())
 
 				dataInParent := writeData(parentVolume.Path())
@@ -62,7 +60,6 @@ var _ = Describe("Copy On Write Strategy", func() {
 					Strategy: baggageclaim.COWStrategy{
 						Parent: parentVolume,
 					},
-					TTLInSeconds: 3600,
 				})
 				Expect(err).NotTo(HaveOccurred())
 
@@ -87,9 +84,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						return
 					}
 
-					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-						TTLInSeconds: 3600,
-					})
+					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
 					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
@@ -99,8 +94,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						Strategy: baggageclaim.COWStrategy{
 							Parent: parentVolume,
 						},
-						Privileged:   false,
-						TTLInSeconds: 3600,
+						Privileged: false,
 					})
 					Expect(err).NotTo(HaveOccurred())
 
@@ -126,9 +120,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						return
 					}
 
-					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-						TTLInSeconds: 3600,
-					})
+					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
 					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
@@ -138,8 +130,7 @@ var _ = Describe("Copy On Write Strategy", func() {
 						Strategy: baggageclaim.COWStrategy{
 							Parent: parentVolume,
 						},
-						Privileged:   true,
-						TTLInSeconds: 3600,
+						Privileged: true,
 					})
 					Expect(err).NotTo(HaveOccurred())
 

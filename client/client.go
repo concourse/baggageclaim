@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"time"
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
@@ -41,7 +43,7 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
 		Strategy:     strategy.Encode(),
-		TTLInSeconds: volumeSpec.TTLInSeconds,
+		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
 		Properties:   volumeSpec.Properties,
 		Privileged:   volumeSpec.Privileged,
 	})
@@ -170,10 +172,10 @@ func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, 
 	return volumeResponse, nil
 }
 
-func (c *client) setTTL(handle string, ttl uint) error {
+func (c *client) setTTL(handle string, ttl time.Duration) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.TTLRequest{
-		Value: ttl,
+		Value: uint(math.Ceil(ttl.Seconds())),
 	})
 
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.SetTTL, rata.Params{

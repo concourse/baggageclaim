@@ -21,10 +21,10 @@ type FakeVolume struct {
 	pathReturns     struct {
 		result1 string
 	}
-	SetTTLStub        func(timeInSeconds uint) error
+	SetTTLStub        func(time.Duration) error
 	setTTLMutex       sync.RWMutex
 	setTTLArgsForCall []struct {
-		timeInSeconds uint
+		arg1 time.Duration
 	}
 	setTTLReturns struct {
 		result1 error
@@ -38,11 +38,11 @@ type FakeVolume struct {
 	setPropertyReturns struct {
 		result1 error
 	}
-	ExpirationStub        func() (uint, time.Time, error)
+	ExpirationStub        func() (time.Duration, time.Time, error)
 	expirationMutex       sync.RWMutex
 	expirationArgsForCall []struct{}
 	expirationReturns     struct {
-		result1 uint
+		result1 time.Duration
 		result2 time.Time
 		result3 error
 	}
@@ -108,14 +108,14 @@ func (fake *FakeVolume) PathReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeVolume) SetTTL(timeInSeconds uint) error {
+func (fake *FakeVolume) SetTTL(arg1 time.Duration) error {
 	fake.setTTLMutex.Lock()
 	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
-		timeInSeconds uint
-	}{timeInSeconds})
+		arg1 time.Duration
+	}{arg1})
 	fake.setTTLMutex.Unlock()
 	if fake.SetTTLStub != nil {
-		return fake.SetTTLStub(timeInSeconds)
+		return fake.SetTTLStub(arg1)
 	} else {
 		return fake.setTTLReturns.result1
 	}
@@ -127,10 +127,10 @@ func (fake *FakeVolume) SetTTLCallCount() int {
 	return len(fake.setTTLArgsForCall)
 }
 
-func (fake *FakeVolume) SetTTLArgsForCall(i int) uint {
+func (fake *FakeVolume) SetTTLArgsForCall(i int) time.Duration {
 	fake.setTTLMutex.RLock()
 	defer fake.setTTLMutex.RUnlock()
-	return fake.setTTLArgsForCall[i].timeInSeconds
+	return fake.setTTLArgsForCall[i].arg1
 }
 
 func (fake *FakeVolume) SetTTLReturns(result1 error) {
@@ -173,7 +173,7 @@ func (fake *FakeVolume) SetPropertyReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeVolume) Expiration() (uint, time.Time, error) {
+func (fake *FakeVolume) Expiration() (time.Duration, time.Time, error) {
 	fake.expirationMutex.Lock()
 	fake.expirationArgsForCall = append(fake.expirationArgsForCall, struct{}{})
 	fake.expirationMutex.Unlock()
@@ -190,10 +190,10 @@ func (fake *FakeVolume) ExpirationCallCount() int {
 	return len(fake.expirationArgsForCall)
 }
 
-func (fake *FakeVolume) ExpirationReturns(result1 uint, result2 time.Time, result3 error) {
+func (fake *FakeVolume) ExpirationReturns(result1 time.Duration, result2 time.Time, result3 error) {
 	fake.ExpirationStub = nil
 	fake.expirationReturns = struct {
-		result1 uint
+		result1 time.Duration
 		result2 time.Time
 		result3 error
 	}{result1, result2, result3}

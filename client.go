@@ -21,13 +21,13 @@ type Volume interface {
 	Handle() string
 	Path() string
 
-	SetTTL(timeInSeconds uint) error
+	SetTTL(time.Duration) error
 	SetProperty(string, string) error
 
-	Expiration() (uint, time.Time, error)
+	Expiration() (time.Duration, time.Time, error)
 	Properties() (VolumeProperties, error)
 
-	Release(uint)
+	Release(time.Duration)
 }
 
 type Volumes []Volume
@@ -35,10 +35,10 @@ type Volumes []Volume
 type VolumeProperties map[string]string
 
 type VolumeSpec struct {
-	Strategy     Strategy
-	Properties   VolumeProperties
-	TTLInSeconds uint
-	Privileged   bool
+	Strategy   Strategy
+	Properties VolumeProperties
+	TTL        time.Duration
+	Privileged bool
 }
 
 type Strategy interface {
