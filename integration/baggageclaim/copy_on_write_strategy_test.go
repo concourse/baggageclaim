@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"os/user"
 	"path/filepath"
-	"runtime"
 	"syscall"
 
 	. "github.com/onsi/ginkgo"
@@ -79,8 +79,11 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 			Context("when not privileged", func() {
 				It("maps uid 0 to (MAX_UID)", func() {
-					if runtime.GOOS != "linux" {
-						Skip("only runs somewhere we can run privileged")
+					user, err := user.Current()
+					Expect(err).NotTo(HaveOccurred())
+
+					if user.Uid != "0" {
+						Skip("must be run as root")
 						return
 					}
 
@@ -115,8 +118,11 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 			Context("when privileged", func() {
 				It("maps uid 0 to uid 0 (no namespacing)", func() {
-					if runtime.GOOS != "linux" {
-						Skip("only runs somewhere we can run privileged")
+					user, err := user.Current()
+					Expect(err).NotTo(HaveOccurred())
+
+					if user.Uid != "0" {
+						Skip("must be run as root")
 						return
 					}
 
