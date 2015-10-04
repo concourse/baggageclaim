@@ -91,7 +91,8 @@ var _ = Describe("Properties", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		volume.Release()
+		volume.Release(0)
+
 		time.Sleep(2 * time.Second)
 
 		err = volume.SetProperty("some", "property")

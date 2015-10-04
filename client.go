@@ -27,7 +27,7 @@ type Volume interface {
 	Expiration() (uint, time.Time, error)
 	Properties() (VolumeProperties, error)
 
-	Release()
+	Release(uint)
 }
 
 type Volumes []Volume

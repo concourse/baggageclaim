@@ -53,9 +53,11 @@ type FakeVolume struct {
 		result1 baggageclaim.VolumeProperties
 		result2 error
 	}
-	ReleaseStub        func()
+	ReleaseStub        func(time.Duration)
 	releaseMutex       sync.RWMutex
-	releaseArgsForCall []struct{}
+	releaseArgsForCall []struct {
+		arg1 time.Duration
+	}
 }
 
 func (fake *FakeVolume) Handle() string {
@@ -222,12 +224,14 @@ func (fake *FakeVolume) PropertiesReturns(result1 baggageclaim.VolumeProperties,
 	}{result1, result2}
 }
 
-func (fake *FakeVolume) Release() {
+func (fake *FakeVolume) Release(arg1 time.Duration) {
 	fake.releaseMutex.Lock()
-	fake.releaseArgsForCall = append(fake.releaseArgsForCall, struct{}{})
+	fake.releaseArgsForCall = append(fake.releaseArgsForCall, struct {
+		arg1 time.Duration
+	}{arg1})
 	fake.releaseMutex.Unlock()
 	if fake.ReleaseStub != nil {
-		fake.ReleaseStub()
+		fake.ReleaseStub(arg1)
 	}
 }
 
@@ -235,6 +239,12 @@ func (fake *FakeVolume) ReleaseCallCount() int {
 	fake.releaseMutex.RLock()
 	defer fake.releaseMutex.RUnlock()
 	return len(fake.releaseArgsForCall)
+}
+
+func (fake *FakeVolume) ReleaseArgsForCall(i int) time.Duration {
+	fake.releaseMutex.RLock()
+	defer fake.releaseMutex.RUnlock()
+	return fake.releaseArgsForCall[i].arg1
 }
 
 var _ baggageclaim.Volume = new(FakeVolume)
