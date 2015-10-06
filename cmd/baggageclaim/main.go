@@ -13,6 +13,7 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
+	"github.com/xoebus/zest"
 
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/reaper"
@@ -51,6 +52,17 @@ var reapInterval = flag.Duration(
 	"interval on which to reap expired containers",
 )
 
+var yellerAPIKey = flag.String(
+	"yellerAPIKey",
+	"",
+	"API token to output error logs to Yeller",
+)
+var yellerEnvironment = flag.String(
+	"yellerEnvironment",
+	"development",
+	"environment label for Yeller",
+)
+
 func main() {
 	flag.Parse()
 	if *volumeDir == "" {
@@ -61,6 +73,11 @@ func main() {
 	logger := lager.NewLogger("baggageclaim")
 	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.INFO)
 	logger.RegisterSink(sink)
+
+	if *yellerAPIKey != "" {
+		yellerSink := zest.NewYellerSink(*yellerAPIKey, *yellerEnvironment)
+		logger.RegisterSink(yellerSink)
+	}
 
 	listenAddr := fmt.Sprintf("%s:%d", *listenAddress, *listenPort)
 
