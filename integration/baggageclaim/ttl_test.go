@@ -35,15 +35,15 @@ var _ = Describe("TTL's", func() {
 		emptyVolume, err := client.CreateVolume(logger, spec)
 		Expect(err).NotTo(HaveOccurred())
 
-		expiresAt := time.Now().Add(volume.TTL(10).Duration())
+		expectedExpiresAt := time.Now().Add(volume.TTL(10).Duration())
 
 		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
 		Expect(err).NotTo(HaveOccurred())
 
-		ttl, expiresAt, err := someVolume.Expiration()
+		ttl, actualExpiresAt, err := someVolume.Expiration()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ttl).To(Equal(10 * time.Second))
-		Expect(expiresAt).To(BeTemporally("~", expiresAt, 1*time.Second))
+		Expect(actualExpiresAt).To(BeTemporally("~", expectedExpiresAt, 1*time.Second))
 	})
 
 	It("removes the volume after the ttl duration", func() {
