@@ -90,11 +90,12 @@ func main() {
 	}
 
 	var namespacer uidjunk.Namespacer
-	if runtime.GOOS == "linux" {
-		maxId := uidjunk.Min(
-			uidjunk.MustGetMaxValidUID(),
-			uidjunk.MustGetMaxValidGID(),
-		)
+
+	maxUID, maxUIDErr := uidjunk.DefaultUIDMap.MaxValid()
+	maxGID, maxGIDErr := uidjunk.DefaultGIDMap.MaxValid()
+
+	if runtime.GOOS == "linux" && maxUIDErr == nil && maxGIDErr == nil {
+		maxId := uidjunk.Min(maxUID, maxGID)
 
 		mappingList := uidjunk.MappingList{
 			{
