@@ -136,10 +136,12 @@ func main() {
 		locker,
 	)
 
+	strategerizer := volume.NewStrategerizer(namespacer, locker)
+
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
+		strategerizer,
 		volumeRepo,
-		namespacer,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)
