@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
@@ -21,24 +20,22 @@ var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 
-const (
-	StrategyEmpty       = "empty"
-	StrategyCopyOnWrite = "cow"
-	StrategyDockerImage = "docker_image"
-)
-
 type VolumeServer struct {
-	volumeRepo volume.Repository
-	namespacer uidjunk.Namespacer
+	strategerizer volume.Strategerizer
+	volumeRepo    volume.Repository
 
 	logger lager.Logger
 }
 
-func NewVolumeServer(logger lager.Logger, volumeRepo volume.Repository, namespacer uidjunk.Namespacer) *VolumeServer {
+func NewVolumeServer(
+	logger lager.Logger,
+	strategerizer volume.Strategerizer,
+	volumeRepo volume.Repository,
+) *VolumeServer {
 	return &VolumeServer{
-		volumeRepo: volumeRepo,
-		namespacer: namespacer,
-		logger:     logger,
+		strategerizer: strategerizer,
+		volumeRepo:    volumeRepo,
+		logger:        logger,
 	}
 }
 
@@ -51,43 +48,11 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if request.Strategy == nil {
-		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
-		return
-	}
-
-	var strategyInfo map[string]string
-	err = json.Unmarshal(*request.Strategy, &strategyInfo)
+	strategy, err := vs.strategerizer.StrategyFor(request)
 	if err != nil {
-		RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
-		return
-	}
-
-	var strategy volume.Strategy
-	switch strategyInfo["type"] {
-	case StrategyEmpty:
-		strategy = volume.EmptyStrategy{}
-	case StrategyCopyOnWrite:
-		strategy = volume.CowStrategy{strategyInfo["volume"]}
-	case StrategyDockerImage:
-		strategy = volume.DockerImageStrategy{
-			Repository:  strategyInfo["repository"],
-			Tag:         strategyInfo["tag"],
-			RegistryURL: strategyInfo["registry_url"],
-			Username:    strategyInfo["username"],
-			Password:    strategyInfo["password"],
-		}
-	default:
-		vs.logger.Info("unknown-strategy", lager.Data{"strategy": strategyInfo})
+		vs.logger.Info("could-not-produce-strategy", lager.Data{"error": err})
 		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
 		return
-	}
-
-	if !request.Privileged {
-		strategy = volume.NamespacedStrategy{
-			PreStrategy: strategy,
-			Namespacer:  vs.namespacer,
-		}
 	}
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(

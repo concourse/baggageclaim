@@ -9,11 +9,11 @@ import (
 var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
 var ErrParentVolumeNotFound = errors.New("parent volume not found")
 
-type CowStrategy struct {
+type COWStrategy struct {
 	ParentHandle string
 }
 
-func (strategy CowStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
+func (strategy COWStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
 	if strategy.ParentHandle == "" {
 		logger.Info("parent-not-specified")
 		return nil, ErrNoParentVolumeProvided

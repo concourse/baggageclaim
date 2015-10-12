@@ -21,6 +21,8 @@ import (
 )
 
 type DockerImageStrategy struct {
+	LockManager LockManager
+
 	RegistryURL string
 	Repository  string
 	Username    string
@@ -141,6 +143,9 @@ func (strategy DockerImageStrategy) fetchDockerLayer(
 		logger.Error("empty-image-id", nil)
 		return nil, errors.New("empty image id")
 	}
+
+	strategy.LockManager.Lock(handle)
+	defer strategy.LockManager.Unlock(handle)
 
 	existing, found, err := fs.LookupVolume(handle)
 	if err != nil {

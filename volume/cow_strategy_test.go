@@ -11,13 +11,13 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("CowStrategy", func() {
+var _ = Describe("COWStrategy", func() {
 	var (
 		strategy Strategy
 	)
 
 	BeforeEach(func() {
-		strategy = CowStrategy{"parent-volume"}
+		strategy = COWStrategy{"parent-volume"}
 	})
 
 	Describe("Materialize", func() {
@@ -89,7 +89,7 @@ var _ = Describe("CowStrategy", func() {
 
 		Context("when no parent volume is given", func() {
 			BeforeEach(func() {
-				strategy = CowStrategy{""}
+				strategy = COWStrategy{""}
 			})
 
 			It("returns ErrNoParentVolumeProvided", func() {

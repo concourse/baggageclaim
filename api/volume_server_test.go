@@ -25,8 +25,6 @@ import (
 
 var _ = Describe("Volume Server", func() {
 	var (
-		namespacer uidjunk.Namespacer
-
 		handler http.Handler
 
 		volumeDir string
@@ -38,8 +36,6 @@ var _ = Describe("Volume Server", func() {
 
 		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Expect(err).NotTo(HaveOccurred())
-
-		namespacer = &uidjunk.NoopNamespacer{}
 
 		volumeDir = tempDir
 	})
@@ -56,7 +52,12 @@ var _ = Describe("Volume Server", func() {
 			volume.NewLockManager(),
 		)
 
-		handler, err = api.NewHandler(logger, repo, namespacer)
+		strategerizer := volume.NewStrategerizer(
+			&uidjunk.NoopNamespacer{},
+			volume.NewLockManager(),
+		)
+
+		handler, err = api.NewHandler(logger, strategerizer, repo)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
