@@ -43,8 +43,6 @@ type FilesystemVolume interface {
 type FilesystemInitVolume interface {
 	FilesystemVolume
 
-	// SetParent(FilesystemLiveVolume) error
-
 	Initialize() (FilesystemLiveVolume, error)
 }
 
