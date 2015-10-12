@@ -25,7 +25,6 @@ type FilesystemVolume interface {
 	Handle() string
 
 	DataPath() string
-	MetadataPath() string
 
 	LoadProperties() (Properties, error)
 	StoreProperties(Properties) error
@@ -201,10 +200,6 @@ type baseVolume struct {
 
 func (base *baseVolume) Handle() string {
 	return base.handle
-}
-
-func (base *baseVolume) MetadataPath() string {
-	return base.dir
 }
 
 func (base *baseVolume) DataPath() string {
