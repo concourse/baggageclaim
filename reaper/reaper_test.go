@@ -92,7 +92,7 @@ var _ = Describe("Reaper", func() {
 					})
 
 					It("returns an error", func() {
-						Expect(reapErr).To(MatchError("failed to determine volume parent: nope"))
+						Expect(reapErr).To(MatchError("failed to determine parent of volume 'non-expiring': nope"))
 					})
 
 					It("does not destroy any volumes", func() {
