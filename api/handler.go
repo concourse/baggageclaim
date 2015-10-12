@@ -8,13 +8,15 @@ import (
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 )
 
-func NewHandler(logger lager.Logger, volumeRepo volume.Repository) (http.Handler, error) {
+func NewHandler(logger lager.Logger, volumeRepo volume.Repository, namespacer uidjunk.Namespacer) (http.Handler, error) {
 	volumeServer := NewVolumeServer(
 		logger.Session("volume-server"),
 		volumeRepo,
+		namespacer,
 	)
 
 	handlers := rata.Handlers{

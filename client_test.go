@@ -110,7 +110,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.CombineHandlers(
 							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
 							func(w http.ResponseWriter, r *http.Request) {
-								api.RespondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
 							},
 						),
 					)
@@ -152,7 +152,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.CombineHandlers(
 							ghttp.VerifyRequest("PUT", "/volumes/another-handle/ttl"),
 							func(w http.ResponseWriter, r *http.Request) {
-								api.RespondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
 							},
 						),
 					)
@@ -180,7 +180,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.CombineHandlers(
 							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
 							func(w http.ResponseWriter, r *http.Request) {
-								api.RespondWithError(w, volume.ErrSetTTLFailed, http.StatusNotFound)
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
 							},
 						),
 					)

@@ -2,63 +2,20 @@ package volume
 
 import (
 	"errors"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"time"
+	"fmt"
 
-	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/lager"
 )
 
-type Strategy map[string]string
-
-const (
-	StrategyEmpty       = "empty"
-	StrategyCopyOnWrite = "cow"
-)
-
-type Volume struct {
-	Handle     string     `json:"handle"`
-	Path       string     `json:"path"`
-	Properties Properties `json:"properties"`
-	TTL        TTL        `json:"ttl,omitempty"`
-	ExpiresAt  time.Time  `json:"expires_at"`
-}
-
-type Volumes []Volume
-
-var ErrMissingStrategy = errors.New("missing strategy")
-var ErrUnrecognizedStrategy = errors.New("unrecognized strategy")
-
-var ErrListVolumesFailed = errors.New("failed to list volumes")
-var ErrGetVolumeFailed = errors.New("failed to get volume")
-var ErrCreateVolumeFailed = errors.New("failed to create volume")
-var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
-
-var ErrSetPropertyFailed = errors.New("failed to set property on volume")
-var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
-
-var ErrNoParentVolumeProvided = errors.New("no parent volume provided")
-var ErrParentVolumeNotFound = errors.New("parent volume not found")
-
-//go:generate counterfeiter . Driver
-
-type Driver interface {
-	CreateVolume(path string) error
-	DestroyVolume(path string) error
-
-	CreateCopyOnWriteLayer(path string, parent string) error
-}
 
 //go:generate counterfeiter . Repository
 
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
-	GetVolume(handle string) (Volume, error)
-	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint, privileged bool) (Volume, error)
+	GetVolume(handle string) (Volume, bool, error)
+	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
@@ -70,56 +27,21 @@ type Repository interface {
 type repository struct {
 	logger lager.Logger
 
-	driver Driver
+	filesystem Filesystem
+
 	locker LockManager
-
-	namespacer uidjunk.Namespacer
-
-	initDir string
-	liveDir string
-	deadDir string
 }
-
-const (
-	initDirname = "init" // volumes being initialized
-	liveDirname = "live" // volumes accessible via API
-	deadDirname = "dead" // volumes being torn down
-)
 
 func NewRepository(
 	logger lager.Logger,
-	driver Driver,
+	filesystem Filesystem,
 	locker LockManager,
-	namespacer uidjunk.Namespacer,
-	parentDir string,
-) (Repository, error) {
-	initDir := filepath.Join(parentDir, initDirname)
-	err := os.MkdirAll(initDir, 0755)
-	if err != nil {
-		return nil, err
-	}
-
-	liveDir := filepath.Join(parentDir, liveDirname)
-	err = os.MkdirAll(liveDir, 0755)
-	if err != nil {
-		return nil, err
-	}
-
-	deadDir := filepath.Join(parentDir, deadDirname)
-	err = os.MkdirAll(deadDir, 0755)
-	if err != nil {
-		return nil, err
-	}
-
+) Repository {
 	return &repository{
 		logger:     logger,
-		driver:     driver,
+		filesystem: filesystem,
 		locker:     locker,
-		namespacer: namespacer,
-		initDir:    initDir,
-		liveDir:    liveDir,
-		deadDir:    deadDir,
-	}, nil
+	}
 }
 
 func (repo *repository) DestroyVolume(handle string) error {
@@ -130,103 +52,71 @@ func (repo *repository) DestroyVolume(handle string) error {
 		"volume": handle,
 	})
 
-	err := os.Rename(repo.liveMetadataPath(handle), repo.deadMetadataPath(handle))
+	volume, found, err := repo.filesystem.LookupVolume(handle)
 	if err != nil {
-		logger.Error("failed-to-move-to-dead", err)
-		return ErrDestroyVolumeFailed
+		logger.Error("failed-to-lookup-volume", err)
+		return err
 	}
 
-	err = repo.driver.DestroyVolume(repo.deadDataPath(handle))
-	if err != nil {
-		logger.Error("failed-to-delete-data", err)
-		return ErrDestroyVolumeFailed
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
 	}
 
-	err = os.RemoveAll(repo.deadMetadataPath(handle))
+	err = volume.Destroy()
 	if err != nil {
-		logger.Error("failed-to-delete-metadata", err)
-		return ErrDestroyVolumeFailed
+		logger.Error("failed-to-destroy", err)
+		return err
 	}
+
 	return nil
 }
 
-type TTL uint
-
-func (ttl TTL) Duration() time.Duration {
-	return time.Duration(ttl) * time.Second
-}
-
-func (ttl TTL) IsUnlimited() bool {
-	return ttl == 0
-}
-
-func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint, privileged bool) (Volume, error) {
-	strategyName, found := strategy["type"]
-	if !found {
-		return Volume{}, ErrMissingStrategy
-	}
-
+func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
 	logger := repo.logger.Session("create-volume", lager.Data{
-		"strategy": strategyName,
+		"strategy": fmt.Sprintf("%T", strategy),
 	})
 
 	ttl := TTL(ttlInSeconds)
 
 	handle := repo.generateHandle()
 
-	newVolumeMetadataPath := repo.initMetadataPath(handle)
-	err := os.Mkdir(newVolumeMetadataPath, 0755)
+	initVolume, err := strategy.Materialize(handle, repo.filesystem)
 	if err != nil {
-		logger.Error("failed-to-create-metadata-dir", err)
-		return Volume{}, ErrCreateVolumeFailed
-	}
-
-	metadata := repo.initMetadata(handle)
-
-	err = metadata.StoreProperties(properties)
-	if err != nil {
-		logger.Error("failed-to-create-properties-file", err)
-		return Volume{}, ErrCreateVolumeFailed
-	}
-
-	err = metadata.StoreTTL(ttl)
-	if err != nil {
-		logger.Error("failed-to-create-ttl-file", err)
-		return Volume{}, ErrCreateVolumeFailed
-	}
-
-	expiresAt, err := metadata.ExpiresAt()
-	if err != nil {
-		logger.Error("failed-to-read-expires-at", err)
-		return Volume{}, ErrCreateVolumeFailed
-	}
-
-	newVolumeDataPath := repo.initDataPath(handle)
-
-	err = repo.doStrategy(strategyName, newVolumeMetadataPath, newVolumeDataPath, strategy, logger)
-	if err != nil {
-		repo.cleanupFailedInitVolumeMetadataDir(handle)
+		logger.Error("failed-to-materialize-strategy", err)
 		return Volume{}, err
 	}
 
-	if !privileged {
-		err = repo.namespacer.Namespace(repo.initDataPath(handle))
-		if err != nil {
-			logger.Error("failed-namespace-volume", err)
-			return Volume{}, ErrCreateVolumeFailed
+	var initialized bool
+	defer func() {
+		if !initialized {
+			initVolume.Destroy()
 		}
-	}
+	}()
 
-	err = os.Rename(repo.initMetadataPath(handle), repo.liveMetadataPath(handle))
+	err = initVolume.StoreProperties(properties)
 	if err != nil {
-		repo.cleanupFailedInitVolumeMetadataDir(handle)
-		logger.Error("failed-to-move-from-init-to-live", err)
+		logger.Error("failed-to-set-properties", err)
 		return Volume{}, err
 	}
+
+	expiresAt, err := initVolume.StoreTTL(ttl)
+	if err != nil {
+		logger.Error("failed-to-set-properties", err)
+		return Volume{}, err
+	}
+
+	liveVolume, err := initVolume.Initialize()
+	if err != nil {
+		logger.Error("failed-to-initialize-volume", err)
+		return Volume{}, err
+	}
+
+	initialized = true
 
 	return Volume{
-		Path:       repo.liveDataPath(handle),
-		Handle:     handle,
+		Handle:     liveVolume.Handle(),
+		Path:       liveVolume.DataPath(),
 		Properties: properties,
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
@@ -236,74 +126,60 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error) {
 	logger := repo.logger.Session("list-volumes", lager.Data{})
 
-	liveDirs, err := ioutil.ReadDir(repo.liveDir)
+	liveVolumes, err := repo.filesystem.ListVolumes()
 	if err != nil {
-		logger.Error("failed-to-list-dirs", err, lager.Data{
-			"volume-dir": repo.liveDir,
-		})
-
-		return Volumes{}, ErrListVolumesFailed
+		logger.Error("failed-to-list-volumes", err)
+		return Volumes{}, err
 	}
 
-	response := make(Volumes, 0, len(liveDirs))
+	response := make(Volumes, 0, len(liveVolumes))
 
-	for _, liveDir := range liveDirs {
-		vol, err := repo.GetVolume(liveDir.Name())
-		if err != nil {
-			logger.Error("failed-to-get-volume", err, lager.Data{
-				"volume": liveDir.Name(),
-			})
-			return nil, err
-		}
-
-		if vol.Handle == "" {
+	for _, liveVolume := range liveVolumes {
+		volume, err := repo.volumeFrom(liveVolume)
+		if err == ErrVolumeDoesNotExist {
 			continue
 		}
 
-		if vol.Properties.HasProperties(queryProperties) {
-			response = append(response, vol)
+		if err != nil {
+			logger.Error("failed-hydrating-volume", err)
+			return nil, err
+		}
+
+		if volume.Properties.HasProperties(queryProperties) {
+			response = append(response, volume)
 		}
 	}
 
 	return response, nil
 }
 
-func (repo *repository) GetVolume(handle string) (Volume, error) {
+func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
 	logger := repo.logger.Session("get-volume", lager.Data{
 		"volume": handle,
 	})
 
-	if !repo.volumeExists(handle) {
-		logger.Error("failed-to-get-volume", errors.New("volume-does-not-exist"))
-		return Volume{}, ErrGetVolumeFailed
-	}
-
-	metadata := repo.liveMetadata(handle)
-	volumeProperties, err := metadata.Properties()
+	liveVolume, found, err := repo.filesystem.LookupVolume(handle)
 	if err != nil {
-		logger.Error("failed-to-read-properties", err)
-		return Volume{}, ErrGetVolumeFailed
+		logger.Error("failed-to-lookup-volume", err)
+		return Volume{}, false, err
 	}
 
-	ttl, err := metadata.TTL()
+	if !found {
+		logger.Info("volume-not-found")
+		return Volume{}, false, nil
+	}
+
+	volume, err := repo.volumeFrom(liveVolume)
+	if err == ErrVolumeDoesNotExist {
+		return Volume{}, false, nil
+	}
+
 	if err != nil {
-		logger.Error("failed-to-read-ttl", err)
-		return Volume{}, ErrGetVolumeFailed
+		logger.Error("failed-to-hydrate-volume", err)
+		return Volume{}, false, err
 	}
 
-	expiresAt, err := metadata.ExpiresAt()
-	if err != nil {
-		logger.Error("failed-to-read-expires-at", err)
-		return Volume{}, ErrGetVolumeFailed
-	}
-
-	return Volume{
-		Handle:     handle,
-		Path:       repo.liveDataPath(handle),
-		Properties: volumeProperties,
-		TTL:        ttl,
-		ExpiresAt:  expiresAt,
-	}, nil
+	return volume, true, nil
 }
 
 func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {
@@ -312,9 +188,18 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 
 	logger := repo.logger.Session("set-property")
 
-	md := repo.liveMetadata(handle)
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return err
+	}
 
-	properties, err := md.Properties()
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
+	}
+
+	properties, err := volume.LoadProperties()
 	if err != nil {
 		logger.Error("failed-to-read-properties", err, lager.Data{
 			"volume": handle,
@@ -324,7 +209,7 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 
 	properties = properties.UpdateProperty(propertyName, propertyValue)
 
-	err = md.StoreProperties(properties)
+	err = volume.StoreProperties(properties)
 	if err != nil {
 		logger.Error("failed-to-store-properties", err)
 		return err
@@ -339,7 +224,18 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 
 	logger := repo.logger.Session("set-ttl")
 
-	err := repo.liveMetadata(handle).StoreTTL(TTL(ttl))
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
+	}
+
+	_, err = volume.StoreTTL(TTL(ttl))
 	if err != nil {
 		logger.Error("failed-to-store-ttl", err)
 		return err
@@ -349,123 +245,55 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 }
 
 func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
-	parentDir, err := filepath.EvalSymlinks(filepath.Join(repo.liveMetadataPath(handle), "parent"))
-	if os.IsNotExist(err) {
+	logger := repo.logger.Session("volume-parent")
+
+	liveVolume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return Volume{}, false, err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return Volume{}, false, ErrVolumeDoesNotExist
+	}
+
+	parentVolume, found, err := liveVolume.Parent()
+	if err != nil {
+		logger.Error("failed-to-get-parent-volume", err)
+		return Volume{}, false, err
+	}
+
+	if !found {
 		return Volume{}, false, nil
 	}
 
+	volume, err := repo.volumeFrom(parentVolume)
 	if err != nil {
 		return Volume{}, false, err
 	}
 
-	parentHandle := filepath.Base(parentDir)
+	return volume, true, nil
+}
 
-	parentVolume, err := repo.GetVolume(parentHandle)
+func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, error) {
+	properties, err := liveVolume.LoadProperties()
 	if err != nil {
-		return Volume{}, false, err
+		return Volume{}, err
 	}
 
-	return parentVolume, true, nil
-}
-
-func (repo *repository) doStrategy(strategyName string, newVolumeMetadataPath string, newVolumeDataPath string, strategy Strategy, logger lager.Logger) error {
-	logger = repo.logger.Session("do-strategy")
-
-	switch strategyName {
-	case StrategyEmpty:
-		err := repo.createEmptyVolume(newVolumeDataPath)
-		if err != nil {
-			logger.Error("failed-to-create-volume", err, lager.Data{
-				"path": newVolumeDataPath,
-			})
-			return ErrCreateVolumeFailed
-		}
-
-	case StrategyCopyOnWrite:
-		parentHandle, found := strategy["volume"]
-		if !found {
-			logger.Error("no-parent-volume-provided", nil)
-			return ErrNoParentVolumeProvided
-		}
-
-		repo.locker.Lock(parentHandle)
-		defer repo.locker.Unlock(parentHandle)
-
-		if !repo.volumeExists(parentHandle) {
-			logger.Error("parent-volume-not-found", nil)
-			return ErrParentVolumeNotFound
-		}
-
-		parentDataPath := repo.liveDataPath(parentHandle)
-		err := repo.createCowVolume(parentDataPath, newVolumeDataPath)
-		if err != nil {
-			logger.Error("failed-to-copy-volume", err)
-			return ErrCreateVolumeFailed
-		}
-
-		err = os.Symlink(repo.liveMetadataPath(parentHandle), filepath.Join(newVolumeMetadataPath, "parent"))
-		if err != nil {
-			logger.Error("failed-to-symlink-to-parent", err)
-			return ErrCreateVolumeFailed
-		}
-
-	default:
-		logger.Error("unrecognized-strategy", nil, lager.Data{
-			"strategy": strategyName,
-		})
-		return ErrUnrecognizedStrategy
-	}
-
-	return nil
-}
-
-func (repo *repository) initMetadataPath(id string) string {
-	return filepath.Join(repo.initDir, id)
-}
-
-func (repo *repository) initDataPath(id string) string {
-	return filepath.Join(repo.initDir, id, "volume")
-}
-
-func (repo *repository) initMetadata(id string) *Metadata {
-	return &Metadata{path: repo.initMetadataPath(id)}
-}
-
-func (repo *repository) liveMetadataPath(id string) string {
-	return filepath.Join(repo.liveDir, id)
-}
-
-func (repo *repository) liveDataPath(id string) string {
-	return filepath.Join(repo.liveMetadataPath(id), "volume")
-}
-
-func (repo *repository) liveMetadata(id string) *Metadata {
-	return &Metadata{path: repo.liveMetadataPath(id)}
-}
-
-func (repo *repository) deadMetadataPath(id string) string {
-	return filepath.Join(repo.deadDir, id)
-}
-
-func (repo *repository) deadDataPath(id string) string {
-	return filepath.Join(repo.deadDir, id, "volume")
-}
-
-func (repo *repository) cleanupFailedInitVolumeMetadataDir(id string) {
-	err := os.RemoveAll(repo.initMetadataPath(id))
+	ttl, expiresAt, err := liveVolume.LoadTTL()
 	if err != nil {
-		repo.logger.Error("failed-to-cleanup", err, lager.Data{
-			"volume": id,
-		})
+		return Volume{}, err
 	}
-}
 
-func (repo *repository) createEmptyVolume(volumePath string) error {
-	return repo.driver.CreateVolume(volumePath)
-}
-
-func (repo *repository) createCowVolume(parentPath string, newPath string) error {
-	return repo.driver.CreateCopyOnWriteLayer(newPath, parentPath)
+	return Volume{
+		Handle:     liveVolume.Handle(),
+		Path:       liveVolume.DataPath(),
+		Properties: properties,
+		TTL:        ttl,
+		ExpiresAt:  expiresAt,
+	}, nil
 }
 
 func (repo *repository) generateHandle() string {
@@ -475,13 +303,4 @@ func (repo *repository) generateHandle() string {
 	}
 
 	return handle.String()
-}
-
-func (repo *repository) volumeExists(handle string) bool {
-	info, err := os.Stat(repo.liveMetadataPath(handle))
-	if err != nil {
-		return false
-	}
-
-	return info.IsDir()
 }

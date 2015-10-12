@@ -124,21 +124,22 @@ func main() {
 	}
 
 	locker := volume.NewLockManager()
-	volumeRepo, err := volume.NewRepository(
-		logger.Session("repository"),
-		volumeDriver,
-		locker,
-		namespacer,
-		*volumeDir,
-	)
 
+	filesystem, err := volume.NewFilesystem(volumeDriver, *volumeDir)
 	if err != nil {
-		logger.Fatal("failed-to-initialize-repo", err)
+		logger.Fatal("failed-to-initialize-filesystem", err)
 	}
+
+	volumeRepo := volume.NewRepository(
+		logger.Session("repository"),
+		filesystem,
+		locker,
+	)
 
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
 		volumeRepo,
+		namespacer,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)

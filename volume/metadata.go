@@ -51,16 +51,16 @@ func (pf *propertiesFile) Properties() (Properties, error) {
 }
 
 // TTL File
-func (md *Metadata) TTL() (TTL, error) {
+func (md *Metadata) TTL() (TTL, time.Time, error) {
 	properties, err := md.ttlFile().Properties()
 	if err != nil {
-		return TTL(0), err
+		return 0, time.Time{}, err
 	}
 
-	return properties.TTL, nil
+	return properties.TTL, time.Unix(properties.ExpiresAt, 0), nil
 }
 
-func (md *Metadata) StoreTTL(ttl TTL) error {
+func (md *Metadata) StoreTTL(ttl TTL) (time.Time, error) {
 	return md.ttlFile().WriteTTL(ttl)
 }
 
@@ -86,11 +86,18 @@ type ttlProperties struct {
 	ExpiresAt int64 `json:"expires_at"`
 }
 
-func (tf *ttlFile) WriteTTL(ttl TTL) error {
-	return writeMetadataFile(tf.path, ttlProperties{
+func (tf *ttlFile) WriteTTL(ttl TTL) (time.Time, error) {
+	expiresAt := time.Now().Add(ttl.Duration()).Unix()
+
+	err := writeMetadataFile(tf.path, ttlProperties{
 		TTL:       ttl,
-		ExpiresAt: time.Now().Add(ttl.Duration()).Unix(),
+		ExpiresAt: expiresAt,
 	})
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return time.Unix(expiresAt, 0), nil
 }
 
 func (tf *ttlFile) Properties() (ttlProperties, error) {

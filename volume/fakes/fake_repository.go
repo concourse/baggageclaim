@@ -17,22 +17,22 @@ type FakeRepository struct {
 		result1 volume.Volumes
 		result2 error
 	}
-	GetVolumeStub        func(handle string) (volume.Volume, error)
+	GetVolumeStub        func(handle string) (volume.Volume, bool, error)
 	getVolumeMutex       sync.RWMutex
 	getVolumeArgsForCall []struct {
 		handle string
 	}
 	getVolumeReturns struct {
 		result1 volume.Volume
-		result2 error
+		result2 bool
+		result3 error
 	}
-	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, privileged bool) (volume.Volume, error)
+	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint) (volume.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
 		strategy     volume.Strategy
 		properties   volume.Properties
 		ttlInSeconds uint
-		privileged   bool
 	}
 	createVolumeReturns struct {
 		result1 volume.Volume
@@ -110,7 +110,7 @@ func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, error) {
+func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, bool, error) {
 	fake.getVolumeMutex.Lock()
 	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
 		handle string
@@ -119,7 +119,7 @@ func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, error) {
 	if fake.GetVolumeStub != nil {
 		return fake.GetVolumeStub(handle)
 	} else {
-		return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2
+		return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2, fake.getVolumeReturns.result3
 	}
 }
 
@@ -135,25 +135,25 @@ func (fake *FakeRepository) GetVolumeArgsForCall(i int) string {
 	return fake.getVolumeArgsForCall[i].handle
 }
 
-func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 error) {
+func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 bool, result3 error) {
 	fake.GetVolumeStub = nil
 	fake.getVolumeReturns = struct {
 		result1 volume.Volume
-		result2 error
-	}{result1, result2}
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) CreateVolume(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, privileged bool) (volume.Volume, error) {
+func (fake *FakeRepository) CreateVolume(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint) (volume.Volume, error) {
 	fake.createVolumeMutex.Lock()
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
 		strategy     volume.Strategy
 		properties   volume.Properties
 		ttlInSeconds uint
-		privileged   bool
-	}{strategy, properties, ttlInSeconds, privileged})
+	}{strategy, properties, ttlInSeconds})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(strategy, properties, ttlInSeconds, privileged)
+		return fake.CreateVolumeStub(strategy, properties, ttlInSeconds)
 	} else {
 		return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 	}
@@ -165,10 +165,10 @@ func (fake *FakeRepository) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (volume.Strategy, volume.Properties, uint, bool) {
+func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (volume.Strategy, volume.Properties, uint) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
-	return fake.createVolumeArgsForCall[i].strategy, fake.createVolumeArgsForCall[i].properties, fake.createVolumeArgsForCall[i].ttlInSeconds, fake.createVolumeArgsForCall[i].privileged
+	return fake.createVolumeArgsForCall[i].strategy, fake.createVolumeArgsForCall[i].properties, fake.createVolumeArgsForCall[i].ttlInSeconds
 }
 
 func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {

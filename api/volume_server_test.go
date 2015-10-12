@@ -25,6 +25,8 @@ import (
 
 var _ = Describe("Volume Server", func() {
 	var (
+		namespacer uidjunk.Namespacer
+
 		handler http.Handler
 
 		volumeDir string
@@ -37,22 +39,24 @@ var _ = Describe("Volume Server", func() {
 		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Expect(err).NotTo(HaveOccurred())
 
+		namespacer = &uidjunk.NoopNamespacer{}
+
 		volumeDir = tempDir
 	})
 
 	JustBeforeEach(func() {
 		logger := lagertest.NewTestLogger("volume-server")
-		repo, err := volume.NewRepository(
-			logger,
-			&driver.NaiveDriver{},
-			volume.NewLockManager(),
-			uidjunk.NoopNamespacer{},
-			volumeDir,
-		)
 
+		fs, err := volume.NewFilesystem(&driver.NaiveDriver{}, volumeDir)
 		Expect(err).NotTo(HaveOccurred())
 
-		handler, err = api.NewHandler(logger, repo)
+		repo := volume.NewRepository(
+			logger,
+			fs,
+			volume.NewLockManager(),
+		)
+
+		handler, err = api.NewHandler(logger, repo, namespacer)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -87,7 +91,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-				Strategy: encStrategy(volume.Strategy{
+				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
 				Properties: props,
@@ -101,7 +105,7 @@ var _ = Describe("Volume Server", func() {
 
 			body.Reset()
 			err = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-				Strategy: encStrategy(volume.Strategy{
+				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
 			})
@@ -138,7 +142,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-				Strategy: encStrategy(volume.Strategy{
+				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
 				Properties: baggageclaim.VolumeProperties{
@@ -188,7 +192,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-				Strategy: encStrategy(volume.Strategy{
+				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
 				TTLInSeconds: 1,
@@ -254,7 +258,7 @@ var _ = Describe("Volume Server", func() {
 
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-						Strategy: encStrategy(volume.Strategy{
+						Strategy: encStrategy(map[string]string{
 							"type": "empty",
 						}),
 						Properties: properties,
@@ -289,7 +293,7 @@ var _ = Describe("Volume Server", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
 				json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-					Strategy: encStrategy(volume.Strategy{
+					Strategy: encStrategy(map[string]string{
 						"type": "empty",
 					}),
 				})
@@ -348,7 +352,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-						Strategy: encStrategy(volume.Strategy{
+						Strategy: encStrategy(map[string]string{
 							"type": "grime",
 						}),
 					})
@@ -374,7 +378,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-						Strategy: encStrategy(volume.Strategy{
+						Strategy: encStrategy(map[string]string{
 							"type": "cow",
 						}),
 					})
@@ -400,7 +404,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-						Strategy: encStrategy(volume.Strategy{
+						Strategy: encStrategy(map[string]string{
 							"type":   "cow",
 							"volume": "#pain",
 						}),
@@ -426,7 +430,7 @@ var _ = Describe("Volume Server", func() {
 	})
 })
 
-func encStrategy(strategy volume.Strategy) *json.RawMessage {
+func encStrategy(strategy map[string]string) *json.RawMessage {
 	bytes, err := json.Marshal(strategy)
 	Expect(err).NotTo(HaveOccurred())
 
