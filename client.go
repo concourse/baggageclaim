@@ -68,3 +68,33 @@ func (EmptyStrategy) Encode() *json.RawMessage {
 	msg := json.RawMessage(`{"type":"empty"}`)
 	return &msg
 }
+
+type DockerImageStrategy struct {
+	Repository string
+	Tag        string
+
+	RegistryURL string
+	Username    string
+	Password    string
+}
+
+func (strategy DockerImageStrategy) Encode() *json.RawMessage {
+	payload, _ := json.Marshal(struct {
+		Type        string `json:"type"`
+		Repository  string `json:"repository"`
+		Tag         string `json:"tag"`
+		RegistryURL string `json:"registry_url"`
+		Username    string `json:"username"`
+		Password    string `json:"password"`
+	}{
+		Type:        "docker_image",
+		Repository:  strategy.Repository,
+		Tag:         strategy.Tag,
+		RegistryURL: strategy.RegistryURL,
+		Username:    strategy.Username,
+		Password:    strategy.Password,
+	})
+
+	msg := json.RawMessage(payload)
+	return &msg
+}

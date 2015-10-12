@@ -24,6 +24,7 @@ var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 const (
 	StrategyEmpty       = "empty"
 	StrategyCopyOnWrite = "cow"
+	StrategyDockerImage = "docker_image"
 )
 
 type VolumeServer struct {
@@ -68,6 +69,14 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		strategy = volume.EmptyStrategy{}
 	case StrategyCopyOnWrite:
 		strategy = volume.CowStrategy{strategyInfo["volume"]}
+	case StrategyDockerImage:
+		strategy = volume.DockerImageStrategy{
+			Repository:  strategyInfo["repository"],
+			Tag:         strategyInfo["tag"],
+			RegistryURL: strategyInfo["registry_url"],
+			Username:    strategyInfo["username"],
+			Password:    strategyInfo["password"],
+		}
 	default:
 		vs.logger.Info("unknown-strategy", lager.Data{"strategy": strategyInfo})
 		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)

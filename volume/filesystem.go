@@ -169,14 +169,26 @@ func (fs *filesystem) initRawVolume(handle string) (*initVolume, error) {
 		return nil, err
 	}
 
-	return &initVolume{
+	volume := &initVolume{
 		baseVolume: baseVolume{
 			fs: fs,
 
 			handle: handle,
 			dir:    volumePath,
 		},
-	}, nil
+	}
+
+	err = volume.StoreProperties(Properties{})
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = volume.StoreTTL(0)
+	if err != nil {
+		return nil, err
+	}
+
+	return volume, nil
 }
 
 func (fs *filesystem) initVolumePath(handle string) string {
