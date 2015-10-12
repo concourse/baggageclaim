@@ -1,6 +1,9 @@
 package volume
 
-import "github.com/concourse/baggageclaim/uidjunk"
+import (
+	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/pivotal-golang/lager"
+)
 
 type NamespacedStrategy struct {
 	PreStrategy Strategy
@@ -8,8 +11,8 @@ type NamespacedStrategy struct {
 	Namespacer uidjunk.Namespacer
 }
 
-func (strategy NamespacedStrategy) Materialize(handle string, fs Filesystem) (FilesystemInitVolume, error) {
-	volume, err := strategy.PreStrategy.Materialize(handle, fs)
+func (strategy NamespacedStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
+	volume, err := strategy.PreStrategy.Materialize(logger, handle, fs)
 	if err != nil {
 		return nil, err
 	}

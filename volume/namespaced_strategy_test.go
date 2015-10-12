@@ -6,6 +6,7 @@ import (
 	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	. "github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -42,7 +43,11 @@ var _ = Describe("NamespacedStrategy", func() {
 		})
 
 		JustBeforeEach(func() {
-			materializedVolume, materializeErr = strategy.Materialize("some-volume", fakeFilesystem)
+			materializedVolume, materializeErr = strategy.Materialize(
+				lagertest.NewTestLogger("test"),
+				"some-volume",
+				fakeFilesystem,
+			)
 		})
 
 		Context("when materializing in the sub-strategy succeeds", func() {
@@ -68,7 +73,7 @@ var _ = Describe("NamespacedStrategy", func() {
 				})
 
 				It("materialized it with the correct handle and filesystem", func() {
-					handle, fs := fakeStrategy.MaterializeArgsForCall(0)
+					_, handle, fs := fakeStrategy.MaterializeArgsForCall(0)
 					Expect(handle).To(Equal("some-volume"))
 					Expect(fs).To(Equal(fakeFilesystem))
 				})

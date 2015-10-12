@@ -2,7 +2,6 @@ package volume
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/nu7hatch/gouuid"
 	"github.com/pivotal-golang/lager"
@@ -73,15 +72,11 @@ func (repo *repository) DestroyVolume(handle string) error {
 }
 
 func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
-	logger := repo.logger.Session("create-volume", lager.Data{
-		"strategy": fmt.Sprintf("%T", strategy),
-	})
-
-	ttl := TTL(ttlInSeconds)
-
 	handle := repo.generateHandle()
 
-	initVolume, err := strategy.Materialize(handle, repo.filesystem)
+	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
+
+	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem)
 	if err != nil {
 		logger.Error("failed-to-materialize-strategy", err)
 		return Volume{}, err
@@ -99,6 +94,8 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 		logger.Error("failed-to-set-properties", err)
 		return Volume{}, err
 	}
+
+	ttl := TTL(ttlInSeconds)
 
 	expiresAt, err := initVolume.StoreTTL(ttl)
 	if err != nil {
@@ -270,6 +267,7 @@ func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
 
 	volume, err := repo.volumeFrom(parentVolume)
 	if err != nil {
+		logger.Error("failed-to-hydrate-parent-volume", err)
 		return Volume{}, false, err
 	}
 

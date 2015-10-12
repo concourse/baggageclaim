@@ -21,12 +21,6 @@ type FakeFilesystemInitVolume struct {
 	dataPathReturns     struct {
 		result1 string
 	}
-	MetadataPathStub        func() string
-	metadataPathMutex       sync.RWMutex
-	metadataPathArgsForCall []struct{}
-	metadataPathReturns     struct {
-		result1 string
-	}
 	LoadPropertiesStub        func() (volume.Properties, error)
 	loadPropertiesMutex       sync.RWMutex
 	loadPropertiesArgsForCall []struct{}
@@ -126,30 +120,6 @@ func (fake *FakeFilesystemInitVolume) DataPathCallCount() int {
 func (fake *FakeFilesystemInitVolume) DataPathReturns(result1 string) {
 	fake.DataPathStub = nil
 	fake.dataPathReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakeFilesystemInitVolume) MetadataPath() string {
-	fake.metadataPathMutex.Lock()
-	fake.metadataPathArgsForCall = append(fake.metadataPathArgsForCall, struct{}{})
-	fake.metadataPathMutex.Unlock()
-	if fake.MetadataPathStub != nil {
-		return fake.MetadataPathStub()
-	} else {
-		return fake.metadataPathReturns.result1
-	}
-}
-
-func (fake *FakeFilesystemInitVolume) MetadataPathCallCount() int {
-	fake.metadataPathMutex.RLock()
-	defer fake.metadataPathMutex.RUnlock()
-	return len(fake.metadataPathArgsForCall)
-}
-
-func (fake *FakeFilesystemInitVolume) MetadataPathReturns(result1 string) {
-	fake.MetadataPathStub = nil
-	fake.metadataPathReturns = struct {
 		result1 string
 	}{result1}
 }

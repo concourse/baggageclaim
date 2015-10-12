@@ -1,7 +1,9 @@
 package volume
 
+import "github.com/pivotal-golang/lager"
+
 //go:generate counterfeiter . Strategy
 
 type Strategy interface {
-	Materialize(string, Filesystem) (FilesystemInitVolume, error)
+	Materialize(lager.Logger, string, Filesystem) (FilesystemInitVolume, error)
 }

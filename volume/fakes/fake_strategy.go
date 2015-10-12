@@ -5,14 +5,16 @@ import (
 	"sync"
 
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/pivotal-golang/lager"
 )
 
 type FakeStrategy struct {
-	MaterializeStub        func(string, volume.Filesystem) (volume.FilesystemInitVolume, error)
+	MaterializeStub        func(lager.Logger, string, volume.Filesystem) (volume.FilesystemInitVolume, error)
 	materializeMutex       sync.RWMutex
 	materializeArgsForCall []struct {
-		arg1 string
-		arg2 volume.Filesystem
+		arg1 lager.Logger
+		arg2 string
+		arg3 volume.Filesystem
 	}
 	materializeReturns struct {
 		result1 volume.FilesystemInitVolume
@@ -20,15 +22,16 @@ type FakeStrategy struct {
 	}
 }
 
-func (fake *FakeStrategy) Materialize(arg1 string, arg2 volume.Filesystem) (volume.FilesystemInitVolume, error) {
+func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volume.Filesystem) (volume.FilesystemInitVolume, error) {
 	fake.materializeMutex.Lock()
 	fake.materializeArgsForCall = append(fake.materializeArgsForCall, struct {
-		arg1 string
-		arg2 volume.Filesystem
-	}{arg1, arg2})
+		arg1 lager.Logger
+		arg2 string
+		arg3 volume.Filesystem
+	}{arg1, arg2, arg3})
 	fake.materializeMutex.Unlock()
 	if fake.MaterializeStub != nil {
-		return fake.MaterializeStub(arg1, arg2)
+		return fake.MaterializeStub(arg1, arg2, arg3)
 	} else {
 		return fake.materializeReturns.result1, fake.materializeReturns.result2
 	}
@@ -40,10 +43,10 @@ func (fake *FakeStrategy) MaterializeCallCount() int {
 	return len(fake.materializeArgsForCall)
 }
 
-func (fake *FakeStrategy) MaterializeArgsForCall(i int) (string, volume.Filesystem) {
+func (fake *FakeStrategy) MaterializeArgsForCall(i int) (lager.Logger, string, volume.Filesystem) {
 	fake.materializeMutex.RLock()
 	defer fake.materializeMutex.RUnlock()
-	return fake.materializeArgsForCall[i].arg1, fake.materializeArgsForCall[i].arg2
+	return fake.materializeArgsForCall[i].arg1, fake.materializeArgsForCall[i].arg2, fake.materializeArgsForCall[i].arg3
 }
 
 func (fake *FakeStrategy) MaterializeReturns(result1 volume.FilesystemInitVolume, result2 error) {

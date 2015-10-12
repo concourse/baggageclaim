@@ -37,7 +37,7 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 	for _, volume := range volumes {
 		parentVolume, found, err := reaper.repo.VolumeParent(volume.Handle)
 		if err != nil {
-			return fmt.Errorf("failed to determine volume parent: %s", err)
+			return fmt.Errorf("failed to determine parent of volume '%s': %s", volume.Handle, err)
 		}
 
 		if found {

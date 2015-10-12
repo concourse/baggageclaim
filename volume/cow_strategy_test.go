@@ -5,6 +5,7 @@ import (
 
 	. "github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,11 @@ var _ = Describe("CowStrategy", func() {
 		})
 
 		JustBeforeEach(func() {
-			materializedVolume, materializeErr = strategy.Materialize("some-volume", fakeFilesystem)
+			materializedVolume, materializeErr = strategy.Materialize(
+				lagertest.NewTestLogger("test"),
+				"some-volume",
+				fakeFilesystem,
+			)
 		})
 
 		Context("when the parent volume can be found", func() {
