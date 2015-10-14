@@ -255,12 +255,23 @@ func (base *baseVolume) Parent() (FilesystemLiveVolume, bool, error) {
 }
 
 func (base *baseVolume) Destroy() error {
-	err := base.fs.driver.DestroyVolume(base.DataPath())
+	deadDir := base.fs.deadVolumePath(base.handle)
+
+	err := os.Rename(base.dir, deadDir)
 	if err != nil {
 		return err
 	}
 
-	return base.cleanup()
+	deadVol := &deadVolume{
+		baseVolume: baseVolume{
+			fs: base.fs,
+
+			handle: base.handle,
+			dir:    deadDir,
+		},
+	}
+
+	return deadVol.Destroy()
 }
 
 func (base *baseVolume) cleanup() error {
@@ -316,4 +327,17 @@ func (vol *liveVolume) NewSubvolume(handle string) (FilesystemInitVolume, error)
 	}
 
 	return child, nil
+}
+
+type deadVolume struct {
+	baseVolume
+}
+
+func (vol *deadVolume) Destroy() error {
+	err := vol.fs.driver.DestroyVolume(vol.DataPath())
+	if err != nil {
+		return err
+	}
+
+	return vol.cleanup()
 }
