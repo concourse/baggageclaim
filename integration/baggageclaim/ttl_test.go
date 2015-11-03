@@ -115,11 +115,14 @@ var _ = Describe("TTL's", func() {
 
 				time.Sleep(2 * time.Second)
 
+				lookedUpAt := time.Now()
+
 				_, err = client.LookupVolume(logger, emptyVolume.Handle())
+				Ω(err).ShouldNot(HaveOccurred())
 
 				_, expiresAt, err := emptyVolume.Expiration()
 				Ω(err).ShouldNot(HaveOccurred())
-				Ω(expiresAt).Should(BeTemporally("~", time.Now().Add(5*time.Second), 1*time.Second))
+				Ω(expiresAt).Should(BeTemporally("~", lookedUpAt.Add(5*time.Second), 1*time.Second))
 			})
 		})
 	})
