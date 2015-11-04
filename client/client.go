@@ -126,50 +126,56 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 	return volumes, nil
 }
 
-func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, error) {
+func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, bool, error) {
 
-	volumeResponse, err := c.getVolumeResponse(handle)
+	volumeResponse, found, err := c.getVolumeResponse(handle)
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if !found {
+		return nil, found, nil
 	}
 
 	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
 	if !initialHeartbeatSuccess {
-		return nil, volume.ErrVolumeDoesNotExist
+		return nil, false, nil
 	}
-	return v, nil
+	return v, true, nil
 }
 
-func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, error) {
+func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, bool, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolume, rata.Params{
 		"handle": handle,
 	}, nil)
 	if err != nil {
-		return baggageclaim.VolumeResponse{}, err
+		return baggageclaim.VolumeResponse{}, false, err
 	}
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return baggageclaim.VolumeResponse{}, err
+		return baggageclaim.VolumeResponse{}, false, err
 	}
 
 	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
-		return baggageclaim.VolumeResponse{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		if response.StatusCode == http.StatusNotFound {
+			return baggageclaim.VolumeResponse{}, false, nil
+		}
+		return baggageclaim.VolumeResponse{}, false, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
-		return baggageclaim.VolumeResponse{}, fmt.Errorf("unexpected content-type of: %s", header)
+		return baggageclaim.VolumeResponse{}, false, fmt.Errorf("unexpected content-type of: %s", header)
 	}
 
 	var volumeResponse baggageclaim.VolumeResponse
 	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
 	if err != nil {
-		return baggageclaim.VolumeResponse{}, err
+		return baggageclaim.VolumeResponse{}, false, err
 	}
 
-	return volumeResponse, nil
+	return volumeResponse, true, nil
 }
 
 func (c *client) setTTL(handle string, ttl time.Duration) error {

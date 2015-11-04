@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/volume"
 	"github.com/pivotal-golang/lager"
 )
 
@@ -43,18 +44,24 @@ func (cv *clientVolume) Path() string {
 }
 
 func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
-	vr, err := cv.bcClient.getVolumeResponse(cv.handle)
+	vr, found, err := cv.bcClient.getVolumeResponse(cv.handle)
 	if err != nil {
 		return nil, err
+	}
+	if !found {
+		return nil, volume.ErrVolumeDoesNotExist
 	}
 
 	return vr.Properties, nil
 }
 
 func (cv *clientVolume) Expiration() (time.Duration, time.Time, error) {
-	vr, err := cv.bcClient.getVolumeResponse(cv.handle)
+	vr, found, err := cv.bcClient.getVolumeResponse(cv.handle)
 	if err != nil {
 		return 0, time.Time{}, err
+	}
+	if !found {
+		return 0, time.Time{}, volume.ErrVolumeDoesNotExist
 	}
 
 	return time.Duration(vr.TTLInSeconds) * time.Second, vr.ExpiresAt, nil

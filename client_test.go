@@ -53,16 +53,18 @@ var _ = Describe("Baggage Claim Client", func() {
 			It("heartbeats immediately to reset the TTL", func() {
 				didHeartbeat := make(chan struct{})
 
+				expectedVolume := volume.Volume{
+					Handle:     "some-handle",
+					Path:       "some-path",
+					Properties: volume.Properties{},
+					TTL:        volume.TTL(1),
+					ExpiresAt:  time.Now().Add(time.Second),
+				}
+
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("GET", "/volumes/some-handle"),
-						ghttp.RespondWithJSONEncoded(200, volume.Volume{
-							Handle:     "some-handle",
-							Path:       "some-path",
-							Properties: volume.Properties{},
-							TTL:        volume.TTL(1),
-							ExpiresAt:  time.Now().Add(time.Second),
-						}),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, expectedVolume),
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
@@ -72,9 +74,14 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
-				bcClient.LookupVolume(logger, "some-handle")
+				volume, found, err := bcClient.LookupVolume(logger, "some-handle")
+				Expect(volume.Handle()).To(Equal(expectedVolume.Handle))
+				Expect(found).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
+
 				Eventually(didHeartbeat, time.Second).Should(BeClosed())
 			})
+
 			Context("when the volume's TTL is 0", func() {
 				It("does not heartbeat", func() {
 					bcServer.AppendHandlers(
@@ -89,11 +96,12 @@ var _ = Describe("Baggage Claim Client", func() {
 							}),
 						),
 					)
-					_, err := bcClient.LookupVolume(logger, "some-handle")
+					_, _, err := bcClient.LookupVolume(logger, "some-handle")
 					Expect(err).NotTo(HaveOccurred())
 					time.Sleep(1) // wait to verify it is not heartbeating
 				})
 			})
+
 			Context("when the intial heartbeat fails", func() {
 				It("reports that the volume could not be found", func() {
 					bcServer.AppendHandlers(
@@ -114,12 +122,29 @@ var _ = Describe("Baggage Claim Client", func() {
 							},
 						),
 					)
-					foundVolume, err := bcClient.LookupVolume(logger, "some-handle")
+					foundVolume, found, err := bcClient.LookupVolume(logger, "some-handle")
 					Expect(foundVolume).To(BeNil())
-					Expect(err).To(Equal(volume.ErrVolumeDoesNotExist))
+					Expect(found).To(BeFalse())
+					Expect(err).ToNot(HaveOccurred())
+				})
+			})
+
+			Context("when the volume does not exist", func() {
+				It("reports that the volume could not be found", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes/some-handle"),
+							ghttp.RespondWith(http.StatusNotFound, ""),
+						),
+					)
+					foundVolume, found, err := bcClient.LookupVolume(logger, "some-handle")
+					Expect(foundVolume).To(BeNil())
+					Expect(found).To(BeFalse())
+					Expect(err).ToNot(HaveOccurred())
 				})
 			})
 		})
+
 		Describe("Listing volumes", func() {
 			Context("when the inital heartbeat fails for a volume", func() {
 				It("it is omitted from the returned list of volumes", func() {

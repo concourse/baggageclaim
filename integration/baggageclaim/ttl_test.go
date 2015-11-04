@@ -37,8 +37,9 @@ var _ = Describe("TTL's", func() {
 
 		expectedExpiresAt := time.Now().Add(volume.TTL(10).Duration())
 
-		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
+		someVolume, found, err := client.LookupVolume(logger, emptyVolume.Handle())
 		Expect(err).NotTo(HaveOccurred())
+		Expect(found).To(BeTrue())
 
 		ttl, actualExpiresAt, err := someVolume.Expiration()
 		Expect(err).NotTo(HaveOccurred())
@@ -117,8 +118,9 @@ var _ = Describe("TTL's", func() {
 
 				lookedUpAt := time.Now()
 
-				_, err = client.LookupVolume(logger, emptyVolume.Handle())
-				Ω(err).ShouldNot(HaveOccurred())
+				_, found, err := client.LookupVolume(logger, emptyVolume.Handle())
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(found).To(BeTrue())
 
 				_, expiresAt, err := emptyVolume.Expiration()
 				Ω(err).ShouldNot(HaveOccurred())

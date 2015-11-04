@@ -39,9 +39,9 @@ type Client interface {
 	// You are required to pass in a logger to the call to retain context across
 	// the library boundary.
 	//
-	// LookupVolume returns a matching volume or an error as to why the volume
-	// could not be found.
-	LookupVolume(lager.Logger, string) (Volume, error)
+	// LookupVolume returns a bool if the volume is found with the matching volume
+	// or an error as to why the volume could not be found.
+	LookupVolume(lager.Logger, string) (Volume, bool, error)
 }
 
 //go:generate counterfeiter . Volume

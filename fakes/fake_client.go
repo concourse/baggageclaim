@@ -29,7 +29,7 @@ type FakeClient struct {
 		result1 baggageclaim.Volumes
 		result2 error
 	}
-	LookupVolumeStub        func(lager.Logger, string) (baggageclaim.Volume, error)
+	LookupVolumeStub        func(lager.Logger, string) (baggageclaim.Volume, bool, error)
 	lookupVolumeMutex       sync.RWMutex
 	lookupVolumeArgsForCall []struct {
 		arg1 lager.Logger
@@ -37,7 +37,8 @@ type FakeClient struct {
 	}
 	lookupVolumeReturns struct {
 		result1 baggageclaim.Volume
-		result2 error
+		result2 bool
+		result3 error
 	}
 }
 
@@ -109,7 +110,7 @@ func (fake *FakeClient) ListVolumesReturns(result1 baggageclaim.Volumes, result2
 	}{result1, result2}
 }
 
-func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggageclaim.Volume, error) {
+func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggageclaim.Volume, bool, error) {
 	fake.lookupVolumeMutex.Lock()
 	fake.lookupVolumeArgsForCall = append(fake.lookupVolumeArgsForCall, struct {
 		arg1 lager.Logger
@@ -119,7 +120,7 @@ func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggagecla
 	if fake.LookupVolumeStub != nil {
 		return fake.LookupVolumeStub(arg1, arg2)
 	} else {
-		return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2
+		return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
 	}
 }
 
@@ -135,12 +136,13 @@ func (fake *FakeClient) LookupVolumeArgsForCall(i int) (lager.Logger, string) {
 	return fake.lookupVolumeArgsForCall[i].arg1, fake.lookupVolumeArgsForCall[i].arg2
 }
 
-func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2 error) {
+func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2 bool, result3 error) {
 	fake.LookupVolumeStub = nil
 	fake.lookupVolumeReturns = struct {
 		result1 baggageclaim.Volume
-		result2 error
-	}{result1, result2}
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
 }
 
 var _ baggageclaim.Client = new(FakeClient)

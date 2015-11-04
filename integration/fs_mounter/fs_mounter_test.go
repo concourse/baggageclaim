@@ -105,7 +105,7 @@ var _ = Describe("FS Mounter", func() {
 			unmountAtPath(tempDir)
 		})
 
-		It("is idepotent", func() {
+		It("is idempotent", func() {
 			path := filepath.Join(mountPath, "filez")
 			err := ioutil.WriteFile(path, []byte("contents"), 0755)
 			Expect(err).NotTo(HaveOccurred())

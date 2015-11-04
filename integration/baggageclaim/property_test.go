@@ -37,8 +37,9 @@ var _ = Describe("Properties", func() {
 		err = emptyVolume.SetProperty("another-property", "another-value")
 		Expect(err).NotTo(HaveOccurred())
 
-		someVolume, err := client.LookupVolume(logger, emptyVolume.Handle())
+		someVolume, found, err := client.LookupVolume(logger, emptyVolume.Handle())
 		Expect(err).NotTo(HaveOccurred())
+		Expect(found).To(BeTrue())
 
 		Expect(someVolume.Properties()).To(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",
@@ -48,8 +49,9 @@ var _ = Describe("Properties", func() {
 		err = someVolume.SetProperty("another-property", "yet-another-value")
 		Expect(err).NotTo(HaveOccurred())
 
-		someVolume, err = client.LookupVolume(logger, someVolume.Handle())
+		someVolume, found, err = client.LookupVolume(logger, someVolume.Handle())
 		Expect(err).NotTo(HaveOccurred())
+		Expect(found).To(BeTrue())
 
 		Expect(someVolume.Properties()).To(Equal(baggageclaim.VolumeProperties{
 			"property-name":    "property-value",

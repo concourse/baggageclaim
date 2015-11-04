@@ -29,11 +29,11 @@ type FakeVolume struct {
 	setTTLReturns struct {
 		result1 error
 	}
-	SetPropertyStub        func(string, string) error
+	SetPropertyStub        func(key string, value string) error
 	setPropertyMutex       sync.RWMutex
 	setPropertyArgsForCall []struct {
-		arg1 string
-		arg2 string
+		key   string
+		value string
 	}
 	setPropertyReturns struct {
 		result1 error
@@ -140,15 +140,15 @@ func (fake *FakeVolume) SetTTLReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeVolume) SetProperty(arg1 string, arg2 string) error {
+func (fake *FakeVolume) SetProperty(key string, value string) error {
 	fake.setPropertyMutex.Lock()
 	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
-		arg1 string
-		arg2 string
-	}{arg1, arg2})
+		key   string
+		value string
+	}{key, value})
 	fake.setPropertyMutex.Unlock()
 	if fake.SetPropertyStub != nil {
-		return fake.SetPropertyStub(arg1, arg2)
+		return fake.SetPropertyStub(key, value)
 	} else {
 		return fake.setPropertyReturns.result1
 	}
@@ -163,7 +163,7 @@ func (fake *FakeVolume) SetPropertyCallCount() int {
 func (fake *FakeVolume) SetPropertyArgsForCall(i int) (string, string) {
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
-	return fake.setPropertyArgsForCall[i].arg1, fake.setPropertyArgsForCall[i].arg2
+	return fake.setPropertyArgsForCall[i].key, fake.setPropertyArgsForCall[i].value
 }
 
 func (fake *FakeVolume) SetPropertyReturns(result1 error) {
