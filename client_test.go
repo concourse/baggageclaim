@@ -25,13 +25,22 @@ var _ = Describe("Baggage Claim Client", func() {
 		})
 
 		Context("when the TTL is small", func() {
-			It("Returns an interval that is half of the TTL", func() {
+			It("returns an interval that is half of the TTL", func() {
 				interval := client.IntervalForTTL(5 * time.Second)
 
 				Expect(interval).To(Equal(2500 * time.Millisecond))
 			})
 		})
+
+		Context("when the TTL is zero", func() {
+			It("returns a long interval as the volume will never expire", func() {
+				interval := client.IntervalForTTL(0 * time.Second)
+
+				Expect(interval).To(Equal(time.Minute))
+			})
+		})
 	})
+
 	Describe("Interacting with the server", func() {
 		var (
 			bcServer *ghttp.Server
@@ -83,7 +92,9 @@ var _ = Describe("Baggage Claim Client", func() {
 			})
 
 			Context("when the volume's TTL is 0", func() {
-				It("does not heartbeat", func() {
+				It("does heartbeat and allow the volume to be released", func() {
+					didHeartbeat := make(chan struct{})
+
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
 							ghttp.VerifyRequest("GET", "/volumes/some-handle"),
@@ -95,10 +106,27 @@ var _ = Describe("Baggage Claim Client", func() {
 								ExpiresAt:  time.Now().Add(time.Second),
 							}),
 						),
+						ghttp.CombineHandlers( // initial heartbeat
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							ghttp.VerifyJSON(`{"value": 0}`),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
+						ghttp.CombineHandlers( // release
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							ghttp.VerifyJSON(`{"value": 300}`),
+							func(w http.ResponseWriter, r *http.Request) {
+								close(didHeartbeat)
+							},
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
 					)
-					_, _, err := bcClient.LookupVolume(logger, "some-handle")
+
+					volume, _, err := bcClient.LookupVolume(logger, "some-handle")
 					Expect(err).NotTo(HaveOccurred())
-					time.Sleep(1) // wait to verify it is not heartbeating
+
+					volume.Release(5 * time.Minute)
+
+					Eventually(didHeartbeat, time.Second).Should(BeClosed())
 				})
 			})
 
@@ -188,6 +216,7 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 		})
+
 		Describe("Creating volumes", func() {
 			Context("when the inital heartbeat fails for the volume", func() {
 				It("reports that the volume could not be found", func() {

@@ -191,6 +191,8 @@ func (c *client) setTTL(handle string, ttl time.Duration) error {
 		return err
 	}
 
+	request.Header.Add("Content-type", "application/json")
+
 	response, err := c.httpClient.Do(request)
 	if err != nil {
 		return err
