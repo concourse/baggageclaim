@@ -88,9 +88,9 @@ func (bcr *BaggageClaimRunner) Start() {
 		Name: "baggageclaim",
 		Command: exec.Command(
 			bcr.path,
-			"-listenPort", strconv.Itoa(bcr.port),
-			"-volumeDir", bcr.volumeDir,
-			"-reapInterval", "100ms",
+			"--bind-port", strconv.Itoa(bcr.port),
+			"--volumes", bcr.volumeDir,
+			"--reap-interval", "100ms",
 		),
 		StartCheck: "baggageclaim.listening",
 	})

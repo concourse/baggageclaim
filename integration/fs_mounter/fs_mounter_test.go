@@ -19,9 +19,9 @@ func mountAtPath(path string) string {
 
 	command := exec.Command(
 		fsMounterPath,
-		"-diskImage", diskImage,
-		"-mountPath", mountPath,
-		"-sizeInMegabytes", "100",
+		"--disk-image", diskImage,
+		"--mount-path", mountPath,
+		"--size-in-megabytes", "100",
 	)
 
 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -38,9 +38,9 @@ func unmountAtPath(path string) {
 
 	command := exec.Command(
 		fsMounterPath,
-		"-diskImage", diskImage,
-		"-mountPath", mountPath,
-		"-remove",
+		"--disk-image", diskImage,
+		"--mount-path", mountPath,
+		"--remove",
 	)
 
 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

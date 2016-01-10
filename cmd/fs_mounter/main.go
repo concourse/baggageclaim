@@ -1,49 +1,33 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/concourse/baggageclaim/fs"
+	"github.com/jessevdk/go-flags"
 	"github.com/pivotal-golang/lager"
 )
 
-var diskImage = flag.String(
-	"diskImage",
-	"",
-	"file where disk image will be stored",
-)
+type FSMounterCommand struct {
+	DiskImage string `long:"disk-image" required:"true" description:"Location of the backing file to create for the image."`
 
-var mountPath = flag.String(
-	"mountPath",
-	"",
-	"where to mount the filesystem",
-)
+	MountPath string `long:"mount-path" required:"true" description:"Directory where the filesystem should be mounted."`
 
-var sizeInMegabytes = flag.Uint(
-	"sizeInMegabytes",
-	0,
-	"size of the filesystem in megabytes",
-)
+	SizeInMegabytes uint64 `long:"size-in-megabytes" default:"0" description:"Maximum size of the filesystem. Can exceed the size of the backing device."`
 
-var remove = flag.Bool(
-	"remove",
-	false,
-	"should we remove the filesystem",
-)
+	Remove bool `long:"remove" default:"false" description:"Remove the filesystem instead of creating it."`
+}
 
 func main() {
-	flag.Parse()
+	cmd := &FSMounterCommand{}
 
-	if *diskImage == "" {
-		fmt.Fprintln(os.Stderr, "-diskImage must be specified")
-		os.Exit(1)
-	}
+	parser := flags.NewParser(cmd, flags.Default)
+	parser.NamespaceDelimiter = "-"
 
-	if *mountPath == "" {
-		fmt.Fprintln(os.Stderr, "-mountPath must be specified")
+	_, err := parser.Parse()
+	if err != nil {
 		os.Exit(1)
 	}
 
@@ -51,21 +35,22 @@ func main() {
 	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	filesystem := fs.New(logger, *diskImage, *mountPath)
+	filesystem := fs.New(logger, cmd.DiskImage, cmd.MountPath)
 
-	var err error
-	if !*remove {
-		if *sizeInMegabytes == 0 {
-			fmt.Fprintln(os.Stderr, "-sizeInMegabytes must be specified")
+	if !cmd.Remove {
+		if cmd.SizeInMegabytes == 0 {
+			fmt.Fprintln(os.Stderr, "--size-in-megabytes or --remove must be specified")
 			os.Exit(1)
 		}
 
-		err = filesystem.Create(uint64(*sizeInMegabytes) * 1024 * 1024)
+		err := filesystem.Create(cmd.SizeInMegabytes * 1024 * 1024)
+		if err != nil {
+			log.Fatalln("failed to create filesystem: ", err)
+		}
 	} else {
-		err = filesystem.Delete()
-	}
-
-	if err != nil {
-		log.Fatalln("failed to filesystem: ", err)
+		err := filesystem.Delete()
+		if err != nil {
+			log.Fatalln("failed to delete filesystem: ", err)
+		}
 	}
 }
