@@ -93,7 +93,7 @@ var _ = Describe("Properties", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		volume.Release(0)
+		volume.Release(nil)
 
 		time.Sleep(2 * time.Second)
 

@@ -17,7 +17,7 @@ type clientVolume struct {
 
 	releaseOnce  sync.Once
 	heartbeating *sync.WaitGroup
-	release      chan time.Duration
+	release      chan *time.Duration
 }
 
 func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
@@ -27,7 +27,7 @@ func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.Volu
 
 		bcClient:     client,
 		heartbeating: new(sync.WaitGroup),
-		release:      make(chan time.Duration, 1),
+		release:      make(chan *time.Duration, 1),
 	}
 
 	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
@@ -75,7 +75,7 @@ func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.handle, name, value)
 }
 
-func (cv *clientVolume) Release(finalTTL time.Duration) {
+func (cv *clientVolume) Release(finalTTL *time.Duration) {
 	cv.releaseOnce.Do(func() {
 		cv.release <- finalTTL
 		cv.heartbeating.Wait()
@@ -126,8 +126,8 @@ func (cv *clientVolume) heartbeat(logger lager.Logger, ttl time.Duration, pacema
 			}
 
 		case finalTTL := <-cv.release:
-			if finalTTL != 0 {
-				cv.heartbeatTick(logger.Session("final"), finalTTL)
+			if finalTTL != nil {
+				cv.heartbeatTick(logger.Session("final"), *finalTTL)
 			}
 
 			return

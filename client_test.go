@@ -124,7 +124,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					volume, _, err := bcClient.LookupVolume(logger, "some-handle")
 					Expect(err).NotTo(HaveOccurred())
 
-					volume.Release(5 * time.Minute)
+					volume.Release(baggageclaim.FinalTTL(5 * time.Minute))
 
 					Eventually(didHeartbeat, time.Second).Should(BeClosed())
 				})

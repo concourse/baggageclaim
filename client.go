@@ -72,7 +72,7 @@ type Volume interface {
 
 	// Release stops the Volume being kept alive by the server. A final TTL can
 	// be specified.
-	Release(time.Duration)
+	Release(*time.Duration)
 }
 
 // Volumes represents a list of Volume object.
@@ -169,4 +169,8 @@ func (strategy DockerImageStrategy) Encode() *json.RawMessage {
 
 	msg := json.RawMessage(payload)
 	return &msg
+}
+
+func FinalTTL(dur time.Duration) *time.Duration {
+	return &dur
 }

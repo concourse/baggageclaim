@@ -55,13 +55,13 @@ var _ = Describe("TTL's", func() {
 		emptyVolume, err := client.CreateVolume(logger, spec)
 		Expect(err).NotTo(HaveOccurred())
 
-		emptyVolume.Release(0)
+		emptyVolume.Release(nil)
 
 		volumes, err := client.ListVolumes(logger, nil)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(volumes).To(HaveLen(1))
 
-		volumes[0].Release(0)
+		volumes[0].Release(nil)
 
 		time.Sleep(2 * time.Second)
 
@@ -77,7 +77,7 @@ var _ = Describe("TTL's", func() {
 
 			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
 
-			volume.Release(0)
+			volume.Release(nil)
 
 			// note: don't use Eventually; CurrentHandles causes it to heartbeat
 
@@ -94,7 +94,7 @@ var _ = Describe("TTL's", func() {
 
 				Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
 
-				volume.Release(3 * time.Second)
+				volume.Release(baggageclaim.FinalTTL(3 * time.Second))
 
 				ttl, _, err := volume.Expiration()
 				Expect(err).NotTo(HaveOccurred())
@@ -146,12 +146,12 @@ var _ = Describe("TTL's", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			parentVolume.Release(0)
+			parentVolume.Release(nil)
 
 			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
 
-			childVolume.Release(0)
+			childVolume.Release(nil)
 
 			time.Sleep(5 * time.Second)
 			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume.Handle()))
@@ -181,14 +181,14 @@ var _ = Describe("TTL's", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			parentVolume.Release(0)
+			parentVolume.Release(nil)
 
 			By("the parent should stay paused")
 			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
 
 			By("the first child should be removed")
-			childVolume1.Release(0)
+			childVolume1.Release(nil)
 			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume1.Handle()))
 
@@ -197,7 +197,7 @@ var _ = Describe("TTL's", func() {
 			Expect(runner.CurrentHandles()).To(ContainElement(parentVolume.Handle()))
 
 			By("the second child should be removed")
-			childVolume2.Release(0)
+			childVolume2.Release(nil)
 			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).ToNot(ContainElement(childVolume2.Handle()))
 
@@ -218,7 +218,7 @@ var _ = Describe("TTL's", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(ttl).To(Equal(2 * time.Second))
 
-			emptyVolume.Release(0)
+			emptyVolume.Release(nil)
 
 			err = emptyVolume.SetTTL(3 * time.Second)
 			Expect(err).NotTo(HaveOccurred())
@@ -236,7 +236,7 @@ var _ = Describe("TTL's", func() {
 			emptyVolume, err := client.CreateVolume(logger, spec)
 			Expect(err).NotTo(HaveOccurred())
 
-			emptyVolume.Release(0)
+			emptyVolume.Release(nil)
 			time.Sleep(2 * time.Second)
 
 			err = emptyVolume.SetTTL(1 * time.Second)
