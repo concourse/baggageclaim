@@ -12,7 +12,7 @@ func (driver *NaiveDriver) CreateVolume(path string) error {
 }
 
 func (driver *NaiveDriver) DestroyVolume(path string) error {
-	return exec.Command("rm", "-r", path).Run()
+	return os.RemoveAll(path)
 }
 
 func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
