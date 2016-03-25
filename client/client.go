@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/pester"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
+
+	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type Client interface {
@@ -20,17 +22,20 @@ type Client interface {
 
 type client struct {
 	requestGenerator *rata.RequestGenerator
-	httpClient       *http.Client
+	httpClient       *pester.Client
 }
 
 func New(apiURL string) Client {
+	httpClient := pester.New()
+	httpClient.Transport = &http.Transport{
+		DisableKeepAlives: true,
+	}
+	httpClient.MaxRetries = 12
+	httpClient.Backoff = pester.ExponentialBackoff
+
 	return &client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
-		httpClient: &http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives: true,
-			},
-		},
+		httpClient:       httpClient,
 	}
 }
 
