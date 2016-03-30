@@ -131,46 +131,6 @@ func (EmptyStrategy) Encode() *json.RawMessage {
 	return &msg
 }
 
-// DockerImageStrategy downloads a Docker image to a Volume.
-type DockerImageStrategy struct {
-	// Repository is the Docker image that you want to download. e.g. ubuntu
-	Repository string
-
-	// Tag is the Docker image tag that you want to download. e.g. 14.04
-	Tag string
-
-	// RegistryURL is the URL to the Docker registry that you would like to
-	// download the image from.
-	RegistryURL string
-
-	// Username is used to authenticate you with the Docker registry.
-	Username string
-
-	// Password is used to authenticate you with the Docker registry.
-	Password string
-}
-
-func (strategy DockerImageStrategy) Encode() *json.RawMessage {
-	payload, _ := json.Marshal(struct {
-		Type        string `json:"type"`
-		Repository  string `json:"repository"`
-		Tag         string `json:"tag"`
-		RegistryURL string `json:"registry_url"`
-		Username    string `json:"username"`
-		Password    string `json:"password"`
-	}{
-		Type:        "docker_image",
-		Repository:  strategy.Repository,
-		Tag:         strategy.Tag,
-		RegistryURL: strategy.RegistryURL,
-		Username:    strategy.Username,
-		Password:    strategy.Password,
-	})
-
-	msg := json.RawMessage(payload)
-	return &msg
-}
-
 func FinalTTL(dur time.Duration) *time.Duration {
 	return &dur
 }

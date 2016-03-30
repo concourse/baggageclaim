@@ -76,34 +76,6 @@ var _ = Describe("Strategerizer", func() {
 					Expect(strategy).To(Equal(volume.COWStrategy{"parent-handle"}))
 				})
 			})
-
-			Context("with a Docker Image strategy", func() {
-				BeforeEach(func() {
-					request.Strategy = baggageclaim.DockerImageStrategy{
-						Repository:  "some/repository",
-						Tag:         "some-tag",
-						RegistryURL: "some-registry-url",
-						Username:    "some-username",
-						Password:    "some-password",
-					}.Encode()
-				})
-
-				It("succeeds", func() {
-					Expect(strategyForErr).ToNot(HaveOccurred())
-				})
-
-				It("constructs a Docker Image strategy", func() {
-					Expect(strategy).To(Equal(volume.DockerImageStrategy{
-						LockManager: fakeLockManager,
-
-						Repository:  "some/repository",
-						Tag:         "some-tag",
-						RegistryURL: "some-registry-url",
-						Username:    "some-username",
-						Password:    "some-password",
-					}))
-				})
-			})
 		})
 
 		Context("when not privileged", func() {
@@ -143,37 +115,6 @@ var _ = Describe("Strategerizer", func() {
 					Expect(strategy).To(Equal(volume.NamespacedStrategy{
 						PreStrategy: volume.COWStrategy{"parent-handle"},
 						Namespacer:  fakeNamespacer,
-					}))
-				})
-			})
-
-			Context("with a Docker Image strategy", func() {
-				BeforeEach(func() {
-					request.Strategy = baggageclaim.DockerImageStrategy{
-						Repository:  "some/repository",
-						Tag:         "some-tag",
-						RegistryURL: "some-registry-url",
-						Username:    "some-username",
-						Password:    "some-password",
-					}.Encode()
-				})
-
-				It("succeeds", func() {
-					Expect(strategyForErr).ToNot(HaveOccurred())
-				})
-
-				It("constructs a namespaced Docker Image strategy", func() {
-					Expect(strategy).To(Equal(volume.NamespacedStrategy{
-						PreStrategy: volume.DockerImageStrategy{
-							LockManager: fakeLockManager,
-
-							Repository:  "some/repository",
-							Tag:         "some-tag",
-							RegistryURL: "some-registry-url",
-							Username:    "some-username",
-							Password:    "some-password",
-						},
-						Namespacer: fakeNamespacer,
 					}))
 				})
 			})

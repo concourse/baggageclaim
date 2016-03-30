@@ -16,21 +16,18 @@ type Strategerizer interface {
 const (
 	StrategyEmpty       = "empty"
 	StrategyCopyOnWrite = "cow"
-	StrategyDockerImage = "docker_image"
 )
 
 var ErrNoStrategy = errors.New("no strategy given")
 var ErrUnknownStrategy = errors.New("unknown strategy")
 
 type strategerizer struct {
-	namespacer        uidjunk.Namespacer
-	dockerLayerLocker LockManager
+	namespacer uidjunk.Namespacer
 }
 
-func NewStrategerizer(namespacer uidjunk.Namespacer, dockerLayerLocker LockManager) Strategerizer {
+func NewStrategerizer(namespacer uidjunk.Namespacer) Strategerizer {
 	return &strategerizer{
-		namespacer:        namespacer,
-		dockerLayerLocker: dockerLayerLocker,
+		namespacer: namespacer,
 	}
 }
 
@@ -51,16 +48,6 @@ func (s *strategerizer) StrategyFor(request baggageclaim.VolumeRequest) (Strateg
 		strategy = EmptyStrategy{}
 	case StrategyCopyOnWrite:
 		strategy = COWStrategy{strategyInfo["volume"]}
-	case StrategyDockerImage:
-		strategy = DockerImageStrategy{
-			LockManager: s.dockerLayerLocker,
-
-			Repository:  strategyInfo["repository"],
-			Tag:         strategyInfo["tag"],
-			RegistryURL: strategyInfo["registry_url"],
-			Username:    strategyInfo["username"],
-			Password:    strategyInfo["password"],
-		}
 	default:
 		return nil, ErrUnknownStrategy
 	}
