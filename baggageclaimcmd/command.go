@@ -112,7 +112,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		locker,
 	)
 
-	strategerizer := volume.NewStrategerizer(namespacer, locker)
+	strategerizer := volume.NewStrategerizer(namespacer)
 
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
