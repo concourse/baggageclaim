@@ -5,7 +5,6 @@ import (
 	bfakes "github.com/concourse/baggageclaim/fakes"
 	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -13,17 +12,15 @@ import (
 
 var _ = Describe("Strategerizer", func() {
 	var (
-		fakeNamespacer  *fake_namespacer.FakeNamespacer
-		fakeLockManager *fakes.FakeLockManager
+		fakeNamespacer *fake_namespacer.FakeNamespacer
 
 		strategerizer volume.Strategerizer
 	)
 
 	BeforeEach(func() {
 		fakeNamespacer = new(fake_namespacer.FakeNamespacer)
-		fakeLockManager = new(fakes.FakeLockManager)
 
-		strategerizer = volume.NewStrategerizer(fakeNamespacer, fakeLockManager)
+		strategerizer = volume.NewStrategerizer(fakeNamespacer)
 	})
 
 	Describe("StrategyFor", func() {

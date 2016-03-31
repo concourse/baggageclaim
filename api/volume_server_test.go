@@ -52,10 +52,7 @@ var _ = Describe("Volume Server", func() {
 			volume.NewLockManager(),
 		)
 
-		strategerizer := volume.NewStrategerizer(
-			&uidjunk.NoopNamespacer{},
-			volume.NewLockManager(),
-		)
+		strategerizer := volume.NewStrategerizer(&uidjunk.NoopNamespacer{})
 
 		handler, err = api.NewHandler(logger, strategerizer, repo)
 		Expect(err).NotTo(HaveOccurred())
