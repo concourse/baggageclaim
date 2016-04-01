@@ -50,7 +50,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 
 	strategy, err := vs.strategerizer.StrategyFor(request)
 	if err != nil {
-		vs.logger.Info("could-not-produce-strategy", lager.Data{"error": err})
+		vs.logger.Error("could-not-produce-strategy", err)
 		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
 		return
 	}
