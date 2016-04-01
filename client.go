@@ -104,6 +104,25 @@ type Strategy interface {
 	Encode() *json.RawMessage
 }
 
+// ImportStrategy creates a volume by copying a directory from the host.
+type ImportStrategy struct {
+	// The location of the directory on the host to import.
+	Path string
+}
+
+func (strategy ImportStrategy) Encode() *json.RawMessage {
+	payload, _ := json.Marshal(struct {
+		Type string `json:"type"`
+		Path string `json:"path"`
+	}{
+		Type: "import",
+		Path: strategy.Path,
+	})
+
+	msg := json.RawMessage(payload)
+	return &msg
+}
+
 // COWStrategy creates a Copy-On-Write layer of another Volume.
 type COWStrategy struct {
 	// The parent volume that we should base the new volume on.
