@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/concourse/pester"
 	"github.com/pivotal-golang/lager"
+	"github.com/sethgrid/pester"
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
