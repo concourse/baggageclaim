@@ -1,7 +1,9 @@
 package baggageclaim_test
 
 import (
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -241,6 +243,63 @@ var _ = Describe("Baggage Claim Client", func() {
 					createdVolume, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
 					Expect(err).To(Equal(volume.ErrVolumeDoesNotExist))
+				})
+			})
+		})
+
+		Describe("Stream in a volume", func() {
+			var vol baggageclaim.Volume
+			BeforeEach(func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/volumes"),
+						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+							Handle:     "some-handle",
+							Path:       "some-path",
+							Properties: volume.Properties{},
+							TTL:        volume.TTL(1),
+							ExpiresAt:  time.Now().Add(time.Second),
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+				)
+				var err error
+				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("streams the volume", func() {
+				bodyChan := make(chan []byte, 1)
+
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-in"),
+						func(w http.ResponseWriter, r *http.Request) {
+							str, _ := ioutil.ReadAll(r.Body)
+							bodyChan <- str
+						},
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+				)
+				err := vol.StreamIn(".", strings.NewReader("some tar content"))
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(bodyChan).To(Receive(Equal([]byte("some tar content"))))
+			})
+
+			Context("when response status code is not 201", func() {
+				It("returns error", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-in"),
+							ghttp.RespondWith(http.StatusNotFound, ""),
+						),
+					)
+					err := vol.StreamIn(".", strings.NewReader("more tar"))
+					Expect(err).To(HaveOccurred())
 				})
 			})
 		})

@@ -2,6 +2,7 @@
 package fakes
 
 import (
+	"io"
 	"sync"
 	"time"
 
@@ -36,6 +37,15 @@ type FakeVolume struct {
 		value string
 	}
 	setPropertyReturns struct {
+		result1 error
+	}
+	StreamInStub        func(path string, tarStream io.Reader) error
+	streamInMutex       sync.RWMutex
+	streamInArgsForCall []struct {
+		path      string
+		tarStream io.Reader
+	}
+	streamInReturns struct {
 		result1 error
 	}
 	ExpirationStub        func() (time.Duration, time.Time, error)
@@ -169,6 +179,39 @@ func (fake *FakeVolume) SetPropertyArgsForCall(i int) (string, string) {
 func (fake *FakeVolume) SetPropertyReturns(result1 error) {
 	fake.SetPropertyStub = nil
 	fake.setPropertyReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolume) StreamIn(path string, tarStream io.Reader) error {
+	fake.streamInMutex.Lock()
+	fake.streamInArgsForCall = append(fake.streamInArgsForCall, struct {
+		path      string
+		tarStream io.Reader
+	}{path, tarStream})
+	fake.streamInMutex.Unlock()
+	if fake.StreamInStub != nil {
+		return fake.StreamInStub(path, tarStream)
+	} else {
+		return fake.streamInReturns.result1
+	}
+}
+
+func (fake *FakeVolume) StreamInCallCount() int {
+	fake.streamInMutex.RLock()
+	defer fake.streamInMutex.RUnlock()
+	return len(fake.streamInArgsForCall)
+}
+
+func (fake *FakeVolume) StreamInArgsForCall(i int) (string, io.Reader) {
+	fake.streamInMutex.RLock()
+	defer fake.streamInMutex.RUnlock()
+	return fake.streamInArgsForCall[i].path, fake.streamInArgsForCall[i].tarStream
+}
+
+func (fake *FakeVolume) StreamInReturns(result1 error) {
+	fake.StreamInStub = nil
+	fake.streamInReturns = struct {
 		result1 error
 	}{result1}
 }

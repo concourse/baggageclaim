@@ -1,6 +1,7 @@
 package client
 
 import (
+	"io"
 	"sync"
 	"time"
 
@@ -18,21 +19,6 @@ type clientVolume struct {
 	releaseOnce  sync.Once
 	heartbeating *sync.WaitGroup
 	release      chan *time.Duration
-}
-
-func (client *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
-	volume := &clientVolume{
-		handle: apiVolume.Handle,
-		path:   apiVolume.Path,
-
-		bcClient:     client,
-		heartbeating: new(sync.WaitGroup),
-		release:      make(chan *time.Duration, 1),
-	}
-
-	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
-
-	return volume, initialHeartbeatSuccess
 }
 
 func (cv *clientVolume) Handle() string {
@@ -65,6 +51,10 @@ func (cv *clientVolume) Expiration() (time.Duration, time.Time, error) {
 	}
 
 	return time.Duration(vr.TTLInSeconds) * time.Second, vr.ExpiresAt, nil
+}
+
+func (cv *clientVolume) StreamIn(path string, tarStream io.Reader) error {
+	return cv.bcClient.streamIn(cv.handle, path, tarStream)
 }
 
 func (cv *clientVolume) SetTTL(ttl time.Duration) error {

@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"net/url"
+	"sync"
 	"time"
 
 	"github.com/concourse/pester"
@@ -146,6 +149,43 @@ func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.
 		return nil, false, nil
 	}
 	return v, true, nil
+}
+
+func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
+	volume := &clientVolume{
+		handle: apiVolume.Handle,
+		path:   apiVolume.Path,
+
+		bcClient:     c,
+		heartbeating: new(sync.WaitGroup),
+		release:      make(chan *time.Duration, 1),
+	}
+
+	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
+
+	return volume, initialHeartbeatSuccess
+}
+
+func (c *client) streamIn(destHandle string, path string, tarContent io.Reader) error {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
+		"handle": destHandle,
+	}, tarContent)
+
+	request.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
+	if err != nil {
+		return err
+	}
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNoContent {
+		return nil
+	}
+	return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 }
 
 func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, bool, error) {

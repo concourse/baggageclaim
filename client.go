@@ -2,6 +2,7 @@ package baggageclaim
 
 import (
 	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/pivotal-golang/lager"
@@ -63,6 +64,10 @@ type Volume interface {
 	// SetProperty sets a property on the Volume. Properties can be used to
 	// filter the results in the ListVolumes call above.
 	SetProperty(key string, value string) error
+
+	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
+	// to stream the contents of the Reader into this volume at the specified path.
+	StreamIn(path string, tarStream io.Reader) error
 
 	Expiration() (time.Duration, time.Time, error)
 

@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
@@ -19,6 +23,7 @@ var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
+var ErrStreamInFailed = errors.New("failed to stream in to volume")
 
 type VolumeServer struct {
 	strategerizer volume.Strategerizer
@@ -173,6 +178,76 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
 		}
 
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
+	defer req.Body.Close()
+
+	handle := rata.Param(req, "handle") // handle of destination volume
+
+	vol, found, err := vs.volumeRepo.GetVolume(handle)
+	if err != nil {
+		vs.logger.Error("failed-to-get-volume", err, lager.Data{
+			"destination-volume-handle": handle,
+		})
+		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+		return
+	}
+
+	if !found {
+		vs.logger.Error("volume-not-found", err, lager.Data{
+			"destination-volume-handle": handle,
+		})
+		RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
+		return
+	}
+
+	queryParams, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		vs.logger.Error("failed-to-parse-query-params", err, lager.Data{
+			"destination-volume-handle": handle,
+			"raw-query":                 req.URL.RawQuery,
+		})
+		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+		return
+	}
+
+	var subPath string
+	if queryPath, ok := queryParams["path"]; ok {
+		subPath = queryPath[0]
+	}
+
+	destinationPath := filepath.Join(vol.Path, subPath)
+	err = os.MkdirAll(destinationPath, 0755)
+	if err != nil {
+		vs.logger.Error("failed-to-create-destination-path", err, lager.Data{
+			"destination-volume-handle": handle,
+			"destination-path":          destinationPath,
+		})
+		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+		return
+	}
+
+	tarCommand := exec.Command("tar", "-x", "-C", destinationPath)
+	tarCommand.Stdin = req.Body
+
+	err = tarCommand.Run()
+	if err != nil {
+		vs.logger.Error("failed-stream-into-volume", err, lager.Data{
+			"destination-volume-handle": handle,
+			"destination-path":          destinationPath,
+		})
+
+		if _, ok := err.(*exec.ExitError); ok {
+			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
+			return
+		}
+
+		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
 		return
 	}
 
