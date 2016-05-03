@@ -99,10 +99,10 @@ var _ = Describe("BtrFS", func() {
 		})
 
 		AfterEach(func() {
-			err := fsDriver.DestroyVolume(parentVolumePath)
+			err := fsDriver.DestroyVolume(childVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
-			err = fsDriver.DestroyVolume(childVolumePath)
+			err = fsDriver.DestroyVolume(parentVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
