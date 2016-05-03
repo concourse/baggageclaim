@@ -24,13 +24,13 @@ type FakeDriver struct {
 	destroyVolumeReturns struct {
 		result1 error
 	}
-	GetVolumeSizeStub        func(path string) (uint64, error)
+	GetVolumeSizeStub        func(path string) (uint, error)
 	getVolumeSizeMutex       sync.RWMutex
 	getVolumeSizeArgsForCall []struct {
 		path string
 	}
 	getVolumeSizeReturns struct {
-		result1 uint64
+		result1 uint
 		result2 error
 	}
 	CreateCopyOnWriteLayerStub        func(path string, parent string) error
@@ -108,7 +108,7 @@ func (fake *FakeDriver) DestroyVolumeReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDriver) GetVolumeSize(path string) (uint64, error) {
+func (fake *FakeDriver) GetVolumeSize(path string) (uint, error) {
 	fake.getVolumeSizeMutex.Lock()
 	fake.getVolumeSizeArgsForCall = append(fake.getVolumeSizeArgsForCall, struct {
 		path string
@@ -133,10 +133,10 @@ func (fake *FakeDriver) GetVolumeSizeArgsForCall(i int) string {
 	return fake.getVolumeSizeArgsForCall[i].path
 }
 
-func (fake *FakeDriver) GetVolumeSizeReturns(result1 uint64, result2 error) {
+func (fake *FakeDriver) GetVolumeSizeReturns(result1 uint, result2 error) {
 	fake.GetVolumeSizeStub = nil
 	fake.getVolumeSizeReturns = struct {
-		result1 uint64
+		result1 uint
 		result2 error
 	}{result1, result2}
 }

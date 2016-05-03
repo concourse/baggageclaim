@@ -29,6 +29,15 @@ func (cv *clientVolume) Path() string {
 	return cv.path
 }
 
+func (cv *clientVolume) Size() (uint, error) {
+	stats, err := cv.bcClient.getVolumeStatsResponse(cv.handle)
+	if err != nil {
+		return 0, err
+	}
+
+	return stats.Size, nil
+}
+
 func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	vr, found, err := cv.bcClient.getVolumeResponse(cv.handle)
 	if err != nil {

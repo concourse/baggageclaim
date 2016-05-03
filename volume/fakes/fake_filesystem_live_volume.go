@@ -67,6 +67,13 @@ type FakeFilesystemLiveVolume struct {
 	destroyReturns     struct {
 		result1 error
 	}
+	SizeStub        func() (uint, error)
+	sizeMutex       sync.RWMutex
+	sizeArgsForCall []struct{}
+	sizeReturns     struct {
+		result1 uint
+		result2 error
+	}
 	NewSubvolumeStub        func(handle string) (volume.FilesystemInitVolume, error)
 	newSubvolumeMutex       sync.RWMutex
 	newSubvolumeArgsForCall []struct {
@@ -290,6 +297,31 @@ func (fake *FakeFilesystemLiveVolume) DestroyReturns(result1 error) {
 	fake.destroyReturns = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeFilesystemLiveVolume) Size() (uint, error) {
+	fake.sizeMutex.Lock()
+	fake.sizeArgsForCall = append(fake.sizeArgsForCall, struct{}{})
+	fake.sizeMutex.Unlock()
+	if fake.SizeStub != nil {
+		return fake.SizeStub()
+	} else {
+		return fake.sizeReturns.result1, fake.sizeReturns.result2
+	}
+}
+
+func (fake *FakeFilesystemLiveVolume) SizeCallCount() int {
+	fake.sizeMutex.RLock()
+	defer fake.sizeMutex.RUnlock()
+	return len(fake.sizeArgsForCall)
+}
+
+func (fake *FakeFilesystemLiveVolume) SizeReturns(result1 uint, result2 error) {
+	fake.SizeStub = nil
+	fake.sizeReturns = struct {
+		result1 uint
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeFilesystemLiveVolume) NewSubvolume(handle string) (volume.FilesystemInitVolume, error) {

@@ -82,36 +82,48 @@ var _ = Describe("BtrFS", func() {
 	})
 
 	Describe("GetVolumeSize", func() {
-		var subvolumePath string
+		var parentVolumePath string
+		var childVolumePath string
 
 		BeforeEach(func() {
-			subvolumePath = filepath.Join(volumeDir, "another-subvolume")
-			err := fsDriver.CreateVolume(subvolumePath)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			err := fsDriver.DestroyVolume(subvolumePath)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("returns the size of the volume at the given path", func() {
-			oldSize, err := fsDriver.GetVolumeSize(subvolumePath)
+			parentVolumePath = filepath.Join(volumeDir, "parent-volume")
+			err := fsDriver.CreateVolume(parentVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
 			bs := make([]byte, 4096)
 			for i := 0; i < 4096; i++ {
 				bs[i] = 'i'
 			}
-			err = ioutil.WriteFile(filepath.Join(subvolumePath, "foo.out"), bs, os.ModePerm)
+			err = ioutil.WriteFile(filepath.Join(parentVolumePath, "parent-stuff"), bs, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			err := fsDriver.DestroyVolume(parentVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func() uint64 {
+			err = fsDriver.DestroyVolume(childVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("returns the size of the volume at the given path", func() {
+			childVolumePath = filepath.Join(volumeDir, "parent-volume", "child-volume")
+			err := fsDriver.CreateVolume(childVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			bs := make([]byte, 1024)
+			for i := 0; i < 1024; i++ {
+				bs[i] = 'i'
+			}
+			err = ioutil.WriteFile(filepath.Join(childVolumePath, "child-stuff"), bs, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() uint {
 				GinkgoRecover()
-				newSize, err := fsDriver.GetVolumeSize(subvolumePath)
+				newSize, err := fsDriver.GetVolumeSize(childVolumePath)
 				Expect(err).NotTo(HaveOccurred())
-				return newSize
-			}, 1*time.Minute).Should(BeNumerically(">", oldSize))
+				return uint(newSize)
+			}, 1*time.Minute, 1*time.Second).Should(Equal(uint(4096))) // 4096B page size
 		})
 	})
 })

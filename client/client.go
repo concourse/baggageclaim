@@ -223,6 +223,41 @@ func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, 
 	return volumeResponse, true, nil
 }
 
+func (c *client) getVolumeStatsResponse(handle string) (baggageclaim.VolumeStatsResponse, error) {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolumeStats, rata.Params{
+		"handle": handle,
+	}, nil)
+	if err != nil {
+		return baggageclaim.VolumeStatsResponse{}, err
+	}
+
+	response, err := c.httpClient.Do(request)
+	if err != nil {
+		return baggageclaim.VolumeStatsResponse{}, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if response.StatusCode == http.StatusNotFound {
+			return baggageclaim.VolumeStatsResponse{}, nil
+		}
+		return baggageclaim.VolumeStatsResponse{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	}
+
+	if header := response.Header.Get("Content-Type"); header != "application/json" {
+		return baggageclaim.VolumeStatsResponse{}, fmt.Errorf("unexpected content-type of: %s", header)
+	}
+
+	var volumeStatsResponse baggageclaim.VolumeStatsResponse
+	err = json.NewDecoder(response.Body).Decode(&volumeStatsResponse)
+	if err != nil {
+		return baggageclaim.VolumeStatsResponse{}, err
+	}
+
+	return volumeStatsResponse, nil
+}
+
 func (c *client) setTTL(handle string, ttl time.Duration) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.TTLRequest{

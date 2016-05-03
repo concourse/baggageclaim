@@ -23,12 +23,13 @@ func NewHandler(
 	)
 
 	handlers := rata.Handlers{
-		baggageclaim.CreateVolume: http.HandlerFunc(volumeServer.CreateVolume),
-		baggageclaim.ListVolumes:  http.HandlerFunc(volumeServer.ListVolumes),
-		baggageclaim.GetVolume:    http.HandlerFunc(volumeServer.GetVolume),
-		baggageclaim.SetProperty:  http.HandlerFunc(volumeServer.SetProperty),
-		baggageclaim.SetTTL:       http.HandlerFunc(volumeServer.SetTTL),
-		baggageclaim.StreamIn:     http.HandlerFunc(volumeServer.StreamIn),
+		baggageclaim.CreateVolume:   http.HandlerFunc(volumeServer.CreateVolume),
+		baggageclaim.ListVolumes:    http.HandlerFunc(volumeServer.ListVolumes),
+		baggageclaim.GetVolume:      http.HandlerFunc(volumeServer.GetVolume),
+		baggageclaim.GetVolumeStats: http.HandlerFunc(volumeServer.GetVolumeStats),
+		baggageclaim.SetProperty:    http.HandlerFunc(volumeServer.SetProperty),
+		baggageclaim.SetTTL:         http.HandlerFunc(volumeServer.SetTTL),
+		baggageclaim.StreamIn:       http.HandlerFunc(volumeServer.StreamIn),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)

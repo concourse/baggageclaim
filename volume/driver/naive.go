@@ -2,9 +2,9 @@ package driver
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 )
 
 type NaiveDriver struct{}
@@ -21,7 +21,7 @@ func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) er
 	return exec.Command("cp", "-r", parent, path).Run()
 }
 
-func (driver *NaiveDriver) GetVolumeSize(path string) (uint64, error) {
+func (driver *NaiveDriver) GetVolumeSize(path string) (uint, error) {
 	stdout := &bytes.Buffer{}
 	cmd := exec.Command("du", path)
 	cmd.Stdout = stdout
@@ -31,8 +31,11 @@ func (driver *NaiveDriver) GetVolumeSize(path string) (uint64, error) {
 		return 0, err
 	}
 
-	fields := bytes.Fields(stdout.Bytes())
-	size := string(fields[0])
+	var size uint
+	_, err = fmt.Sscanf(stdout.String(), "%d", &size)
+	if err != nil {
+		return 0, err
+	}
 
-	return strconv.ParseUint(size, 10, 64)
+	return size, nil
 }

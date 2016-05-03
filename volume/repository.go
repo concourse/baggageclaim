@@ -14,6 +14,7 @@ var ErrVolumeDoesNotExist = errors.New("volume does not exist")
 type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	GetVolume(handle string) (Volume, bool, error)
+	GetVolumeStats(handle string) (VolumeStats, bool, error)
 	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
 	DestroyVolume(handle string) error
 
@@ -177,6 +178,35 @@ func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
 	}
 
 	return volume, true, nil
+}
+
+func (repo *repository) GetVolumeStats(handle string) (VolumeStats, bool, error) {
+	logger := repo.logger.Session("get-volume", lager.Data{
+		"volume": handle,
+	})
+
+	liveVolume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return VolumeStats{}, false, err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return VolumeStats{}, false, nil
+	}
+
+	size, err := liveVolume.Size()
+	if err != nil {
+		logger.Error("failed-to-get-volume-stats", err)
+		return VolumeStats{}, false, err
+	}
+
+	stats := VolumeStats{
+		Size: size,
+	}
+
+	return stats, true, nil
 }
 
 func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {

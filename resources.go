@@ -20,6 +20,10 @@ type VolumeResponse struct {
 	ExpiresAt    time.Time        `json:"expires_at"`
 }
 
+type VolumeStatsResponse struct {
+	Size uint `json:"size"`
+}
+
 type PropertyRequest struct {
 	Value string `json:"value"`
 }

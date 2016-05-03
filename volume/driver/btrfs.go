@@ -37,7 +37,7 @@ func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) er
 	return err
 }
 
-func (driver *BtrFSDriver) GetVolumeSize(path string) (uint64, error) {
+func (driver *BtrFSDriver) GetVolumeSize(path string) (uint, error) {
 	_, _, err := driver.run("btrfs", "quota", "enable", path)
 	if err != nil {
 		return 0, err
@@ -51,8 +51,8 @@ func (driver *BtrFSDriver) GetVolumeSize(path string) (uint64, error) {
 	qgroups := strings.Split(strings.TrimSpace(output), "\n")
 
 	var id string
-	var sharedSize uint64
-	var exclusiveSize uint64
+	var sharedSize uint
+	var exclusiveSize uint
 	_, err = fmt.Sscanf(qgroups[len(qgroups)-1], "%s %d %d", &id, &sharedSize, &exclusiveSize)
 	if err != nil {
 		return 0, err

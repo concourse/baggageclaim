@@ -27,6 +27,16 @@ type FakeRepository struct {
 		result2 bool
 		result3 error
 	}
+	GetVolumeStatsStub        func(handle string) (volume.VolumeStats, bool, error)
+	getVolumeStatsMutex       sync.RWMutex
+	getVolumeStatsArgsForCall []struct {
+		handle string
+	}
+	getVolumeStatsReturns struct {
+		result1 volume.VolumeStats
+		result2 bool
+		result3 error
+	}
 	CreateVolumeStub        func(strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint) (volume.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
@@ -139,6 +149,40 @@ func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 bool
 	fake.GetVolumeStub = nil
 	fake.getVolumeReturns = struct {
 		result1 volume.Volume
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeRepository) GetVolumeStats(handle string) (volume.VolumeStats, bool, error) {
+	fake.getVolumeStatsMutex.Lock()
+	fake.getVolumeStatsArgsForCall = append(fake.getVolumeStatsArgsForCall, struct {
+		handle string
+	}{handle})
+	fake.getVolumeStatsMutex.Unlock()
+	if fake.GetVolumeStatsStub != nil {
+		return fake.GetVolumeStatsStub(handle)
+	} else {
+		return fake.getVolumeStatsReturns.result1, fake.getVolumeStatsReturns.result2, fake.getVolumeStatsReturns.result3
+	}
+}
+
+func (fake *FakeRepository) GetVolumeStatsCallCount() int {
+	fake.getVolumeStatsMutex.RLock()
+	defer fake.getVolumeStatsMutex.RUnlock()
+	return len(fake.getVolumeStatsArgsForCall)
+}
+
+func (fake *FakeRepository) GetVolumeStatsArgsForCall(i int) string {
+	fake.getVolumeStatsMutex.RLock()
+	defer fake.getVolumeStatsMutex.RUnlock()
+	return fake.getVolumeStatsArgsForCall[i].handle
+}
+
+func (fake *FakeRepository) GetVolumeStatsReturns(result1 volume.VolumeStats, result2 bool, result3 error) {
+	fake.GetVolumeStatsStub = nil
+	fake.getVolumeStatsReturns = struct {
+		result1 volume.VolumeStats
 		result2 bool
 		result3 error
 	}{result1, result2, result3}

@@ -78,6 +78,9 @@ type Volume interface {
 	// Release stops the Volume being kept alive by the server. A final TTL can
 	// be specified.
 	Release(*time.Duration)
+
+	// Size returns the exclusive size of the volume on disk
+	Size() (uint, error)
 }
 
 // Volumes represents a list of Volume object.
