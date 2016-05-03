@@ -209,6 +209,7 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		It("returns 404 when volume is not found", func() {
+			tarBuffer = new(bytes.Buffer)
 			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", "invalid-handle"), tarBuffer)
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
