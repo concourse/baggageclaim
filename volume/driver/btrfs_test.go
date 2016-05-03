@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -45,6 +46,8 @@ var _ = Describe("BtrFS", func() {
 		filesystem = fs.New(logger, imagePath, volumeDir)
 		err = filesystem.Create(100 * 1024 * 1024)
 		Expect(err).NotTo(HaveOccurred())
+
+		fsDriver = driver.NewBtrFSDriver(logger)
 	})
 
 	AfterEach(func() {
@@ -57,9 +60,6 @@ var _ = Describe("BtrFS", func() {
 
 	Describe("Lifecycle", func() {
 		It("can create and delete a subvolume", func() {
-			logger := lagertest.NewTestLogger("driver")
-			fsDriver = driver.NewBtrFSDriver(logger)
-
 			subvolumePath := filepath.Join(volumeDir, "subvolume")
 
 			err := fsDriver.CreateVolume(subvolumePath)
@@ -78,6 +78,40 @@ var _ = Describe("BtrFS", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(subvolumePath).NotTo(BeADirectory())
+		})
+	})
+
+	Describe("GetVolumeSize", func() {
+		var subvolumePath string
+
+		BeforeEach(func() {
+			subvolumePath = filepath.Join(volumeDir, "another-subvolume")
+			err := fsDriver.CreateVolume(subvolumePath)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			err := fsDriver.DestroyVolume(subvolumePath)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("returns the size of the volume at the given path", func() {
+			oldSize, err := fsDriver.GetVolumeSize(subvolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			bs := make([]byte, 4096)
+			for i := 0; i < 4096; i++ {
+				bs[i] = 'i'
+			}
+			err = ioutil.WriteFile(filepath.Join(subvolumePath, "foo.out"), bs, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() uint64 {
+				GinkgoRecover()
+				newSize, err := fsDriver.GetVolumeSize(subvolumePath)
+				Expect(err).NotTo(HaveOccurred())
+				return newSize
+			}, 1*time.Minute).Should(BeNumerically(">", oldSize))
 		})
 	})
 })

@@ -24,6 +24,15 @@ type FakeDriver struct {
 	destroyVolumeReturns struct {
 		result1 error
 	}
+	GetVolumeSizeStub        func(path string) (uint64, error)
+	getVolumeSizeMutex       sync.RWMutex
+	getVolumeSizeArgsForCall []struct {
+		path string
+	}
+	getVolumeSizeReturns struct {
+		result1 uint64
+		result2 error
+	}
 	CreateCopyOnWriteLayerStub        func(path string, parent string) error
 	createCopyOnWriteLayerMutex       sync.RWMutex
 	createCopyOnWriteLayerArgsForCall []struct {
@@ -97,6 +106,39 @@ func (fake *FakeDriver) DestroyVolumeReturns(result1 error) {
 	fake.destroyVolumeReturns = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeDriver) GetVolumeSize(path string) (uint64, error) {
+	fake.getVolumeSizeMutex.Lock()
+	fake.getVolumeSizeArgsForCall = append(fake.getVolumeSizeArgsForCall, struct {
+		path string
+	}{path})
+	fake.getVolumeSizeMutex.Unlock()
+	if fake.GetVolumeSizeStub != nil {
+		return fake.GetVolumeSizeStub(path)
+	} else {
+		return fake.getVolumeSizeReturns.result1, fake.getVolumeSizeReturns.result2
+	}
+}
+
+func (fake *FakeDriver) GetVolumeSizeCallCount() int {
+	fake.getVolumeSizeMutex.RLock()
+	defer fake.getVolumeSizeMutex.RUnlock()
+	return len(fake.getVolumeSizeArgsForCall)
+}
+
+func (fake *FakeDriver) GetVolumeSizeArgsForCall(i int) string {
+	fake.getVolumeSizeMutex.RLock()
+	defer fake.getVolumeSizeMutex.RUnlock()
+	return fake.getVolumeSizeArgsForCall[i].path
+}
+
+func (fake *FakeDriver) GetVolumeSizeReturns(result1 uint64, result2 error) {
+	fake.GetVolumeSizeStub = nil
+	fake.getVolumeSizeReturns = struct {
+		result1 uint64
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeDriver) CreateCopyOnWriteLayer(path string, parent string) error {

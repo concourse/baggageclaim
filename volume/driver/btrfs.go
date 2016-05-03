@@ -2,7 +2,9 @@ package driver
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/pivotal-golang/lager"
@@ -21,18 +23,45 @@ func NewBtrFSDriver(logger lager.Logger) *BtrFSDriver {
 }
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
-	return driver.run("btrfs", "subvolume", "create", path)
+	_, _, err := driver.run("btrfs", "subvolume", "create", path)
+	return err
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
-	return driver.run("btrfs", "subvolume", "delete", path)
+	_, _, err := driver.run("btrfs", "subvolume", "delete", path)
+	return err
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	return driver.run("btrfs", "subvolume", "snapshot", parent, path)
+	_, _, err := driver.run("btrfs", "subvolume", "snapshot", parent, path)
+	return err
 }
 
-func (driver *BtrFSDriver) run(command string, args ...string) error {
+func (driver *BtrFSDriver) GetVolumeSize(path string) (uint64, error) {
+	_, _, err := driver.run("btrfs", "quota", "enable", path)
+	if err != nil {
+		return 0, err
+	}
+
+	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", path)
+	if err != nil {
+		return 0, err
+	}
+
+	qgroups := strings.Split(strings.TrimSpace(output), "\n")
+
+	var id string
+	var sharedSize uint64
+	var exclusiveSize uint64
+	_, err = fmt.Sscanf(qgroups[len(qgroups)-1], "%s %d %d", &id, &sharedSize, &exclusiveSize)
+	if err != nil {
+		return 0, err
+	}
+
+	return exclusiveSize, nil
+}
+
+func (driver *BtrFSDriver) run(command string, args ...string) (string, string, error) {
 	cmd := exec.Command(command, args...)
 
 	logger := driver.logger.Session("run-command", lager.Data{
@@ -55,10 +84,10 @@ func (driver *BtrFSDriver) run(command string, args ...string) error {
 
 	if err != nil {
 		logger.Error("failed", err, loggerData)
-		return err
+		return "", "", err
 	}
 
 	logger.Debug("ran", loggerData)
 
-	return nil
+	return stdout.String(), stderr.String(), nil
 }
