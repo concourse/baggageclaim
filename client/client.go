@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pivotal-golang/clock"
 	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/rata"
 
@@ -28,10 +29,19 @@ type client struct {
 }
 
 func New(apiURL string) Client {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
+	retryRoundTripper := RetryRoundTripper{
+		Logger:  lager.NewLogger("dummy"),
+		Sleeper: clock.NewClock(),
+		RetryPolicy: ExponentialRetryPolicy{
+			Timeout: 60 * time.Minute,
+		},
+		RoundTripper: &http.Transport{
 			DisableKeepAlives: true,
 		},
+	}
+
+	httpClient := &http.Client{
+		Transport: retryRoundTripper.RoundTripper,
 	}
 
 	return &client{
