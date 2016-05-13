@@ -17,6 +17,7 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/retryhttp"
 )
 
 type Client interface {
@@ -29,10 +30,10 @@ type client struct {
 }
 
 func New(apiURL string) Client {
-	retryRoundTripper := RetryRoundTripper{
+	retryRoundTripper := retryhttp.RetryRoundTripper{
 		Logger:  lager.NewLogger("dummy"),
 		Sleeper: clock.NewClock(),
-		RetryPolicy: ExponentialRetryPolicy{
+		RetryPolicy: retryhttp.ExponentialRetryPolicy{
 			Timeout: 60 * time.Minute,
 		},
 		RoundTripper: &http.Transport{
