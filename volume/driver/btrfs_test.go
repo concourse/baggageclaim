@@ -123,13 +123,14 @@ var _ = Describe("BtrFS", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("returns the size of the volume at the given path", func() {
+		It("returns the approximate size of the volume at the given path", func() {
 			childVolumePath = filepath.Join(volumeDir, "parent-volume", "child-volume")
 			err := fsDriver.CreateVolume(childVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
-			bs := make([]byte, 1024)
-			for i := 0; i < 1024; i++ {
+			size := 1024 * 1024 * 2
+			bs := make([]byte, size) // 2 MiB
+			for i := 0; i < size; i++ {
 				bs[i] = 'i'
 			}
 			err = ioutil.WriteFile(filepath.Join(childVolumePath, "child-stuff"), bs, os.ModePerm)
@@ -138,9 +139,10 @@ var _ = Describe("BtrFS", func() {
 			Eventually(func() uint {
 				GinkgoRecover()
 				newSize, err := fsDriver.GetVolumeSize(childVolumePath)
+
 				Expect(err).NotTo(HaveOccurred())
 				return uint(newSize)
-			}, 1*time.Minute, 1*time.Second).Should(Equal(uint(4096))) // 4096B page size
+			}, 15*time.Second, 1*time.Second).Should(BeNumerically("~", size, float32(size)*.05))
 		})
 	})
 })

@@ -2,6 +2,7 @@ package driver
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -72,17 +73,21 @@ func (driver *BtrFSDriver) GetVolumeSize(path string) (uint, error) {
 		return 0, err
 	}
 
-	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", path)
+	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", "--raw", path)
 	if err != nil {
 		return 0, err
 	}
 
-	qgroups := strings.Split(strings.TrimSpace(output), "\n")
+	qgroupsLines := strings.Split(strings.TrimSpace(output), "\n")
+	qgroupFields := strings.Fields(qgroupsLines[len(qgroupsLines)-1])
 
-	var id string
-	var sharedSize uint
+	if len(qgroupFields) != 3 {
+		return 0, errors.New("unable-to-parse-btrfs-qgroup-show")
+	}
+
 	var exclusiveSize uint
-	_, err = fmt.Sscanf(qgroups[len(qgroups)-1], "%s %d %d", &id, &sharedSize, &exclusiveSize)
+	_, err = fmt.Sscanf(qgroupFields[2], "%d", &exclusiveSize)
+
 	if err != nil {
 		return 0, err
 	}
