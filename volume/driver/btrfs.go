@@ -3,7 +3,10 @@ package driver
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/concourse/baggageclaim/fs"
@@ -28,8 +31,34 @@ func (driver *BtrFSDriver) CreateVolume(path string) error {
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
-	_, _, err := driver.run("btrfs", "subvolume", "delete", path)
-	return err
+	basePath := filepath.Dir(path)
+	parentPath := filepath.Base(path)
+	output, _, err := driver.run("btrfs", "subvolume", "list", basePath)
+	if err != nil {
+		return err
+	}
+
+	volumePathsToDelete := []string{}
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		subPath := fields[len(fields)-1]
+
+		if strings.HasPrefix(subPath, parentPath) {
+			volumePathsToDelete = append(volumePathsToDelete, filepath.Join(basePath, subPath))
+		}
+	}
+
+	sort.Sort(ByMostNestedPath(volumePathsToDelete))
+
+	for _, volumePath := range volumePathsToDelete {
+		_, _, err := driver.run("btrfs", "subvolume", "delete", volumePath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
@@ -90,4 +119,16 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 	logger.Debug("ran", loggerData)
 
 	return stdout.String(), stderr.String(), nil
+}
+
+type ByMostNestedPath []string
+
+func (s ByMostNestedPath) Len() int {
+	return len(s)
+}
+func (s ByMostNestedPath) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByMostNestedPath) Less(i, j int) bool {
+	return strings.Count(s[i], string(os.PathSeparator)) > strings.Count(s[j], string(os.PathSeparator))
 }
