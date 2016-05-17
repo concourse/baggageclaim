@@ -60,7 +60,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	var volumeDriver volume.Driver
 
 	if cmd.Driver == "btrfs" {
-		volumeDriver = driver.NewBtrFSDriver(logger.Session("driver"))
+		volumeDriver = driver.NewBtrFSDriver(logger.Session("driver"), string(cmd.VolumesDir))
 	} else {
 		volumeDriver = &driver.NaiveDriver{}
 	}

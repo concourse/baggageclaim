@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/concourse/baggageclaim/fs"
@@ -14,12 +15,17 @@ import (
 type BtrFSDriver struct {
 	fs *fs.BtrfsFilesystem
 
-	logger lager.Logger
+	rootPath string
+	logger   lager.Logger
 }
 
-func NewBtrFSDriver(logger lager.Logger) *BtrFSDriver {
+func NewBtrFSDriver(
+	logger lager.Logger,
+	rootPath string,
+) *BtrFSDriver {
 	return &BtrFSDriver{
-		logger: logger,
+		logger:   logger,
+		rootPath: rootPath,
 	}
 }
 
@@ -37,9 +43,60 @@ func (driver *BtrFSDriver) CreateVolume(path string) error {
 	return nil
 }
 
+type volumeParentIDs []int
+
+func (p volumeParentIDs) Contains(id int) bool {
+	for _, i := range p {
+		if i == id {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
-	_, _, err := driver.run("btrfs", "subvolume", "delete", path)
-	return err
+	output, _, err := driver.run("btrfs", "subvolume", "list", "--sort=path", driver.rootPath)
+	parentSubPath, err := filepath.Rel(driver.rootPath, path)
+	if err != nil {
+		return err
+	}
+
+	volumePathsToDelete := []string{}
+	format := "ID %d gen %d top level %d path %s"
+	parentIDs := volumeParentIDs{}
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		var id int
+		var gen int
+		var parentID int
+		var subPath string
+
+		fmt.Sscanf(line, format, &id, &gen, &parentID, &subPath)
+
+		if subPath == parentSubPath {
+			parentIDs = append(parentIDs, id)
+			volumePathsToDelete = append(volumePathsToDelete, filepath.Join(driver.rootPath, subPath))
+			continue
+		}
+
+		if len(parentIDs) > 0 {
+			if parentIDs.Contains(parentID) {
+				parentIDs = append(parentIDs, id)
+				volumePathsToDelete = append(volumePathsToDelete, filepath.Join(driver.rootPath, subPath))
+				continue
+			}
+			break
+		}
+	}
+
+	for i := len(volumePathsToDelete) - 1; i >= 0; i-- {
+		_, _, err := driver.run("btrfs", "subvolume", "delete", volumePathsToDelete[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {

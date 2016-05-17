@@ -47,7 +47,7 @@ var _ = Describe("BtrFS", func() {
 		err = filesystem.Create(100 * 1024 * 1024)
 		Expect(err).NotTo(HaveOccurred())
 
-		fsDriver = driver.NewBtrFSDriver(logger)
+		fsDriver = driver.NewBtrFSDriver(logger, volumeDir)
 	})
 
 	AfterEach(func() {
@@ -78,6 +78,45 @@ var _ = Describe("BtrFS", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(subvolumePath).NotTo(BeADirectory())
+		})
+
+		It("can delete parent volume when it has subvolumes", func() {
+			parentPath := filepath.Join(volumeDir, "parent")
+			childPath := filepath.Join(parentPath, "volume", "child")
+			grandchildPath := filepath.Join(childPath, "volume", "grandchild")
+
+			err := os.MkdirAll(parentPath, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+
+			parentVolumePath := filepath.Join(parentPath, "volume")
+			err = fsDriver.CreateVolume(parentVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = os.MkdirAll(filepath.Join(volumeDir, "sibling"), os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+
+			siblingVolumePath := filepath.Join(volumeDir, "sibling", "volume")
+			err = fsDriver.CreateVolume(siblingVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = os.MkdirAll(childPath, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+			childVolumePath := filepath.Join(childPath, "volume")
+
+			err = fsDriver.CreateVolume(childVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = os.MkdirAll(grandchildPath, os.ModePerm)
+			Expect(err).NotTo(HaveOccurred())
+			grandchildVolumePath := filepath.Join(grandchildPath, "volume")
+			err = fsDriver.CreateVolume(grandchildVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = fsDriver.DestroyVolume(parentVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(parentVolumePath).NotTo(BeADirectory())
+			Expect(siblingVolumePath).To(BeADirectory())
 		})
 	})
 
