@@ -25,7 +25,16 @@ func NewBtrFSDriver(logger lager.Logger) *BtrFSDriver {
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
 	_, _, err := driver.run("btrfs", "subvolume", "create", path)
-	return err
+	if err != nil {
+		return err
+	}
+
+	_, _, err = driver.run("btrfs", "quota", "enable", path)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
@@ -39,11 +48,6 @@ func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) er
 }
 
 func (driver *BtrFSDriver) GetVolumeSize(path string) (uint, error) {
-	_, _, err := driver.run("btrfs", "quota", "enable", path)
-	if err != nil {
-		return 0, err
-	}
-
 	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", "--raw", path)
 	if err != nil {
 		return 0, err
