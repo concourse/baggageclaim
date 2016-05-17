@@ -79,23 +79,6 @@ var _ = Describe("BtrFS", func() {
 
 			Expect(subvolumePath).NotTo(BeADirectory())
 		})
-
-		It("can delete parent volume when it has subvolumes", func() {
-			parentVolumePath := filepath.Join(volumeDir, "parent-volume")
-			err := fsDriver.CreateVolume(parentVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			childVolumePath := filepath.Join(volumeDir, "parent-volume", "child-volume")
-			err = fsDriver.CreateVolume(childVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			grandchildVolumePath := filepath.Join(volumeDir, "parent-volume", "child-volume", "grandchild-volume")
-			err = fsDriver.CreateVolume(grandchildVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = fsDriver.DestroyVolume(parentVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-		})
 	})
 
 	Describe("GetVolumeSize", func() {
