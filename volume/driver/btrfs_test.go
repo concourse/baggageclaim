@@ -145,9 +145,12 @@ var _ = Describe("BtrFS", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("returns the approximate size of the volume at the given path", func() {
+		It("returns the size of the volume at the given path", func() {
 			childVolumePath = filepath.Join(volumeDir, "parent-volume", "child-volume")
 			err := fsDriver.CreateVolume(childVolumePath)
+			Expect(err).NotTo(HaveOccurred())
+
+			originalSize, err := fsDriver.GetVolumeSize(childVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
 			size := 1024 * 1024 * 2
@@ -158,13 +161,14 @@ var _ = Describe("BtrFS", func() {
 			err = ioutil.WriteFile(filepath.Join(childVolumePath, "child-stuff"), bs, os.ModePerm)
 			Expect(err).NotTo(HaveOccurred())
 
+			timeout := 1 * time.Minute // btrfs periodic commit happens every 30 seconds
 			Eventually(func() uint {
 				GinkgoRecover()
 				newSize, err := fsDriver.GetVolumeSize(childVolumePath)
 
 				Expect(err).NotTo(HaveOccurred())
-				return uint(newSize)
-			}, 15*time.Second, 1*time.Second).Should(BeNumerically("~", size, float32(size)*.05))
+				return newSize
+			}, timeout, 1*time.Second).Should(Equal(uint(size) + originalSize))
 		})
 	})
 })
