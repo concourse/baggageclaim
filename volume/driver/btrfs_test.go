@@ -161,7 +161,7 @@ var _ = Describe("BtrFS", func() {
 			err = ioutil.WriteFile(filepath.Join(childVolumePath, "child-stuff"), bs, os.ModePerm)
 			Expect(err).NotTo(HaveOccurred())
 
-			timeout := 1 * time.Minute // btrfs periodic commit happens every 30 seconds
+			timeout := 2 * time.Minute // btrfs periodic commit happens every 30 seconds
 			Eventually(func() uint {
 				GinkgoRecover()
 				newSize, err := fsDriver.GetVolumeSize(childVolumePath)
