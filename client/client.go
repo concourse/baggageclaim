@@ -49,15 +49,13 @@ func New(apiURL string) Client {
 }
 
 func (c *client) httpClient(logger lager.Logger) *http.Client {
-	retryRoundTripper := retryhttp.RetryRoundTripper{
-		Logger:       logger.Session("retry-round-tripper"),
-		Sleeper:      c.sleeper,
-		RetryPolicy:  c.retryPolicy,
-		RoundTripper: c.nestedRoundTripper,
-	}
-
 	return &http.Client{
-		Transport: retryRoundTripper.RoundTripper,
+		Transport: &retryhttp.RetryRoundTripper{
+			Logger:       logger.Session("retry-round-tripper"),
+			Sleeper:      c.sleeper,
+			RetryPolicy:  c.retryPolicy,
+			RoundTripper: c.nestedRoundTripper,
+		},
 	}
 }
 
