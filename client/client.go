@@ -26,28 +26,38 @@ type Client interface {
 
 type client struct {
 	requestGenerator *rata.RequestGenerator
-	httpClient       *http.Client
+
+	sleeper            clock.Clock
+	retryPolicy        retryhttp.RetryPolicy
+	nestedRoundTripper http.RoundTripper
 }
 
 func New(apiURL string) Client {
-	retryRoundTripper := retryhttp.RetryRoundTripper{
-		Logger:  lager.NewLogger("dummy"),
-		Sleeper: clock.NewClock(),
-		RetryPolicy: retryhttp.ExponentialRetryPolicy{
+	return &client{
+		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
+
+		sleeper: clock.NewClock(),
+
+		retryPolicy: retryhttp.ExponentialRetryPolicy{
 			Timeout: 60 * time.Minute,
 		},
-		RoundTripper: &http.Transport{
+
+		nestedRoundTripper: &http.Transport{
 			DisableKeepAlives: true,
 		},
 	}
+}
 
-	httpClient := &http.Client{
-		Transport: retryRoundTripper.RoundTripper,
+func (c *client) httpClient(logger lager.Logger) *http.Client {
+	retryRoundTripper := retryhttp.RetryRoundTripper{
+		Logger:       logger.Session("retry-round-tripper"),
+		Sleeper:      c.sleeper,
+		RetryPolicy:  c.retryPolicy,
+		RoundTripper: c.nestedRoundTripper,
 	}
 
-	return &client{
-		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
-		httpClient:       httpClient,
+	return &http.Client{
+		Transport: retryRoundTripper.RoundTripper,
 	}
 }
 
@@ -66,7 +76,7 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +121,7 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 
 	request.URL.RawQuery = queryString.Encode()
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +155,7 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 
 func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, bool, error) {
 
-	volumeResponse, found, err := c.getVolumeResponse(handle)
+	volumeResponse, found, err := c.getVolumeResponse(logger, handle)
 	if err != nil {
 		return nil, false, err
 	}
@@ -162,6 +172,8 @@ func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.
 
 func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
 	volume := &clientVolume{
+		logger: logger,
+
 		handle: apiVolume.Handle,
 		path:   apiVolume.Path,
 
@@ -175,7 +187,7 @@ func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeRes
 	return volume, initialHeartbeatSuccess
 }
 
-func (c *client) streamIn(destHandle string, path string, tarContent io.Reader) error {
+func (c *client) streamIn(logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
 		"handle": destHandle,
 	}, tarContent)
@@ -185,7 +197,7 @@ func (c *client) streamIn(destHandle string, path string, tarContent io.Reader) 
 		return err
 	}
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return err
 	}
@@ -197,7 +209,7 @@ func (c *client) streamIn(destHandle string, path string, tarContent io.Reader) 
 	return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 }
 
-func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, bool, error) {
+func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggageclaim.VolumeResponse, bool, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolume, rata.Params{
 		"handle": handle,
 	}, nil)
@@ -205,7 +217,7 @@ func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, 
 		return baggageclaim.VolumeResponse{}, false, err
 	}
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return baggageclaim.VolumeResponse{}, false, err
 	}
@@ -232,7 +244,7 @@ func (c *client) getVolumeResponse(handle string) (baggageclaim.VolumeResponse, 
 	return volumeResponse, true, nil
 }
 
-func (c *client) getVolumeStatsResponse(handle string) (baggageclaim.VolumeStatsResponse, error) {
+func (c *client) getVolumeStatsResponse(logger lager.Logger, handle string) (baggageclaim.VolumeStatsResponse, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolumeStats, rata.Params{
 		"handle": handle,
 	}, nil)
@@ -240,7 +252,7 @@ func (c *client) getVolumeStatsResponse(handle string) (baggageclaim.VolumeStats
 		return baggageclaim.VolumeStatsResponse{}, err
 	}
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return baggageclaim.VolumeStatsResponse{}, err
 	}
@@ -267,7 +279,7 @@ func (c *client) getVolumeStatsResponse(handle string) (baggageclaim.VolumeStats
 	return volumeStatsResponse, nil
 }
 
-func (c *client) setTTL(handle string, ttl time.Duration) error {
+func (c *client) setTTL(logger lager.Logger, handle string, ttl time.Duration) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.TTLRequest{
 		Value: uint(math.Ceil(ttl.Seconds())),
@@ -282,7 +294,7 @@ func (c *client) setTTL(handle string, ttl time.Duration) error {
 
 	request.Header.Add("Content-type", "application/json")
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return err
 	}
@@ -300,7 +312,7 @@ func (c *client) setTTL(handle string, ttl time.Duration) error {
 	return nil
 }
 
-func (c *client) setProperty(handle string, propertyName string, propertyValue string) error {
+func (c *client) setProperty(logger lager.Logger, handle string, propertyName string, propertyValue string) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.PropertyRequest{
 		Value: propertyValue,
@@ -314,7 +326,7 @@ func (c *client) setProperty(handle string, propertyName string, propertyValue s
 		return err
 	}
 
-	response, err := c.httpClient.Do(request)
+	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return err
 	}

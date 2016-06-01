@@ -11,6 +11,9 @@ import (
 )
 
 type clientVolume struct {
+	// TODO: this would be much better off as an arg to each method
+	logger lager.Logger
+
 	handle string
 	path   string
 
@@ -30,7 +33,7 @@ func (cv *clientVolume) Path() string {
 }
 
 func (cv *clientVolume) Size() (uint, error) {
-	stats, err := cv.bcClient.getVolumeStatsResponse(cv.handle)
+	stats, err := cv.bcClient.getVolumeStatsResponse(cv.logger, cv.handle)
 	if err != nil {
 		return 0, err
 	}
@@ -39,7 +42,7 @@ func (cv *clientVolume) Size() (uint, error) {
 }
 
 func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
-	vr, found, err := cv.bcClient.getVolumeResponse(cv.handle)
+	vr, found, err := cv.bcClient.getVolumeResponse(cv.logger, cv.handle)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +54,7 @@ func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
 }
 
 func (cv *clientVolume) Expiration() (time.Duration, time.Time, error) {
-	vr, found, err := cv.bcClient.getVolumeResponse(cv.handle)
+	vr, found, err := cv.bcClient.getVolumeResponse(cv.logger, cv.handle)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
@@ -63,15 +66,15 @@ func (cv *clientVolume) Expiration() (time.Duration, time.Time, error) {
 }
 
 func (cv *clientVolume) StreamIn(path string, tarStream io.Reader) error {
-	return cv.bcClient.streamIn(cv.handle, path, tarStream)
+	return cv.bcClient.streamIn(cv.logger, cv.handle, path, tarStream)
 }
 
 func (cv *clientVolume) SetTTL(ttl time.Duration) error {
-	return cv.bcClient.setTTL(cv.handle, ttl)
+	return cv.bcClient.setTTL(cv.logger, cv.handle, ttl)
 }
 
 func (cv *clientVolume) SetProperty(name string, value string) error {
-	return cv.bcClient.setProperty(cv.handle, name, value)
+	return cv.bcClient.setProperty(cv.logger, cv.handle, name, value)
 }
 
 func (cv *clientVolume) Release(finalTTL *time.Duration) {
