@@ -79,8 +79,8 @@ type Volume interface {
 	// be specified.
 	Release(*time.Duration)
 
-	// Size returns the exclusive size of the volume on disk
-	Size() (uint, error)
+	// Size returns the exclusive size of the volume on disk in bytes
+	SizeInBytes() (int64, error)
 }
 
 // Volumes represents a list of Volume object.

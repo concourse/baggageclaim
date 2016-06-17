@@ -5,7 +5,7 @@ package volume
 type Driver interface {
 	CreateVolume(path string) error
 	DestroyVolume(path string) error
-	GetVolumeSize(path string) (uint, error)
+	GetVolumeSizeInBytes(path string) (int64, error)
 
 	CreateCopyOnWriteLayer(path string, parent string) error
 }

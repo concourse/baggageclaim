@@ -67,13 +67,13 @@ var _ = Describe("Volume Size", func() {
 		})
 
 		It("returns the size of the volume", func() {
-			size, err := parentVolume.Size()
+			size, err := parentVolume.SizeInBytes()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(size).To(Equal(uint(16)))
+			Expect(size).To(Equal(int64(16)))
 
-			size, err = cowVolume.Size()
+			size, err = cowVolume.SizeInBytes()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(size).To(Equal(uint(24))) // naive driver
+			Expect(size).To(Equal(int64(24))) // naive driver
 		})
 	})
 })

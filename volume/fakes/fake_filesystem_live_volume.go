@@ -67,11 +67,11 @@ type FakeFilesystemLiveVolume struct {
 	destroyReturns     struct {
 		result1 error
 	}
-	SizeStub        func() (uint, error)
-	sizeMutex       sync.RWMutex
-	sizeArgsForCall []struct{}
-	sizeReturns     struct {
-		result1 uint
+	SizeInBytesStub        func() (int64, error)
+	sizeInBytesMutex       sync.RWMutex
+	sizeInBytesArgsForCall []struct{}
+	sizeInBytesReturns     struct {
+		result1 int64
 		result2 error
 	}
 	NewSubvolumeStub        func(handle string) (volume.FilesystemInitVolume, error)
@@ -299,27 +299,27 @@ func (fake *FakeFilesystemLiveVolume) DestroyReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeFilesystemLiveVolume) Size() (uint, error) {
-	fake.sizeMutex.Lock()
-	fake.sizeArgsForCall = append(fake.sizeArgsForCall, struct{}{})
-	fake.sizeMutex.Unlock()
-	if fake.SizeStub != nil {
-		return fake.SizeStub()
+func (fake *FakeFilesystemLiveVolume) SizeInBytes() (int64, error) {
+	fake.sizeInBytesMutex.Lock()
+	fake.sizeInBytesArgsForCall = append(fake.sizeInBytesArgsForCall, struct{}{})
+	fake.sizeInBytesMutex.Unlock()
+	if fake.SizeInBytesStub != nil {
+		return fake.SizeInBytesStub()
 	} else {
-		return fake.sizeReturns.result1, fake.sizeReturns.result2
+		return fake.sizeInBytesReturns.result1, fake.sizeInBytesReturns.result2
 	}
 }
 
-func (fake *FakeFilesystemLiveVolume) SizeCallCount() int {
-	fake.sizeMutex.RLock()
-	defer fake.sizeMutex.RUnlock()
-	return len(fake.sizeArgsForCall)
+func (fake *FakeFilesystemLiveVolume) SizeInBytesCallCount() int {
+	fake.sizeInBytesMutex.RLock()
+	defer fake.sizeInBytesMutex.RUnlock()
+	return len(fake.sizeInBytesArgsForCall)
 }
 
-func (fake *FakeFilesystemLiveVolume) SizeReturns(result1 uint, result2 error) {
-	fake.SizeStub = nil
-	fake.sizeReturns = struct {
-		result1 uint
+func (fake *FakeFilesystemLiveVolume) SizeInBytesReturns(result1 int64, result2 error) {
+	fake.SizeInBytesStub = nil
+	fake.sizeInBytesReturns = struct {
+		result1 int64
 		result2 error
 	}{result1, result2}
 }

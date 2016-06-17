@@ -196,14 +196,14 @@ func (repo *repository) GetVolumeStats(handle string) (VolumeStats, bool, error)
 		return VolumeStats{}, false, nil
 	}
 
-	size, err := liveVolume.Size()
+	size, err := liveVolume.SizeInBytes()
 	if err != nil {
 		logger.Error("failed-to-get-volume-stats", err)
 		return VolumeStats{}, false, err
 	}
 
 	stats := VolumeStats{
-		Size: size,
+		SizeInBytes: size,
 	}
 
 	return stats, true, nil

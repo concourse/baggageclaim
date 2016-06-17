@@ -104,7 +104,7 @@ func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) er
 	return err
 }
 
-func (driver *BtrFSDriver) GetVolumeSize(path string) (uint, error) {
+func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", "--raw", path)
 	if err != nil {
 		return 0, err
@@ -117,7 +117,7 @@ func (driver *BtrFSDriver) GetVolumeSize(path string) (uint, error) {
 		return 0, errors.New("unable-to-parse-btrfs-qgroup-show")
 	}
 
-	var exclusiveSize uint
+	var exclusiveSize int64
 	_, err = fmt.Sscanf(qgroupFields[2], "%d", &exclusiveSize)
 
 	if err != nil {

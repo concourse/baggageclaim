@@ -21,7 +21,7 @@ func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) er
 	return exec.Command("cp", "-r", parent, path).Run()
 }
 
-func (driver *NaiveDriver) GetVolumeSize(path string) (uint, error) {
+func (driver *NaiveDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	stdout := &bytes.Buffer{}
 	cmd := exec.Command("du", path)
 	cmd.Stdout = stdout
@@ -31,7 +31,7 @@ func (driver *NaiveDriver) GetVolumeSize(path string) (uint, error) {
 		return 0, err
 	}
 
-	var size uint
+	var size int64
 	_, err = fmt.Sscanf(stdout.String(), "%d", &size)
 	if err != nil {
 		return 0, err

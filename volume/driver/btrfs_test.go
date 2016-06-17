@@ -150,7 +150,7 @@ var _ = Describe("BtrFS", func() {
 			err := fsDriver.CreateVolume(childVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
-			originalSize, err := fsDriver.GetVolumeSize(childVolumePath)
+			originalSize, err := fsDriver.GetVolumeSizeInBytes(childVolumePath)
 			Expect(err).NotTo(HaveOccurred())
 
 			size := 1024 * 1024 * 2
@@ -162,13 +162,13 @@ var _ = Describe("BtrFS", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			timeout := 2 * time.Minute // btrfs periodic commit happens every 30 seconds
-			Eventually(func() uint {
+			Eventually(func() int64 {
 				GinkgoRecover()
-				newSize, err := fsDriver.GetVolumeSize(childVolumePath)
+				newSize, err := fsDriver.GetVolumeSizeInBytes(childVolumePath)
 
 				Expect(err).NotTo(HaveOccurred())
 				return newSize
-			}, timeout, 1*time.Second).Should(Equal(uint(size) + originalSize))
+			}, timeout, 1*time.Second).Should(Equal(int64(size) + originalSize))
 		})
 	})
 })
