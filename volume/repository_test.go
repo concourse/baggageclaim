@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/concourse/baggageclaim/volume/volumefakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pivotal-golang/lager/lagertest"
@@ -14,16 +14,16 @@ import (
 var _ = Describe("Repository", func() {
 	var (
 		logger         *lagertest.TestLogger
-		fakeFilesystem *fakes.FakeFilesystem
-		fakeLocker     *fakes.FakeLockManager
+		fakeFilesystem *volumefakes.FakeFilesystem
+		fakeLocker     *volumefakes.FakeLockManager
 
 		repository volume.Repository
 	)
 
 	BeforeEach(func() {
 		logger = lagertest.NewTestLogger("test")
-		fakeFilesystem = new(fakes.FakeFilesystem)
-		fakeLocker = new(fakes.FakeLockManager)
+		fakeFilesystem = new(volumefakes.FakeFilesystem)
+		fakeLocker = new(volumefakes.FakeLockManager)
 
 		repository = volume.NewRepository(
 			logger,
@@ -34,7 +34,7 @@ var _ = Describe("Repository", func() {
 
 	Describe("CreateVolume", func() {
 		var (
-			fakeStrategy *fakes.FakeStrategy
+			fakeStrategy *volumefakes.FakeStrategy
 			properties   volume.Properties
 			ttlInSeconds uint
 
@@ -43,7 +43,7 @@ var _ = Describe("Repository", func() {
 		)
 
 		BeforeEach(func() {
-			fakeStrategy = new(fakes.FakeStrategy)
+			fakeStrategy = new(volumefakes.FakeStrategy)
 			properties = volume.Properties{"some": "properties"}
 			ttlInSeconds = 42
 		})
@@ -57,10 +57,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when a new volume can be materialized with the strategy", func() {
-			var fakeInitVolume *fakes.FakeFilesystemInitVolume
+			var fakeInitVolume *volumefakes.FakeFilesystemInitVolume
 
 			BeforeEach(func() {
-				fakeInitVolume = new(fakes.FakeFilesystemInitVolume)
+				fakeInitVolume = new(volumefakes.FakeFilesystemInitVolume)
 				fakeStrategy.MaterializeReturns(fakeInitVolume, nil)
 			})
 
@@ -74,10 +74,10 @@ var _ = Describe("Repository", func() {
 				})
 
 				Context("when the volume can be initialized", func() {
-					var fakeLiveVolume *fakes.FakeFilesystemLiveVolume
+					var fakeLiveVolume *volumefakes.FakeFilesystemLiveVolume
 
 					BeforeEach(func() {
-						fakeLiveVolume = new(fakes.FakeFilesystemLiveVolume)
+						fakeLiveVolume = new(volumefakes.FakeFilesystemLiveVolume)
 						fakeLiveVolume.HandleReturns("live-handle")
 						fakeLiveVolume.DataPathReturns("live-data-path")
 						fakeInitVolume.InitializeReturns(fakeLiveVolume, nil)
@@ -187,10 +187,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when the volume can be found", func() {
-			var fakeVolume *fakes.FakeFilesystemLiveVolume
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
 			})
 
@@ -262,31 +262,31 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when volumes are found in the filesystem", func() {
-			var fakeVolume1 *fakes.FakeFilesystemLiveVolume
-			var fakeVolume2 *fakes.FakeFilesystemLiveVolume
-			var fakeVolume3 *fakes.FakeFilesystemLiveVolume
-			var fakeVolume4 *fakes.FakeFilesystemLiveVolume
+			var fakeVolume1 *volumefakes.FakeFilesystemLiveVolume
+			var fakeVolume2 *volumefakes.FakeFilesystemLiveVolume
+			var fakeVolume3 *volumefakes.FakeFilesystemLiveVolume
+			var fakeVolume4 *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume1 = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume1 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume1.HandleReturns("handle-1")
 				fakeVolume1.DataPathReturns("handle-1-data-path")
 				fakeVolume1.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
 				fakeVolume1.LoadTTLReturns(1, time.Unix(1, 0), nil)
 
-				fakeVolume2 = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume2 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume2.HandleReturns("handle-2")
 				fakeVolume2.DataPathReturns("handle-2-data-path")
 				fakeVolume2.LoadPropertiesReturns(volume.Properties{"a": "a"}, nil)
 				fakeVolume2.LoadTTLReturns(2, time.Unix(2, 0), nil)
 
-				fakeVolume3 = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume3 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume3.HandleReturns("handle-3")
 				fakeVolume3.DataPathReturns("handle-3-data-path")
 				fakeVolume3.LoadPropertiesReturns(volume.Properties{"b": "b"}, nil)
 				fakeVolume3.LoadTTLReturns(3, time.Unix(3, 0), nil)
 
-				fakeVolume4 = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume4 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume4.HandleReturns("handle-4")
 				fakeVolume4.DataPathReturns("handle-4-data-path")
 				fakeVolume4.LoadPropertiesReturns(volume.Properties{}, nil)
@@ -472,10 +472,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when the volume is found in the filesystem", func() {
-			var fakeVolume *fakes.FakeFilesystemLiveVolume
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume.HandleReturns("some-volume")
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
@@ -572,10 +572,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when the volume is found in the filesystem", func() {
-			var fakeVolume *fakes.FakeFilesystemLiveVolume
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume.HandleReturns("some-volume")
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
@@ -666,10 +666,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when the volume is found in the filesystem", func() {
-			var fakeVolume *fakes.FakeFilesystemLiveVolume
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume.HandleReturns("some-volume")
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
@@ -749,10 +749,10 @@ var _ = Describe("Repository", func() {
 		})
 
 		Context("when the volume is found in the filesystem", func() {
-			var fakeVolume *fakes.FakeFilesystemLiveVolume
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemLiveVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume.HandleReturns("some-volume")
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
@@ -762,10 +762,10 @@ var _ = Describe("Repository", func() {
 			})
 
 			Context("when the volume has a parent", func() {
-				var parentVolume *fakes.FakeFilesystemLiveVolume
+				var parentVolume *volumefakes.FakeFilesystemLiveVolume
 
 				BeforeEach(func() {
-					parentVolume = new(fakes.FakeFilesystemLiveVolume)
+					parentVolume = new(volumefakes.FakeFilesystemLiveVolume)
 					parentVolume.HandleReturns("parent-volume")
 					parentVolume.DataPathReturns("parent-data-path")
 					parentVolume.LoadPropertiesReturns(volume.Properties{"parent": "property"}, nil)

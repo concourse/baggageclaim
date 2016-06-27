@@ -6,7 +6,7 @@ import (
 
 	. "github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/concourse/baggageclaim/volume/volumefakes"
 	"github.com/pivotal-golang/clock/fakeclock"
 	"github.com/pivotal-golang/lager/lagertest"
 
@@ -16,7 +16,7 @@ import (
 
 var _ = Describe("Reaper", func() {
 	var (
-		repository *fakes.FakeRepository
+		repository *volumefakes.FakeRepository
 		clock      *fakeclock.FakeClock
 
 		reaper *Reaper
@@ -25,7 +25,7 @@ var _ = Describe("Reaper", func() {
 	now := time.Unix(123, 456)
 
 	BeforeEach(func() {
-		repository = new(fakes.FakeRepository)
+		repository = new(volumefakes.FakeRepository)
 		clock = fakeclock.NewFakeClock(now)
 
 		reaper = NewReaper(clock, repository)

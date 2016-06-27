@@ -25,11 +25,14 @@ type FakeTranslator struct {
 	translateReturns struct {
 		result1 error
 	}
+	invocations      map[string][][]interface{}
+	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeTranslator) CacheKey() string {
 	fake.cacheKeyMutex.Lock()
 	fake.cacheKeyArgsForCall = append(fake.cacheKeyArgsForCall, struct{}{})
+	fake.recordInvocation("CacheKey", []interface{}{})
 	fake.cacheKeyMutex.Unlock()
 	if fake.CacheKeyStub != nil {
 		return fake.CacheKeyStub()
@@ -58,6 +61,7 @@ func (fake *FakeTranslator) Translate(path string, info os.FileInfo, err error) 
 		info os.FileInfo
 		err  error
 	}{path, info, err})
+	fake.recordInvocation("Translate", []interface{}{path, info, err})
 	fake.translateMutex.Unlock()
 	if fake.TranslateStub != nil {
 		return fake.TranslateStub(path, info, err)
@@ -83,6 +87,28 @@ func (fake *FakeTranslator) TranslateReturns(result1 error) {
 	fake.translateReturns = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeTranslator) Invocations() map[string][][]interface{} {
+	fake.invocationsMutex.RLock()
+	defer fake.invocationsMutex.RUnlock()
+	fake.cacheKeyMutex.RLock()
+	defer fake.cacheKeyMutex.RUnlock()
+	fake.translateMutex.RLock()
+	defer fake.translateMutex.RUnlock()
+	return fake.invocations
+}
+
+func (fake *FakeTranslator) recordInvocation(key string, args []interface{}) {
+	fake.invocationsMutex.Lock()
+	defer fake.invocationsMutex.Unlock()
+	if fake.invocations == nil {
+		fake.invocations = map[string][][]interface{}{}
+	}
+	if fake.invocations[key] == nil {
+		fake.invocations[key] = [][]interface{}{}
+	}
+	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ uidjunk.Translator = new(FakeTranslator)

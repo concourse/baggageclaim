@@ -2,7 +2,7 @@ package volume_test
 
 import (
 	"github.com/concourse/baggageclaim"
-	bfakes "github.com/concourse/baggageclaim/fakes"
+	"github.com/concourse/baggageclaim/baggageclaimfakes"
 	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	"github.com/concourse/baggageclaim/volume"
 
@@ -60,7 +60,7 @@ var _ = Describe("Strategerizer", func() {
 
 			Context("with a COW strategy", func() {
 				BeforeEach(func() {
-					volume := new(bfakes.FakeVolume)
+					volume := new(baggageclaimfakes.FakeVolume)
 					volume.HandleReturns("parent-handle")
 					request.Strategy = baggageclaim.COWStrategy{volume}.Encode()
 				})
@@ -99,7 +99,7 @@ var _ = Describe("Strategerizer", func() {
 
 			Context("with a COW strategy", func() {
 				BeforeEach(func() {
-					volume := new(bfakes.FakeVolume)
+					volume := new(baggageclaimfakes.FakeVolume)
 					volume.HandleReturns("parent-handle")
 					request.Strategy = baggageclaim.COWStrategy{volume}.Encode()
 				})

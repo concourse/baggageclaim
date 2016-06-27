@@ -5,7 +5,7 @@ import (
 
 	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	. "github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/concourse/baggageclaim/volume/volumefakes"
 	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
@@ -14,14 +14,14 @@ import (
 
 var _ = Describe("NamespacedStrategy", func() {
 	var (
-		fakeStrategy   *fakes.FakeStrategy
+		fakeStrategy   *volumefakes.FakeStrategy
 		fakeNamespacer *fake_namespacer.FakeNamespacer
 
 		strategy Strategy
 	)
 
 	BeforeEach(func() {
-		fakeStrategy = new(fakes.FakeStrategy)
+		fakeStrategy = new(volumefakes.FakeStrategy)
 		fakeNamespacer = new(fake_namespacer.FakeNamespacer)
 
 		strategy = NamespacedStrategy{
@@ -32,14 +32,14 @@ var _ = Describe("NamespacedStrategy", func() {
 
 	Describe("Materialize", func() {
 		var (
-			fakeFilesystem *fakes.FakeFilesystem
+			fakeFilesystem *volumefakes.FakeFilesystem
 
 			materializedVolume FilesystemInitVolume
 			materializeErr     error
 		)
 
 		BeforeEach(func() {
-			fakeFilesystem = new(fakes.FakeFilesystem)
+			fakeFilesystem = new(volumefakes.FakeFilesystem)
 		})
 
 		JustBeforeEach(func() {
@@ -51,10 +51,10 @@ var _ = Describe("NamespacedStrategy", func() {
 		})
 
 		Context("when materializing in the sub-strategy succeeds", func() {
-			var fakeVolume *fakes.FakeFilesystemInitVolume
+			var fakeVolume *volumefakes.FakeFilesystemInitVolume
 
 			BeforeEach(func() {
-				fakeVolume = new(fakes.FakeFilesystemInitVolume)
+				fakeVolume = new(volumefakes.FakeFilesystemInitVolume)
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeStrategy.MaterializeReturns(fakeVolume, nil)
 			})

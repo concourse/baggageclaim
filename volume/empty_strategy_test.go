@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	. "github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/concourse/baggageclaim/volume/volumefakes"
 	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
@@ -22,14 +22,14 @@ var _ = Describe("EmptyStrategy", func() {
 
 	Describe("Materialize", func() {
 		var (
-			fakeFilesystem *fakes.FakeFilesystem
+			fakeFilesystem *volumefakes.FakeFilesystem
 
 			materializedVolume FilesystemInitVolume
 			materializeErr     error
 		)
 
 		BeforeEach(func() {
-			fakeFilesystem = new(fakes.FakeFilesystem)
+			fakeFilesystem = new(volumefakes.FakeFilesystem)
 		})
 
 		JustBeforeEach(func() {
@@ -41,7 +41,7 @@ var _ = Describe("EmptyStrategy", func() {
 		})
 
 		Context("when creating the new volume succeeds", func() {
-			var fakeVolume *fakes.FakeFilesystemInitVolume
+			var fakeVolume *volumefakes.FakeFilesystemInitVolume
 
 			BeforeEach(func() {
 				fakeFilesystem.NewVolumeReturns(fakeVolume, nil)

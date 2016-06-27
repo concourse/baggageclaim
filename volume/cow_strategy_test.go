@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	. "github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/fakes"
+	"github.com/concourse/baggageclaim/volume/volumefakes"
 	"github.com/pivotal-golang/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
@@ -22,14 +22,14 @@ var _ = Describe("COWStrategy", func() {
 
 	Describe("Materialize", func() {
 		var (
-			fakeFilesystem *fakes.FakeFilesystem
+			fakeFilesystem *volumefakes.FakeFilesystem
 
 			materializedVolume FilesystemInitVolume
 			materializeErr     error
 		)
 
 		BeforeEach(func() {
-			fakeFilesystem = new(fakes.FakeFilesystem)
+			fakeFilesystem = new(volumefakes.FakeFilesystem)
 		})
 
 		JustBeforeEach(func() {
@@ -41,15 +41,15 @@ var _ = Describe("COWStrategy", func() {
 		})
 
 		Context("when the parent volume can be found", func() {
-			var parentVolume *fakes.FakeFilesystemLiveVolume
+			var parentVolume *volumefakes.FakeFilesystemLiveVolume
 
 			BeforeEach(func() {
-				parentVolume = new(fakes.FakeFilesystemLiveVolume)
+				parentVolume = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeFilesystem.LookupVolumeReturns(parentVolume, true, nil)
 			})
 
 			Context("when creating the sub volume succeeds", func() {
-				var fakeVolume *fakes.FakeFilesystemInitVolume
+				var fakeVolume *volumefakes.FakeFilesystemInitVolume
 
 				BeforeEach(func() {
 					parentVolume.NewSubvolumeReturns(fakeVolume, nil)
