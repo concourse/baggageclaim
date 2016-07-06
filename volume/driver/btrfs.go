@@ -15,6 +15,7 @@ import (
 type BtrFSDriver struct {
 	fs *fs.BtrfsFilesystem
 
+	btrfsBin string
 	rootPath string
 	logger   lager.Logger
 }
@@ -22,20 +23,22 @@ type BtrFSDriver struct {
 func NewBtrFSDriver(
 	logger lager.Logger,
 	rootPath string,
+	btrfsBin string,
 ) *BtrFSDriver {
 	return &BtrFSDriver{
 		logger:   logger,
 		rootPath: rootPath,
+		btrfsBin: btrfsBin,
 	}
 }
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
-	_, _, err := driver.run("btrfs", "subvolume", "create", path)
+	_, _, err := driver.run(driver.btrfsBin, "subvolume", "create", path)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = driver.run("btrfs", "quota", "enable", path)
+	_, _, err = driver.run(driver.btrfsBin, "quota", "enable", path)
 	if err != nil {
 		return err
 	}
@@ -56,7 +59,7 @@ func (p volumeParentIDs) Contains(id int) bool {
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
-	output, _, err := driver.run("btrfs", "subvolume", "list", "--sort=path", driver.rootPath)
+	output, _, err := driver.run(driver.btrfsBin, "subvolume", "list", "--sort=path", driver.rootPath)
 	parentSubPath, err := filepath.Rel(driver.rootPath, path)
 	if err != nil {
 		return err
@@ -90,7 +93,7 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 	}
 
 	for i := len(volumePathsToDelete) - 1; i >= 0; i-- {
-		_, _, err := driver.run("btrfs", "subvolume", "delete", volumePathsToDelete[i])
+		_, _, err := driver.run(driver.btrfsBin, "subvolume", "delete", volumePathsToDelete[i])
 		if err != nil {
 			return err
 		}
@@ -100,12 +103,12 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	_, _, err := driver.run("btrfs", "subvolume", "snapshot", parent, path)
+	_, _, err := driver.run(driver.btrfsBin, "subvolume", "snapshot", parent, path)
 	return err
 }
 
 func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	output, _, err := driver.run("btrfs", "qgroup", "show", "-F", "--raw", path)
+	output, _, err := driver.run(driver.btrfsBin, "qgroup", "show", "-F", "--raw", path)
 	if err != nil {
 		return 0, err
 	}

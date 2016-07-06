@@ -13,14 +13,16 @@ import (
 type BtrfsFilesystem struct {
 	imagePath string
 	mountPath string
+	mkfsBin   string
 
 	logger lager.Logger
 }
 
-func New(logger lager.Logger, imagePath string, mountPath string) *BtrfsFilesystem {
+func New(logger lager.Logger, imagePath string, mountPath string, mkfsBin string) *BtrfsFilesystem {
 	return &BtrfsFilesystem{
 		imagePath: imagePath,
 		mountPath: mountPath,
+		mkfsBin:   mkfsBin,
 		logger:    logger,
 	}
 }
@@ -41,7 +43,7 @@ func (fs *BtrfsFilesystem) Create(bytes uint64) error {
 		fi
 
 		if ! file $IMAGE_PATH | grep BTRFS; then
-			mkfs.btrfs --nodiscard $IMAGE_PATH
+			`+fs.mkfsBin+` --nodiscard $IMAGE_PATH
 		fi
 
 		mkdir -p $MOUNT_PATH

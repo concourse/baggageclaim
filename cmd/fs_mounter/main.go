@@ -18,6 +18,8 @@ type FSMounterCommand struct {
 	SizeInMegabytes uint64 `long:"size-in-megabytes" default:"0" description:"Maximum size of the filesystem. Can exceed the size of the backing device."`
 
 	Remove bool `long:"remove" default:"false" description:"Remove the filesystem instead of creating it."`
+
+	MkfsBin string `long:"mkfs-bin" default:"mkfs.btrfs" description:"Path to mkfs.btrfs binary"`
 }
 
 func main() {
@@ -35,7 +37,7 @@ func main() {
 	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	filesystem := fs.New(logger, cmd.DiskImage, cmd.MountPath)
+	filesystem := fs.New(logger, cmd.DiskImage, cmd.MountPath, cmd.MkfsBin)
 
 	if !cmd.Remove {
 		if cmd.SizeInMegabytes == 0 {
