@@ -207,6 +207,28 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, t
 	return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
 }
 
+func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (io.ReadCloser, error) {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamOut, rata.Params{
+		"handle": srcHandle,
+	}, nil)
+
+	request.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	}
+
+	return response.Body, nil
+}
+
 func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggageclaim.VolumeResponse, bool, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetVolume, rata.Params{
 		"handle": handle,

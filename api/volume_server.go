@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,6 +26,7 @@ var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
+var ErrStreamOutFailed = errors.New("failed to stream out from volume")
 
 type VolumeServer struct {
 	strategerizer volume.Strategerizer
@@ -274,4 +276,82 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle") // handle of src volume
+
+	vol, found, err := vs.volumeRepo.GetVolume(handle)
+	if err != nil {
+		vs.logger.Error("failed-to-get-volume", err, lager.Data{
+			"destination-volume-handle": handle,
+		})
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	if !found {
+		vs.logger.Error("volume-not-found", err, lager.Data{
+			"src-volume-handle": handle,
+		})
+		RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+		return
+	}
+
+	queryParams, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		vs.logger.Error("failed-to-parse-query-params", err, lager.Data{
+			"src-volume-handle": handle,
+			"raw-query":         req.URL.RawQuery,
+		})
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	var subPath string
+	if queryPath, ok := queryParams["path"]; ok {
+		subPath = queryPath[0]
+	}
+
+	srcPath := filepath.Join(vol.Path, subPath)
+
+	_, err = os.Stat(srcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			vs.logger.Error("artifact-source-not-found", err, lager.Data{
+				"src-volume-handle": handle,
+				"src-path":          srcPath,
+			})
+			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			return
+		}
+
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	tarCommand := exec.Command("tar", "-c", srcPath)
+	ba, err := tarCommand.Output()
+
+	if err != nil {
+		vs.logger.Error("failed-stream-out-from-volume", err, lager.Data{
+			"src-volume-handle": handle,
+			"src-path":          srcPath,
+		})
+
+		if _, ok := err.(*exec.ExitError); ok {
+			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+			return
+		}
+
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	if err != nil {
+		fmt.Println("error: ", err)
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+	}
+
+	w.Write(ba)
 }

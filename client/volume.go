@@ -69,6 +69,10 @@ func (cv *clientVolume) StreamIn(path string, tarStream io.Reader) error {
 	return cv.bcClient.streamIn(cv.logger, cv.handle, path, tarStream)
 }
 
+func (cv *clientVolume) StreamOut(path string) (io.ReadCloser, error) {
+	return cv.bcClient.streamOut(cv.logger, cv.handle, path)
+}
+
 func (cv *clientVolume) SetTTL(ttl time.Duration) error {
 	return cv.bcClient.setTTL(cv.logger, cv.handle, ttl)
 }

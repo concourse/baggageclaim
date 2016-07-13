@@ -303,5 +303,61 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 		})
+
+		Describe("Stream out a volume", func() {
+			var vol baggageclaim.Volume
+			BeforeEach(func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/volumes"),
+						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+							Handle:     "some-handle",
+							Path:       "some-path",
+							Properties: volume.Properties{},
+							TTL:        volume.TTL(1),
+							ExpiresAt:  time.Now().Add(time.Second),
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+				)
+				var err error
+				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("streams the volume", func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-out"),
+						func(w http.ResponseWriter, r *http.Request) {
+							w.Write([]byte("some tar content"))
+						},
+					),
+				)
+				out, err := vol.StreamOut(".")
+				Expect(err).NotTo(HaveOccurred())
+
+				b, err := ioutil.ReadAll(out)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(string(b)).To(Equal("some tar content"))
+			})
+
+			Context("when response status code is not 200", func() {
+				It("returns error", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-out"),
+							ghttp.RespondWith(http.StatusNotFound, ""),
+						),
+					)
+					_, err := vol.StreamOut(".")
+					Expect(err).To(HaveOccurred())
+				})
+			})
+		})
 	})
 })

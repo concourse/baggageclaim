@@ -69,6 +69,8 @@ type Volume interface {
 	// to stream the contents of the Reader into this volume at the specified path.
 	StreamIn(path string, tarStream io.Reader) error
 
+	StreamOut(path string) (io.ReadCloser, error)
+
 	Expiration() (time.Duration, time.Time, error)
 
 	// Properties returns the currently set properties for a Volume. An error is

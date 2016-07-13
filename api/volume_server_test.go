@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
@@ -211,6 +212,93 @@ var _ = Describe("Volume Server", func() {
 		It("returns 404 when volume is not found", func() {
 			tarBuffer = new(bytes.Buffer)
 			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", "invalid-handle"), tarBuffer)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(404))
+		})
+	})
+
+	Describe("streaming tar out of a volume", func() {
+		var (
+			myVolume  volume.Volume
+			tarBuffer *(bytes.Buffer)
+		)
+
+		JustBeforeEach(func() {
+			body := &bytes.Buffer{}
+
+			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Strategy: encStrategy(map[string]string{
+					"type": "empty",
+				}),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			request, err := http.NewRequest("POST", "/volumes", body)
+			Expect(err).NotTo(HaveOccurred())
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(201))
+
+			err = json.NewDecoder(recorder.Body).Decode(&myVolume)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Context("when volume contents can be tarred", func() {
+			BeforeEach(func() {
+				tarBuffer = new(bytes.Buffer)
+				tarWriter := tar.NewWriter(tarBuffer)
+
+				err := tarWriter.WriteHeader(&tar.Header{
+					Name: "some-file",
+					Mode: 0600,
+					Size: int64(len("file-content")),
+				})
+				Expect(err).NotTo(HaveOccurred())
+				_, err = tarWriter.Write([]byte("file-content"))
+				Expect(err).NotTo(HaveOccurred())
+
+				err = tarWriter.Close()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			JustBeforeEach(func() {
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				streamInRecorder := httptest.NewRecorder()
+				handler.ServeHTTP(streamInRecorder, streamInRequest)
+				Expect(streamInRecorder.Code).To(Equal(204))
+
+				tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+				Expect(tarContentsPath).To(BeAnExistingFile())
+
+				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+			})
+
+			It("creates a tar", func() {
+				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+				recorder := httptest.NewRecorder()
+				handler.ServeHTTP(recorder, request)
+				Expect(recorder.Code).To(Equal(200))
+
+				cmd := exec.Command("tar", "-xO")
+				cmd.Stdin = recorder.Body
+				contents, err := cmd.Output()
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(contents).To(Equal([]byte("file-content")))
+			})
+
+			It("returns 404 when source path is invalid", func() {
+				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "bogus-path"), nil)
+				recorder := httptest.NewRecorder()
+				handler.ServeHTTP(recorder, request)
+				Expect(recorder.Code).To(Equal(404))
+			})
+		})
+
+		It("returns 404 when volume is not found", func() {
+			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out", "invalid-handle"), nil)
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
 			Expect(recorder.Code).To(Equal(404))
