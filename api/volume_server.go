@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -315,7 +315,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 
 	srcPath := filepath.Join(vol.Path, subPath)
 
-	_, err = os.Stat(srcPath)
+	err = vs.streamOutSrc(srcPath, w)
 	if err != nil {
 		if os.IsNotExist(err) {
 			vs.logger.Error("artifact-source-not-found", err, lager.Data{
@@ -326,14 +326,6 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
-		return
-	}
-
-	tarCommand := exec.Command("tar", "-c", srcPath)
-	ba, err := tarCommand.Output()
-
-	if err != nil {
 		vs.logger.Error("failed-stream-out-from-volume", err, lager.Data{
 			"src-volume-handle": handle,
 			"src-path":          srcPath,
@@ -347,11 +339,41 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}
+}
 
+func (vs *VolumeServer) streamOutSrc(srcPath string, w http.ResponseWriter) error {
+	fileInfo, err := os.Stat(srcPath)
 	if err != nil {
-		fmt.Println("error: ", err)
-		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return err
 	}
 
-	w.Write(ba)
+	var tarCommandPath, tarCommandDir string
+
+	if fileInfo.IsDir() {
+		tarCommandPath = "."
+		tarCommandDir = srcPath
+	} else {
+		tarCommandPath = filepath.Base(srcPath)
+		tarCommandDir = filepath.Dir(srcPath)
+	}
+
+	tarCommand := exec.Command("tar", "-c", tarCommandPath)
+	tarCommand.Dir = tarCommandDir
+
+	readCloser, err := tarCommand.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	err = tarCommand.Start()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(w, readCloser)
+	if err != nil {
+		return err
+	}
+
+	return tarCommand.Wait()
 }

@@ -224,6 +224,10 @@ var _ = Describe("Volume Server", func() {
 			tarBuffer *(bytes.Buffer)
 		)
 
+		BeforeEach(func() {
+			tarBuffer = new(bytes.Buffer)
+		})
+
 		JustBeforeEach(func() {
 			body := &bytes.Buffer{}
 
@@ -245,9 +249,15 @@ var _ = Describe("Volume Server", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		Context("when volume contents can be tarred", func() {
+		It("returns 404 when source path is invalid", func() {
+			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "bogus-path"), nil)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(404))
+		})
+
+		Context("when streaming a file", func() {
 			BeforeEach(func() {
-				tarBuffer = new(bytes.Buffer)
 				tarWriter := tar.NewWriter(tarBuffer)
 
 				err := tarWriter.WriteHeader(&tar.Header{
@@ -281,19 +291,97 @@ var _ = Describe("Volume Server", func() {
 				handler.ServeHTTP(recorder, request)
 				Expect(recorder.Code).To(Equal(200))
 
-				cmd := exec.Command("tar", "-xO")
-				cmd.Stdin = recorder.Body
-				contents, err := cmd.Output()
-
+				unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+				err := os.MkdirAll(unpackedDir, os.ModePerm)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(contents).To(Equal([]byte("file-content")))
+				defer os.RemoveAll(unpackedDir)
+
+				cmd := exec.Command("tar", "-x", "-C", unpackedDir)
+				cmd.Stdin = recorder.Body
+				err = cmd.Run()
+				Expect(err).NotTo(HaveOccurred())
+
+				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(fileInfo.IsDir()).To(BeFalse())
+				Expect(fileInfo.Size()).To(Equal(int64(len("file-content"))))
+
+				contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "./some-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(Equal("file-content"))
+			})
+		})
+
+		Context("when streaming a directory", func() {
+			var tarDir string
+
+			BeforeEach(func() {
+				tarDir = filepath.Join(tempDir, "tar-dir")
+
+				err := os.MkdirAll(filepath.Join(tarDir, "sub"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+
+				err = ioutil.WriteFile(filepath.Join(tarDir, "sub", "some-file"), []byte("some-file-content"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+
+				err = ioutil.WriteFile(filepath.Join(tarDir, "other-file"), []byte("other-file-content"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+
+				cmd := exec.Command("tar", "-c", ".")
+				cmd.Dir = tarDir
+				tarBytes, err := cmd.Output()
+				Expect(err).NotTo(HaveOccurred())
+
+				tarBuffer = bytes.NewBuffer(tarBytes)
 			})
 
-			It("returns 404 when source path is invalid", func() {
-				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "bogus-path"), nil)
+			JustBeforeEach(func() {
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				streamInRecorder := httptest.NewRecorder()
+				handler.ServeHTTP(streamInRecorder, streamInRequest)
+				Expect(streamInRecorder.Code).To(Equal(204))
+
+				tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path")
+				Expect(tarContentsPath).To(BeADirectory())
+			})
+
+			It("creates a tar", func() {
+				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
-				Expect(recorder.Code).To(Equal(404))
+				Expect(recorder.Code).To(Equal(200))
+
+				unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+				err := os.MkdirAll(unpackedDir, os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+				defer os.RemoveAll(unpackedDir)
+
+				cmd := exec.Command("tar", "-x", "-C", unpackedDir)
+				cmd.Stdin = recorder.Body
+				err = cmd.Run()
+				Expect(err).NotTo(HaveOccurred())
+
+				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(fileInfo.IsDir()).To(BeFalse())
+				Expect(fileInfo.Size()).To(Equal(int64(len("other-file-content"))))
+
+				contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "other-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(Equal("other-file-content"))
+
+				dirInfo, err := os.Stat(filepath.Join(unpackedDir, "sub"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(dirInfo.IsDir()).To(BeTrue())
+
+				fileInfo, err = os.Stat(filepath.Join(unpackedDir, "sub/some-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(fileInfo.IsDir()).To(BeFalse())
+				Expect(fileInfo.Size()).To(Equal(int64(len("some-file-content"))))
+
+				contents, err = ioutil.ReadFile(filepath.Join(unpackedDir, "sub/some-file"))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(string(contents)).To(Equal("some-file-content"))
 			})
 		})
 
