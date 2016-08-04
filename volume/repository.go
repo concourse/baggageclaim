@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/nu7hatch/gouuid"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")

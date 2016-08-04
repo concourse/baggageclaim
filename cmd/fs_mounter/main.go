@@ -7,7 +7,7 @@ import (
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/jessevdk/go-flags"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 type FSMounterCommand struct {

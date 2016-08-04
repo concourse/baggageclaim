@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/concourse/baggageclaim/fs"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 type BtrFSDriver struct {

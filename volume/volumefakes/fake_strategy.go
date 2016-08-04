@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 type FakeStrategy struct {

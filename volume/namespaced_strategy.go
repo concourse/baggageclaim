@@ -2,7 +2,7 @@ package volume
 
 import (
 	"github.com/concourse/baggageclaim/uidjunk"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 type NamespacedStrategy struct {

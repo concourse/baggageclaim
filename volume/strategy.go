@@ -1,6 +1,6 @@
 package volume
 
-import "github.com/pivotal-golang/lager"
+import "code.cloudfoundry.org/lager"
 
 //go:generate counterfeiter . Strategy
 

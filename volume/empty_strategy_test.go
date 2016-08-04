@@ -5,7 +5,7 @@ import (
 
 	. "github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
-	"github.com/pivotal-golang/lager/lagertest"
+	"code.cloudfoundry.org/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

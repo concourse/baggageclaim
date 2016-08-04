@@ -3,7 +3,7 @@ package volume
 import (
 	"errors"
 
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/lager"
 )
 
 var ErrNoParentVolumeProvided = errors.New("no parent volume provided")

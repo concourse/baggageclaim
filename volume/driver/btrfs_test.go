@@ -14,7 +14,7 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 
-	"github.com/pivotal-golang/lager/lagertest"
+	"code.cloudfoundry.org/lager/lagertest"
 
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/concourse/baggageclaim/volume/driver"

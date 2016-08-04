@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pivotal-golang/clock"
-	"github.com/pivotal-golang/lager"
+	"code.cloudfoundry.org/clock"
+	"code.cloudfoundry.org/lager"
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
