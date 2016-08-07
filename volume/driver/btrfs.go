@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
-	"github.com/concourse/baggageclaim/fs"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/fs"
 )
 
 type BtrFSDriver struct {
@@ -59,37 +61,31 @@ func (p volumeParentIDs) Contains(id int) bool {
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {
-	output, _, err := driver.run(driver.btrfsBin, "subvolume", "list", "--sort=path", driver.rootPath)
-	parentSubPath, err := filepath.Rel(driver.rootPath, path)
-	if err != nil {
-		return err
+	volumePathsToDelete := []string{}
+
+	findSubvolumes := func(p string, f os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !f.IsDir() {
+			return nil
+		}
+
+		isSub, err := isSubvolume(p)
+		if err != nil {
+			return fmt.Errorf("failed to check if %s is a subvolume: %s", p, err)
+		}
+
+		if isSub {
+			volumePathsToDelete = append(volumePathsToDelete, p)
+		}
+
+		return nil
 	}
 
-	volumePathsToDelete := []string{}
-	format := "ID %d gen %d top level %d path %s"
-	parentIDs := volumeParentIDs{}
-	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
-		var id int
-		var gen int
-		var parentID int
-		var subPath string
-
-		fmt.Sscanf(line, format, &id, &gen, &parentID, &subPath)
-
-		if subPath == parentSubPath {
-			parentIDs = append(parentIDs, id)
-			volumePathsToDelete = append(volumePathsToDelete, filepath.Join(driver.rootPath, subPath))
-			continue
-		}
-
-		if len(parentIDs) > 0 {
-			if parentIDs.Contains(parentID) {
-				parentIDs = append(parentIDs, id)
-				volumePathsToDelete = append(volumePathsToDelete, filepath.Join(driver.rootPath, subPath))
-				continue
-			}
-			break
-		}
+	if err := filepath.Walk(path, findSubvolumes); err != nil {
+		return fmt.Errorf("recursively walking subvolumes for %s failed: %v", path, err)
 	}
 
 	for i := len(volumePathsToDelete) - 1; i >= 0; i-- {
@@ -159,4 +155,15 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 	logger.Debug("ran", loggerData)
 
 	return stdout.String(), stderr.String(), nil
+}
+
+const btrfsVolumeIno = 256
+
+func isSubvolume(p string) (bool, error) {
+	var bufStat syscall.Stat_t
+	if err := syscall.Lstat(p, &bufStat); err != nil {
+		return false, err
+	}
+
+	return bufStat.Ino == btrfsVolumeIno, nil
 }
