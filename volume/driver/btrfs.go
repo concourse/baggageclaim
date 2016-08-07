@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/fs"
@@ -155,15 +154,4 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 	logger.Debug("ran", loggerData)
 
 	return stdout.String(), stderr.String(), nil
-}
-
-const btrfsVolumeIno = 256
-
-func isSubvolume(p string) (bool, error) {
-	var bufStat syscall.Stat_t
-	if err := syscall.Lstat(p, &bufStat); err != nil {
-		return false, err
-	}
-
-	return bufStat.Ino == btrfsVolumeIno, nil
 }
