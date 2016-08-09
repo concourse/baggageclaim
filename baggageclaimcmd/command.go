@@ -6,13 +6,13 @@ import (
 	"runtime"
 	"time"
 
+	"code.cloudfoundry.org/clock"
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/uidjunk"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
-	"code.cloudfoundry.org/clock"
-	"code.cloudfoundry.org/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
@@ -57,7 +57,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		logger.RegisterSink(yellerSink)
 	}
 
-	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP, cmd.BindPort)
+	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
 
 	var volumeDriver volume.Driver
 
