@@ -36,7 +36,7 @@ func NewHandler(
 	return rata.NewRouter(baggageclaim.Routes, handlers)
 }
 
-type errorResponse struct {
+type ErrorResponse struct {
 	Message string `json:"error"`
 }
 
@@ -50,6 +50,6 @@ func RespondWithError(w http.ResponseWriter, err error, statusCode ...int) {
 	}
 
 	w.WriteHeader(code)
-	errResponse := errorResponse{Message: err.Error()}
+	errResponse := ErrorResponse{Message: err.Error()}
 	json.NewEncoder(w).Encode(errResponse)
 }

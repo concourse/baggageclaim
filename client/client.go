@@ -16,6 +16,7 @@ import (
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/retryhttp"
 )
@@ -82,7 +83,7 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 	defer response.Body.Close()
 
 	if response.StatusCode != 201 {
-		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return nil, getError(response)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
@@ -127,7 +128,7 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return nil, getError(response)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
@@ -204,7 +205,7 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, t
 	if response.StatusCode == http.StatusNoContent {
 		return nil
 	}
-	return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+	return getError(response)
 }
 
 func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (io.ReadCloser, error) {
@@ -223,10 +224,21 @@ func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return nil, getError(response)
 	}
 
 	return response.Body, nil
+}
+
+func getError(response *http.Response) error {
+	var errorResponse *api.ErrorResponse
+
+	err := json.NewDecoder(response.Body).Decode(&errorResponse)
+	if err != nil {
+		return fmt.Errorf("Error (%d) : %s", response.StatusCode, err.Error())
+	}
+
+	return fmt.Errorf("Error (%d) : %s", response.StatusCode, errorResponse.Message)
 }
 
 func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggageclaim.VolumeResponse, bool, error) {
@@ -248,7 +260,8 @@ func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggagec
 		if response.StatusCode == http.StatusNotFound {
 			return baggageclaim.VolumeResponse{}, false, nil
 		}
-		return baggageclaim.VolumeResponse{}, false, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+
+		return baggageclaim.VolumeResponse{}, false, getError(response)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
@@ -283,7 +296,7 @@ func (c *client) getVolumeStatsResponse(logger lager.Logger, handle string) (bag
 		if response.StatusCode == http.StatusNotFound {
 			return baggageclaim.VolumeStatsResponse{}, nil
 		}
-		return baggageclaim.VolumeStatsResponse{}, fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return baggageclaim.VolumeStatsResponse{}, getError(response)
 	}
 
 	if header := response.Header.Get("Content-Type"); header != "application/json" {
@@ -326,7 +339,7 @@ func (c *client) setTTL(logger lager.Logger, handle string, ttl time.Duration) e
 	}
 
 	if response.StatusCode != 204 {
-		return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return getError(response)
 	}
 
 	return nil
@@ -358,7 +371,7 @@ func (c *client) setProperty(logger lager.Logger, handle string, propertyName st
 	}
 
 	if response.StatusCode != 204 {
-		return fmt.Errorf("unexpected response code of: %d", response.StatusCode)
+		return getError(response)
 	}
 
 	return nil

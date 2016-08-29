@@ -4,8 +4,8 @@ package baggageclaimfakes
 import (
 	"sync"
 
-	"github.com/concourse/baggageclaim"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim"
 )
 
 type FakeClient struct {

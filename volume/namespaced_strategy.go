@@ -1,8 +1,8 @@
 package volume
 
 import (
-	"github.com/concourse/baggageclaim/uidjunk"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/uidjunk"
 )
 
 type NamespacedStrategy struct {

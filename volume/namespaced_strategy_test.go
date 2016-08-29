@@ -3,10 +3,10 @@ package volume_test
 import (
 	"errors"
 
+	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
 	. "github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
-	"code.cloudfoundry.org/lager/lagertest"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

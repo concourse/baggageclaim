@@ -10,9 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
-	"code.cloudfoundry.org/lager"
 	"github.com/tedsuo/rata"
 )
 

@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/fs"
 	"github.com/jessevdk/go-flags"
-	"code.cloudfoundry.org/lager"
 )
 
 type FSMounterCommand struct {

@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/concourse/baggageclaim/reaper"
 	"code.cloudfoundry.org/clock/fakeclock"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
+	"github.com/concourse/baggageclaim/reaper"
 	"github.com/tedsuo/ifrit"
 
 	. "github.com/onsi/ginkgo"

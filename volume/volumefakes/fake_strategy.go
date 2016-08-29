@@ -4,8 +4,8 @@ package volumefakes
 import (
 	"sync"
 
-	"github.com/concourse/baggageclaim/volume"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type FakeStrategy struct {

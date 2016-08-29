@@ -3,10 +3,10 @@ package reaper
 import (
 	"fmt"
 
-	"github.com/concourse/baggageclaim/volume"
-	"github.com/hashicorp/go-multierror"
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/volume"
+	"github.com/hashicorp/go-multierror"
 )
 
 type Reaper struct {

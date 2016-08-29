@@ -3,8 +3,8 @@ package volume
 import (
 	"errors"
 
-	"github.com/nu7hatch/gouuid"
 	"code.cloudfoundry.org/lager"
+	"github.com/nu7hatch/gouuid"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
