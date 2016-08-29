@@ -27,6 +27,7 @@ var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
+var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
 	strategerizer volume.Strategerizer
@@ -322,7 +323,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 				"src-volume-handle": handle,
 				"src-path":          srcPath,
 			})
-			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
 			return
 		}
 

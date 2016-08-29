@@ -235,10 +235,10 @@ func getError(response *http.Response) error {
 
 	err := json.NewDecoder(response.Body).Decode(&errorResponse)
 	if err != nil {
-		return fmt.Errorf("Error (%d) : %s", response.StatusCode, err.Error())
+		return fmt.Errorf(err.Error())
 	}
 
-	return fmt.Errorf("Error (%d) : %s", response.StatusCode, errorResponse.Message)
+	return fmt.Errorf(errorResponse.Message)
 }
 
 func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggageclaim.VolumeResponse, bool, error) {
