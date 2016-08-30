@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -232,13 +233,20 @@ func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (
 
 func getError(response *http.Response) error {
 	var errorResponse *api.ErrorResponse
-
 	err := json.NewDecoder(response.Body).Decode(&errorResponse)
 	if err != nil {
-		return fmt.Errorf(err.Error())
+		return err
 	}
 
-	return fmt.Errorf(errorResponse.Message)
+	if errorResponse.Message == api.ErrStreamOutNotFound.Error() {
+		return baggageclaim.ErrFileNotFound
+	}
+
+	if response.StatusCode == 404 {
+		return baggageclaim.ErrVolumeNotFound
+	}
+
+	return errors.New(errorResponse.Message)
 }
 
 func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggageclaim.VolumeResponse, bool, error) {
@@ -334,10 +342,6 @@ func (c *client) setTTL(logger lager.Logger, handle string, ttl time.Duration) e
 
 	defer response.Body.Close()
 
-	if response.StatusCode == 404 {
-		return baggageclaim.ErrVolumeNotFound
-	}
-
 	if response.StatusCode != 204 {
 		return getError(response)
 	}
@@ -365,10 +369,6 @@ func (c *client) setProperty(logger lager.Logger, handle string, propertyName st
 	}
 
 	defer response.Body.Close()
-
-	if response.StatusCode == 404 {
-		return baggageclaim.ErrVolumeNotFound
-	}
 
 	if response.StatusCode != 204 {
 		return getError(response)

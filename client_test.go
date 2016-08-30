@@ -1,6 +1,7 @@
 package baggageclaim_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -60,12 +61,12 @@ var _ = Describe("Baggage Claim Client", func() {
 			bcServer.Close()
 		})
 
-		mockErrorResponse := func(method, endpoint string) {
-
+		mockErrorResponse := func(method string, endpoint string, message string, status int) {
+			response := fmt.Sprintf(`{"error":"%s"}`, message)
 			bcServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest(method, endpoint),
-					ghttp.RespondWith(http.StatusInternalServerError, `{"error":"lost baggage"}`),
+					ghttp.RespondWith(status, response),
 				),
 			)
 		}
@@ -186,7 +187,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("GET", "/volumes/some-handle")
+					mockErrorResponse("GET", "/volumes/some-handle", "lost baggage", http.StatusInternalServerError)
 					foundVolume, found, err := bcClient.LookupVolume(logger, "some-handle")
 					Expect(foundVolume).To(BeNil())
 					Expect(found).To(BeFalse())
@@ -241,7 +242,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("GET", "/volumes")
+					mockErrorResponse("GET", "/volumes", "lost baggage", http.StatusInternalServerError)
 					volumes, err := bcClient.ListVolumes(logger, baggageclaim.VolumeProperties{})
 					Expect(volumes).To(BeNil())
 					Expect(err).To(HaveOccurred())
@@ -279,7 +280,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("POST", "/volumes")
+					mockErrorResponse("POST", "/volumes", "lost baggage", http.StatusInternalServerError)
 					createdVolume, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
 					Expect(err).To(HaveOccurred())
@@ -333,7 +334,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/stream-in")
+					mockErrorResponse("PUT", "/volumes/some-handle/stream-in", "lost baggage", http.StatusInternalServerError)
 					err := vol.StreamIn("./some/path/", strings.NewReader("even more tar"))
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
@@ -383,12 +384,26 @@ var _ = Describe("Baggage Claim Client", func() {
 				Expect(string(b)).To(Equal("some tar content"))
 			})
 
-			Context("when unexpected error occurs", func() {
-				It("returns error code and useful message", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/stream-out")
+			Context("when error occurs", func() {
+				It("returns API error message", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", "lost baggage", http.StatusInternalServerError)
 					_, err := vol.StreamOut("./some/path/")
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
+				})
+
+				It("returns ErrVolumeNotFound", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", "lost baggage", http.StatusNotFound)
+					_, err := vol.StreamOut("./some/path/")
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
+				})
+
+				It("returns ErrFileNotFound", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", api.ErrStreamOutNotFound.Error(), http.StatusNotFound)
+					_, err := vol.StreamOut("./some/path/")
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(baggageclaim.ErrFileNotFound))
 				})
 			})
 		})
@@ -417,12 +432,19 @@ var _ = Describe("Baggage Claim Client", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			Context("when unexpected error occurs", func() {
-				It("returns error code and useful message", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/ttl")
+			Context("when error occurs", func() {
+				It("returns API error message", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/ttl", "lost baggage", http.StatusInternalServerError)
 					err := vol.SetTTL(time.Second)
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
+				})
+
+				It("returns ErrVolumeNotFound", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/ttl", "lost baggage", http.StatusNotFound)
+					err := vol.SetTTL(time.Second)
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
 				})
 			})
 		})
@@ -451,12 +473,19 @@ var _ = Describe("Baggage Claim Client", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			Context("when unexpected error occurs", func() {
-				It("returns error code and useful message", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/properties/key")
+			Context("when error occurs", func() {
+				It("returns API error message", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/properties/key", "lost baggage", http.StatusInternalServerError)
 					err := vol.SetProperty("key", "value")
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
+				})
+
+				It("returns ErrVolumeNotFound", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/properties/key", "lost baggage", http.StatusNotFound)
+					err := vol.SetProperty("key", "value")
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
 				})
 			})
 		})
@@ -487,7 +516,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("GET", "/volumes/some-handle/stats")
+					mockErrorResponse("GET", "/volumes/some-handle/stats", "lost baggage", http.StatusInternalServerError)
 					_, err := vol.SizeInBytes()
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
