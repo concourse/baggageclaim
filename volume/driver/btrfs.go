@@ -10,12 +10,9 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim/fs"
 )
 
 type BtrFSDriver struct {
-	fs *fs.BtrfsFilesystem
-
 	btrfsBin string
 	rootPath string
 	logger   lager.Logger
@@ -45,18 +42,6 @@ func (driver *BtrFSDriver) CreateVolume(path string) error {
 	}
 
 	return nil
-}
-
-type volumeParentIDs []int
-
-func (p volumeParentIDs) Contains(id int) bool {
-	for _, i := range p {
-		if i == id {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (driver *BtrFSDriver) DestroyVolume(path string) error {

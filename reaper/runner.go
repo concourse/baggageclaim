@@ -9,10 +9,6 @@ import (
 	"github.com/tedsuo/ifrit"
 )
 
-type runner struct {
-	reapFunc func() error
-}
-
 func NewRunner(
 	logger lager.Logger,
 	clock clock.Clock,
