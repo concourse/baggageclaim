@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
 	"github.com/tedsuo/rata"
 
@@ -29,20 +28,15 @@ type Client interface {
 type client struct {
 	requestGenerator *rata.RequestGenerator
 
-	sleeper            clock.Clock
-	retryPolicy        retryhttp.RetryPolicy
-	nestedRoundTripper http.RoundTripper
+	retryBackOffFactory retryhttp.BackOffFactory
+	nestedRoundTripper  http.RoundTripper
 }
 
 func New(apiURL string) Client {
 	return &client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
 
-		sleeper: clock.NewClock(),
-
-		retryPolicy: retryhttp.ExponentialRetryPolicy{
-			Timeout: 60 * time.Minute,
-		},
+		retryBackOffFactory: retryhttp.NewExponentialBackOffFactory(60 * time.Minute),
 
 		nestedRoundTripper: &http.Transport{
 			DisableKeepAlives: true,
@@ -53,10 +47,9 @@ func New(apiURL string) Client {
 func (c *client) httpClient(logger lager.Logger) *http.Client {
 	return &http.Client{
 		Transport: &retryhttp.RetryRoundTripper{
-			Logger:       logger.Session("retry-round-tripper"),
-			Sleeper:      c.sleeper,
-			RetryPolicy:  c.retryPolicy,
-			RoundTripper: c.nestedRoundTripper,
+			Logger:         logger.Session("retry-round-tripper"),
+			BackOffFactory: c.retryBackOffFactory,
+			RoundTripper:   c.nestedRoundTripper,
 		},
 	}
 }
