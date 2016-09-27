@@ -77,6 +77,10 @@ func (cv *clientVolume) SetTTL(ttl time.Duration) error {
 	return cv.bcClient.setTTL(cv.logger, cv.handle, ttl)
 }
 
+func (cv *clientVolume) Destroy() error {
+	return cv.bcClient.destroy(cv.logger, cv.handle)
+}
+
 func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.logger, cv.handle, name, value)
 }

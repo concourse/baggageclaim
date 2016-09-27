@@ -279,6 +279,22 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+	err := vs.volumeRepo.DestroyVolume(handle)
+	if err != nil {
+		if err == volume.ErrVolumeDoesNotExist {
+			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
+		} else {
+			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	handle := rata.Param(req, "handle") // handle of src volume
 

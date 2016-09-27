@@ -31,6 +31,7 @@ func NewHandler(
 		baggageclaim.SetTTL:         http.HandlerFunc(volumeServer.SetTTL),
 		baggageclaim.StreamIn:       http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:      http.HandlerFunc(volumeServer.StreamOut),
+		baggageclaim.DestroyVolume:  http.HandlerFunc(volumeServer.DestroyVolume),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)
