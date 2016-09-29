@@ -21,8 +21,8 @@ import (
 )
 
 type BaggageclaimCommand struct {
-	BindIP   IPFlag `long:"bind-ip"   default:"0.0.0.0" description:"IP address on which to listen for API traffic."`
-	BindPort uint16 `long:"bind-port" default:"7788" description:"Port on which to listen for API traffic."`
+	BindIP   IPFlag `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
+	BindPort uint16 `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
 
 	VolumesDir DirFlag `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
