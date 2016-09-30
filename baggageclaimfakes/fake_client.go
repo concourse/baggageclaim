@@ -9,11 +9,12 @@ import (
 )
 
 type FakeClient struct {
-	CreateVolumeStub        func(lager.Logger, baggageclaim.VolumeSpec) (baggageclaim.Volume, error)
+	CreateVolumeStub        func(lager.Logger, string, baggageclaim.VolumeSpec) (baggageclaim.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
 		arg1 lager.Logger
-		arg2 baggageclaim.VolumeSpec
+		arg2 string
+		arg3 baggageclaim.VolumeSpec
 	}
 	createVolumeReturns struct {
 		result1 baggageclaim.Volume
@@ -44,16 +45,17 @@ type FakeClient struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
+func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 string, arg3 baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
 	fake.createVolumeMutex.Lock()
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
 		arg1 lager.Logger
-		arg2 baggageclaim.VolumeSpec
-	}{arg1, arg2})
-	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2})
+		arg2 string
+		arg3 baggageclaim.VolumeSpec
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(arg1, arg2)
+		return fake.CreateVolumeStub(arg1, arg2, arg3)
 	} else {
 		return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 	}
@@ -65,10 +67,10 @@ func (fake *FakeClient) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeClient) CreateVolumeArgsForCall(i int) (lager.Logger, baggageclaim.VolumeSpec) {
+func (fake *FakeClient) CreateVolumeArgsForCall(i int) (lager.Logger, string, baggageclaim.VolumeSpec) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
-	return fake.createVolumeArgsForCall[i].arg1, fake.createVolumeArgsForCall[i].arg2
+	return fake.createVolumeArgsForCall[i].arg1, fake.createVolumeArgsForCall[i].arg2, fake.createVolumeArgsForCall[i].arg3
 }
 
 func (fake *FakeClient) CreateVolumeReturns(result1 baggageclaim.Volume, result2 error) {

@@ -47,7 +47,7 @@ var _ = Describe("Volume Size", func() {
 			}
 
 			var err error
-			parentVolume, err = client.CreateVolume(logger, parentSpec)
+			parentVolume, err = client.CreateVolume(logger, "parent-handle", parentSpec)
 			Expect(err).NotTo(HaveOccurred())
 
 			ioutil.WriteFile(filepath.Join(parentVolume.Path(), "some-parent-file"), []byte("some-bytes"), os.ModePerm)
@@ -60,7 +60,7 @@ var _ = Describe("Volume Size", func() {
 				TTL: 10 * time.Second,
 			}
 
-			cowVolume, err = client.CreateVolume(logger, cowSpec)
+			cowVolume, err = client.CreateVolume(logger, "cow-handle", cowSpec)
 			Expect(err).NotTo(HaveOccurred())
 
 			ioutil.WriteFile(filepath.Join(cowVolume.Path(), "some-child-file"), []byte("some-bytes"), os.ModePerm)

@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/nu7hatch/gouuid"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
@@ -15,7 +14,7 @@ type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	GetVolume(handle string) (Volume, bool, error)
 	GetVolumeStats(handle string) (VolumeStats, bool, error)
-	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
+	CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
@@ -72,9 +71,7 @@ func (repo *repository) DestroyVolume(handle string) error {
 	return nil
 }
 
-func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
-	handle := repo.generateHandle()
-
+func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
 	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
 
 	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem)
@@ -322,13 +319,4 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
 	}, nil
-}
-
-func (repo *repository) generateHandle() string {
-	handle, err := uuid.NewV4()
-	if err != nil {
-		repo.logger.Fatal("failed-to-generate-handle", err)
-	}
-
-	return handle.String()
 }

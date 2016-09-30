@@ -21,7 +21,7 @@ type Client interface {
 	//
 	// CreateVolume returns the volume that was created or an error as to why it
 	// could not be created.
-	CreateVolume(lager.Logger, VolumeSpec) (Volume, error)
+	CreateVolume(lager.Logger, string, VolumeSpec) (Volume, error)
 
 	// ListVolumes lists the volumes that are present on the server. A
 	// VolumeProperties object can be passed in to filter the volumes that are in

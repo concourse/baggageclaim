@@ -6,6 +6,7 @@ import (
 )
 
 type VolumeRequest struct {
+	Handle       string           `json:"handle"`
 	Strategy     *json.RawMessage `json:"strategy"`
 	Properties   VolumeProperties `json:"properties"`
 	TTLInSeconds uint             `json:"ttl,omitempty"`

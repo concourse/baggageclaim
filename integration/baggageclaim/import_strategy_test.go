@@ -61,7 +61,7 @@ var _ = Describe("Import Strategy", func() {
 
 			JustBeforeEach(func() {
 				var err error
-				volume, err = client.CreateVolume(logger, baggageclaim.VolumeSpec{
+				volume, err = client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{
 					Strategy: baggageclaim.ImportStrategy{
 						Path: tmpdir,
 					},

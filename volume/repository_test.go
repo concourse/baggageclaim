@@ -50,6 +50,7 @@ var _ = Describe("Repository", func() {
 
 		JustBeforeEach(func() {
 			createdVolume, createErr = repository.CreateVolume(
+				"some-handle",
 				fakeStrategy,
 				properties,
 				ttlInSeconds,

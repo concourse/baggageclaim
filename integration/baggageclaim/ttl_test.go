@@ -32,7 +32,7 @@ var _ = Describe("TTL's", func() {
 			TTL: 10 * time.Second,
 		}
 
-		emptyVolume, err := client.CreateVolume(logger, spec)
+		emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
 		Expect(err).NotTo(HaveOccurred())
 
 		expectedExpiresAt := time.Now().Add(volume.TTL(10).Duration())
@@ -52,7 +52,7 @@ var _ = Describe("TTL's", func() {
 			TTL: 1 * time.Second,
 		}
 
-		emptyVolume, err := client.CreateVolume(logger, spec)
+		emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
 		Expect(err).NotTo(HaveOccurred())
 
 		emptyVolume.Release(nil)
@@ -72,7 +72,7 @@ var _ = Describe("TTL's", func() {
 		It("keeps the container alive, and lets it expire once released", func() {
 			spec := baggageclaim.VolumeSpec{TTL: 2 * time.Second}
 
-			volume, err := client.CreateVolume(logger, spec)
+			volume, err := client.CreateVolume(logger, "some-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
@@ -89,7 +89,7 @@ var _ = Describe("TTL's", func() {
 			It("lets it expire after the given TTL", func() {
 				spec := baggageclaim.VolumeSpec{TTL: 2 * time.Second}
 
-				volume, err := client.CreateVolume(logger, spec)
+				volume, err := client.CreateVolume(logger, "some-handle", spec)
 				Expect(err).NotTo(HaveOccurred())
 
 				Consistently(runner.CurrentHandles, 3*time.Second).Should(ContainElement(volume.Handle()))
@@ -111,7 +111,7 @@ var _ = Describe("TTL's", func() {
 					TTL: 5 * time.Second,
 				}
 
-				emptyVolume, err := client.CreateVolume(logger, spec)
+				emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
 				Ω(err).ShouldNot(HaveOccurred())
 
 				time.Sleep(2 * time.Second)
@@ -135,12 +135,12 @@ var _ = Describe("TTL's", func() {
 				TTL: 2 * time.Second,
 			}
 
-			parentVolume, err := client.CreateVolume(logger, spec)
+			parentVolume, err := client.CreateVolume(logger, "parent-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+			childVolume, err := client.CreateVolume(logger, "cow-handle", baggageclaim.VolumeSpec{
 				Strategy: baggageclaim.COWStrategy{Parent: parentVolume},
 				TTL:      4 * time.Second,
 			})
@@ -164,18 +164,18 @@ var _ = Describe("TTL's", func() {
 			spec := baggageclaim.VolumeSpec{
 				TTL: 2 * time.Second,
 			}
-			parentVolume, err := client.CreateVolume(logger, spec)
+			parentVolume, err := client.CreateVolume(logger, "parent-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
 
 			Consistently(runner.CurrentHandles, 1*time.Second).Should(ContainElement(parentVolume.Handle()))
 
-			childVolume1, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+			childVolume1, err := client.CreateVolume(logger, "child-handle-1", baggageclaim.VolumeSpec{
 				Strategy: baggageclaim.COWStrategy{Parent: parentVolume},
 				TTL:      2 * time.Second,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			childVolume2, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+			childVolume2, err := client.CreateVolume(logger, "child-handle-2", baggageclaim.VolumeSpec{
 				Strategy: baggageclaim.COWStrategy{Parent: parentVolume},
 				TTL:      2 * time.Second,
 			})
@@ -211,7 +211,7 @@ var _ = Describe("TTL's", func() {
 				TTL: 2 * time.Second,
 			}
 
-			emptyVolume, err := client.CreateVolume(logger, spec)
+			emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
 
 			ttl, _, err := emptyVolume.Expiration()
@@ -233,7 +233,7 @@ var _ = Describe("TTL's", func() {
 				TTL: 1 * time.Second,
 			}
 
-			emptyVolume, err := client.CreateVolume(logger, spec)
+			emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
 
 			emptyVolume.Release(nil)

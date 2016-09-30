@@ -65,6 +65,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	}
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(
+		request.Handle,
 		strategy,
 		volume.Properties(request.Properties),
 		request.TTLInSeconds,

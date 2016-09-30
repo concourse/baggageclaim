@@ -54,7 +54,7 @@ func (c *client) httpClient(logger lager.Logger) *http.Client {
 	}
 }
 
-func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
+func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
 	strategy := volumeSpec.Strategy
 	if strategy == nil {
 		strategy = baggageclaim.EmptyStrategy{}
@@ -62,6 +62,7 @@ func (c *client) CreateVolume(logger lager.Logger, volumeSpec baggageclaim.Volum
 
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
+		Handle:       handle,
 		Strategy:     strategy.Encode(),
 		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
 		Properties:   volumeSpec.Properties,

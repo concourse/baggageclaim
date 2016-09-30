@@ -27,7 +27,7 @@ var _ = Describe("Properties", func() {
 	})
 
 	It("can manage properties", func() {
-		emptyVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+		emptyVolume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{
 			Properties: baggageclaim.VolumeProperties{
 				"property-name": "property-value",
 			},
@@ -61,10 +61,10 @@ var _ = Describe("Properties", func() {
 	})
 
 	It("can find a volume by its properties", func() {
-		_, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
+		_, err := client.CreateVolume(logger, "some-handle-1", baggageclaim.VolumeSpec{})
 		Expect(err).NotTo(HaveOccurred())
 
-		emptyVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+		emptyVolume, err := client.CreateVolume(logger, "some-handle-2", baggageclaim.VolumeSpec{
 			Properties: baggageclaim.VolumeProperties{
 				"property-name": "property-value",
 			},
@@ -88,7 +88,7 @@ var _ = Describe("Properties", func() {
 	})
 
 	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
-		volume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+		volume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{
 			TTL: time.Second,
 		})
 		Expect(err).NotTo(HaveOccurred())

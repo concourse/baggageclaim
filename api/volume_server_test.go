@@ -91,6 +91,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -105,6 +106,7 @@ var _ = Describe("Volume Server", func() {
 
 			body.Reset()
 			err = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "another-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -147,6 +149,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -232,6 +235,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -403,6 +407,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -453,6 +458,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -500,6 +506,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -564,6 +571,7 @@ var _ = Describe("Volume Server", func() {
 
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "empty",
 						}),
@@ -599,6 +607,7 @@ var _ = Describe("Volume Server", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
 				json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Handle: "some-handle",
 					Strategy: encStrategy(map[string]string{
 						"type": "empty",
 					}),
@@ -658,6 +667,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "grime",
 						}),
@@ -684,6 +694,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "cow",
 						}),
