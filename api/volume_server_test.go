@@ -496,7 +496,7 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	Describe("destroying a volume", func() {
-		It("can have be destroyed", func() {
+		It("can be destroyed", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
