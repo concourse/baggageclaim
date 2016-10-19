@@ -20,6 +20,30 @@ import (
 )
 
 var _ = Describe("Baggage Claim Client", func() {
+	Describe("getting the heartbeat interval from a TTL", func() {
+		It("has an upper bound of 1 minute", func() {
+			interval := client.IntervalForTTL(500 * time.Second)
+
+			Expect(interval).To(Equal(time.Minute))
+		})
+
+		Context("when the TTL is small", func() {
+			It("returns an interval that is half of the TTL", func() {
+				interval := client.IntervalForTTL(5 * time.Second)
+
+				Expect(interval).To(Equal(2500 * time.Millisecond))
+			})
+		})
+
+		Context("when the TTL is zero", func() {
+			It("returns a long interval as the volume will never expire", func() {
+				interval := client.IntervalForTTL(0 * time.Second)
+
+				Expect(interval).To(Equal(time.Minute))
+			})
+		})
+	})
+
 	Describe("Interacting with the server", func() {
 		var (
 			bcServer *ghttp.Server
@@ -48,7 +72,9 @@ var _ = Describe("Baggage Claim Client", func() {
 		}
 
 		Describe("Looking up a volume by handle", func() {
-			It("returns volume if it exists", func() {
+			It("heartbeats immediately to reset the TTL", func() {
+				didHeartbeat := make(chan struct{})
+
 				expectedVolume := volume.Volume{
 					Handle:     "some-handle",
 					Path:       "some-path",
@@ -62,11 +88,86 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.VerifyRequest("GET", "/volumes/some-handle"),
 						ghttp.RespondWithJSONEncoded(http.StatusOK, expectedVolume),
 					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						func(w http.ResponseWriter, r *http.Request) {
+							close(didHeartbeat)
+						},
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
 				)
 				volume, found, err := bcClient.LookupVolume(logger, "some-handle")
 				Expect(volume.Handle()).To(Equal(expectedVolume.Handle))
 				Expect(found).To(BeTrue())
 				Expect(err).ToNot(HaveOccurred())
+
+				Eventually(didHeartbeat, time.Second).Should(BeClosed())
+			})
+
+			Context("when the volume's TTL is 0", func() {
+				It("does heartbeat and allow the volume to be released", func() {
+					didHeartbeat := make(chan struct{})
+
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes/some-handle"),
+							ghttp.RespondWithJSONEncoded(200, volume.Volume{
+								Handle:     "some-handle",
+								Path:       "some-path",
+								Properties: volume.Properties{},
+								TTL:        volume.TTL(0),
+								ExpiresAt:  time.Now().Add(time.Second),
+							}),
+						),
+						ghttp.CombineHandlers( // initial heartbeat
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							ghttp.VerifyJSON(`{"value": 0}`),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
+						ghttp.CombineHandlers( // release
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							ghttp.VerifyJSON(`{"value": 300}`),
+							func(w http.ResponseWriter, r *http.Request) {
+								close(didHeartbeat)
+							},
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
+					)
+
+					volume, _, err := bcClient.LookupVolume(logger, "some-handle")
+					Expect(err).NotTo(HaveOccurred())
+
+					volume.Release(baggageclaim.FinalTTL(5 * time.Minute))
+
+					Eventually(didHeartbeat, time.Second).Should(BeClosed())
+				})
+			})
+
+			Context("when the intial heartbeat fails", func() {
+				It("reports that the volume could not be found", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes/some-handle"),
+							ghttp.RespondWithJSONEncoded(200, volume.Volume{
+								Handle:     "some-handle",
+								Path:       "some-path",
+								Properties: volume.Properties{},
+								TTL:        volume.TTL(1),
+								ExpiresAt:  time.Now().Add(time.Second),
+							}),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							func(w http.ResponseWriter, r *http.Request) {
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
+							},
+						),
+					)
+					foundVolume, found, err := bcClient.LookupVolume(logger, "some-handle")
+					Expect(foundVolume).To(BeNil())
+					Expect(found).To(BeFalse())
+					Expect(err).ToNot(HaveOccurred())
+				})
 			})
 
 			Context("when the volume does not exist", func() {
@@ -97,32 +198,46 @@ var _ = Describe("Baggage Claim Client", func() {
 		})
 
 		Describe("Listing volumes", func() {
-			It("it returns list of volumes", func() {
-				bcServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/volumes"),
-						ghttp.RespondWithJSONEncoded(200, []volume.Volume{
-							{
-								Handle:     "some-handle",
-								Path:       "some-path",
-								Properties: volume.Properties{},
-								TTL:        volume.TTL(1),
-								ExpiresAt:  time.Now().Add(time.Second),
+			Context("when the inital heartbeat fails for a volume", func() {
+				It("it is omitted from the returned list of volumes", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes"),
+							ghttp.RespondWithJSONEncoded(200, []volume.Volume{
+								{
+									Handle:     "some-handle",
+									Path:       "some-path",
+									Properties: volume.Properties{},
+									TTL:        volume.TTL(1),
+									ExpiresAt:  time.Now().Add(time.Second),
+								},
+								{
+									Handle:     "another-handle",
+									Path:       "some-path",
+									Properties: volume.Properties{},
+									TTL:        volume.TTL(1),
+									ExpiresAt:  time.Now().Add(time.Second),
+								},
+							}),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							func(w http.ResponseWriter, r *http.Request) {
+								w.WriteHeader(http.StatusNoContent)
 							},
-							{
-								Handle:     "another-handle",
-								Path:       "some-path",
-								Properties: volume.Properties{},
-								TTL:        volume.TTL(1),
-								ExpiresAt:  time.Now().Add(time.Second),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/another-handle/ttl"),
+							func(w http.ResponseWriter, r *http.Request) {
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
 							},
-						}),
-					),
-				)
-				volumes, err := bcClient.ListVolumes(logger, baggageclaim.VolumeProperties{})
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(volumes)).To(Equal(2))
-				Expect(volumes[0].Handle()).To(Equal("some-handle"))
+						),
+					)
+					volumes, err := bcClient.ListVolumes(logger, baggageclaim.VolumeProperties{})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(volumes)).To(Equal(1))
+					Expect(volumes[0].Handle()).To(Equal("some-handle"))
+				})
 			})
 
 			Context("when unexpected error occurs", func() {
@@ -137,6 +252,32 @@ var _ = Describe("Baggage Claim Client", func() {
 		})
 
 		Describe("Creating volumes", func() {
+			Context("when the inital heartbeat fails for the volume", func() {
+				It("reports that the volume could not be found", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("POST", "/volumes"),
+							ghttp.RespondWithJSONEncoded(201, volume.Volume{
+								Handle:     "some-handle",
+								Path:       "some-path",
+								Properties: volume.Properties{},
+								TTL:        volume.TTL(1),
+								ExpiresAt:  time.Now().Add(time.Second),
+							}),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+							func(w http.ResponseWriter, r *http.Request) {
+								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
+							},
+						),
+					)
+					createdVolume, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
+					Expect(createdVolume).To(BeNil())
+					Expect(err).To(Equal(volume.ErrVolumeDoesNotExist))
+				})
+			})
+
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
 					mockErrorResponse("POST", "/volumes", "lost baggage", http.StatusInternalServerError)
@@ -161,6 +302,10 @@ var _ = Describe("Baggage Claim Client", func() {
 							TTL:        volume.TTL(1),
 							ExpiresAt:  time.Now().Add(time.Second),
 						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
 				var err error
@@ -211,6 +356,10 @@ var _ = Describe("Baggage Claim Client", func() {
 							ExpiresAt:  time.Now().Add(time.Second),
 						}),
 					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
 				)
 				var err error
 				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
@@ -259,6 +408,47 @@ var _ = Describe("Baggage Claim Client", func() {
 			})
 		})
 
+		Describe("Setting TTL on a volume", func() {
+			var vol baggageclaim.Volume
+			BeforeEach(func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/volumes"),
+						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+							Handle:     "some-handle",
+							Path:       "some-path",
+							Properties: volume.Properties{},
+							TTL:        volume.TTL(1),
+							ExpiresAt:  time.Now().Add(time.Second),
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+				)
+				var err error
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			Context("when error occurs", func() {
+				It("returns API error message", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/ttl", "lost baggage", http.StatusInternalServerError)
+					err := vol.SetTTL(time.Second)
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal("lost baggage"))
+				})
+
+				It("returns ErrVolumeNotFound", func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/ttl", "lost baggage", http.StatusNotFound)
+					err := vol.SetTTL(time.Second)
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
+				})
+			})
+		})
+
 		Describe("Setting property on a volume", func() {
 			var vol baggageclaim.Volume
 			BeforeEach(func() {
@@ -272,6 +462,10 @@ var _ = Describe("Baggage Claim Client", func() {
 							TTL:        volume.TTL(1),
 							ExpiresAt:  time.Now().Add(time.Second),
 						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
 				var err error
@@ -309,6 +503,10 @@ var _ = Describe("Baggage Claim Client", func() {
 							TTL:        volume.TTL(1),
 							ExpiresAt:  time.Now().Add(time.Second),
 						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
 				var err error

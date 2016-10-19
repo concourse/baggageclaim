@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"code.cloudfoundry.org/lager"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
+	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/retryhttp"
 )
 
@@ -62,7 +64,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
 		Handle:       handle,
 		Strategy:     strategy.Encode(),
-		TTLInSeconds: 0,
+		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
 		Properties:   volumeSpec.Properties,
 		Privileged:   volumeSpec.Privileged,
 	})
@@ -89,7 +91,11 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 		return nil, err
 	}
 
-	return c.newVolume(logger, volumeResponse), nil
+	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
+	if !initialHeartbeatSuccess {
+		return nil, volume.ErrVolumeDoesNotExist
+	}
+	return v, nil
 }
 
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
@@ -132,13 +138,17 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 
 	var volumes baggageclaim.Volumes
 	for _, vr := range volumesResponse {
-		volumes = append(volumes, c.newVolume(logger, vr))
+		v, initialHeartbeatSuccess := c.newVolume(logger, vr)
+		if initialHeartbeatSuccess {
+			volumes = append(volumes, v)
+		}
 	}
 
 	return volumes, nil
 }
 
 func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, bool, error) {
+
 	volumeResponse, found, err := c.getVolumeResponse(logger, handle)
 	if err != nil {
 		return nil, false, err
@@ -147,18 +157,28 @@ func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.
 		return nil, found, nil
 	}
 
-	return c.newVolume(logger, volumeResponse), true, nil
+	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
+	if !initialHeartbeatSuccess {
+		return nil, false, nil
+	}
+	return v, true, nil
 }
 
-func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) baggageclaim.Volume {
-	return &clientVolume{
+func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
+	volume := &clientVolume{
 		logger: logger,
 
 		handle: apiVolume.Handle,
 		path:   apiVolume.Path,
 
-		bcClient: c,
+		bcClient:     c,
+		heartbeating: new(sync.WaitGroup),
+		release:      make(chan *time.Duration, 1),
 	}
+
+	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
+
+	return volume, initialHeartbeatSuccess
 }
 
 func (c *client) streamIn(logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {

@@ -2,6 +2,7 @@ package client
 
 import (
 	"io"
+	"sync"
 	"time"
 
 	"code.cloudfoundry.org/lager"
@@ -18,7 +19,9 @@ type clientVolume struct {
 
 	bcClient *client
 
-	release chan *time.Duration
+	releaseOnce  sync.Once
+	heartbeating *sync.WaitGroup
+	release      chan *time.Duration
 }
 
 func (cv *clientVolume) Handle() string {
@@ -80,4 +83,82 @@ func (cv *clientVolume) Destroy() error {
 
 func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.logger, cv.handle, name, value)
+}
+
+func (cv *clientVolume) Release(finalTTL *time.Duration) {
+	cv.releaseOnce.Do(func() {
+		cv.release <- finalTTL
+		cv.heartbeating.Wait()
+	})
+
+	return
+}
+
+func IntervalForTTL(ttl time.Duration) time.Duration {
+	if ttl == 0 {
+		return time.Minute
+	}
+
+	interval := ttl / 2
+
+	if interval > time.Minute {
+		interval = time.Minute
+	}
+
+	return interval
+}
+
+func (cv *clientVolume) startHeartbeating(logger lager.Logger, ttl time.Duration) bool {
+	interval := IntervalForTTL(ttl)
+
+	if !cv.heartbeatTick(logger.Session("initial-heartbeat"), ttl) {
+		return false
+	}
+
+	cv.heartbeating.Add(1)
+	go cv.heartbeat(logger.Session("heartbeating"), ttl, time.NewTicker(interval))
+
+	return true
+}
+
+func (cv *clientVolume) heartbeat(logger lager.Logger, ttl time.Duration, pacemaker *time.Ticker) {
+	defer cv.heartbeating.Done()
+	defer pacemaker.Stop()
+
+	logger.Debug("start")
+	defer logger.Debug("done")
+
+	for {
+		select {
+		case <-pacemaker.C:
+			if !cv.heartbeatTick(logger.Session("tick"), ttl) {
+				return
+			}
+
+		case finalTTL := <-cv.release:
+			if finalTTL != nil {
+				cv.heartbeatTick(logger.Session("final"), *finalTTL)
+			}
+
+			return
+		}
+	}
+}
+
+func (cv *clientVolume) heartbeatTick(logger lager.Logger, ttl time.Duration) bool {
+	logger.Debug("start")
+
+	err := cv.SetTTL(ttl)
+	if err == baggageclaim.ErrVolumeNotFound {
+		logger.Info("volume-disappeared")
+		return false
+	}
+
+	if err != nil {
+		logger.Error("failed", err)
+	} else {
+		logger.Debug("done")
+	}
+
+	return true
 }

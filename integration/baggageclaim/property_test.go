@@ -93,7 +93,9 @@ var _ = Describe("Properties", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		volume.Destroy()
+		volume.Release(nil)
+
+		time.Sleep(2 * time.Second)
 
 		err = volume.SetProperty("some", "property")
 		Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))

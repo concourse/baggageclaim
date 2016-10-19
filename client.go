@@ -77,6 +77,10 @@ type Volume interface {
 	// returned if these could not be retrieved.
 	Properties() (VolumeProperties, error)
 
+	// Release stops the Volume being kept alive by the server. A final TTL can
+	// be specified.
+	Release(*time.Duration)
+
 	// Size returns the exclusive size of the volume on disk in bytes
 	SizeInBytes() (int64, error)
 
