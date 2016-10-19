@@ -133,7 +133,6 @@ func (bcr *BaggageClaimRunner) CurrentHandles() []string {
 
 	for _, v := range volumes {
 		handles = append(handles, v.Handle())
-		v.Release(nil)
 	}
 
 	return handles
