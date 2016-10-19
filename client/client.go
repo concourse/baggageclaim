@@ -343,30 +343,6 @@ func (c *client) setTTL(logger lager.Logger, handle string, ttl time.Duration) e
 	return nil
 }
 
-func (c *client) destroy(logger lager.Logger, handle string) error {
-	request, err := c.requestGenerator.CreateRequest(baggageclaim.DestroyVolume, rata.Params{
-		"handle": handle,
-	}, nil)
-	if err != nil {
-		return err
-	}
-
-	request.Header.Add("Content-type", "application/json")
-
-	response, err := c.httpClient(logger).Do(request)
-	if err != nil {
-		return err
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode != 204 {
-		return getError(response)
-	}
-
-	return nil
-}
-
 func (c *client) setProperty(logger lager.Logger, handle string, propertyName string, propertyValue string) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.PropertyRequest{
