@@ -81,7 +81,7 @@ var _ = Describe("reaping corrupted volumes", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		propertiesDataPath := filepath.Join(parentVolume.Path()[:125], propertiesFileName)
+		propertiesDataPath := filepath.Join(filepath.Dir(parentVolume.Path()), propertiesFileName)
 
 		err = overwriteData(propertiesDataPath)
 		Expect(err).NotTo(HaveOccurred())
