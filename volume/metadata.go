@@ -10,8 +10,9 @@ import (
 type VolumeState string
 
 const (
-	propertiesFileName = "properties.json"
-	ttlFileName        = "ttl.json"
+	propertiesFileName   = "properties.json"
+	ttlFileName          = "ttl.json"
+	isPrivilegedFileName = "privileged.json"
 )
 
 type Metadata struct {
@@ -64,6 +65,18 @@ func (md *Metadata) StoreTTL(ttl TTL) (time.Time, error) {
 	return md.ttlFile().WriteTTL(ttl)
 }
 
+func (md *Metadata) isPrivilegedFile() *isPrivilegedFile {
+	return &isPrivilegedFile{path: filepath.Join(md.path, isPrivilegedFileName)}
+}
+
+func (md *Metadata) IsPrivileged() (bool, error) {
+	return md.isPrivilegedFile().IsPrivileged()
+}
+
+func (md *Metadata) StorePrivileged(isPrivileged bool) error {
+	return md.isPrivilegedFile().WritePrivileged(isPrivileged)
+}
+
 func (md *Metadata) ExpiresAt() (time.Time, error) {
 	properties, err := md.ttlFile().Properties()
 	if err != nil {
@@ -108,6 +121,25 @@ func (tf *ttlFile) Properties() (ttlProperties, error) {
 	}
 
 	return properties, nil
+}
+
+type isPrivilegedFile struct {
+	path string
+}
+
+func (ipf *isPrivilegedFile) WritePrivileged(isPrivileged bool) error {
+	return writeMetadataFile(ipf.path, isPrivileged)
+}
+
+func (ipf *isPrivilegedFile) IsPrivileged() (bool, error) {
+	var isPrivileged bool
+
+	err := readMetadataFile(ipf.path, &isPrivileged)
+	if err != nil {
+		return false, err
+	}
+
+	return isPrivileged, nil
 }
 
 func readMetadataFile(path string, properties interface{}) error {

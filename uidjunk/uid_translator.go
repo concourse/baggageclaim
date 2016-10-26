@@ -3,11 +3,12 @@ package uidjunk
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"syscall"
 )
 
 type UidTranslator struct {
-	uidMappings StringMapper
-	gidMappings StringMapper
+	maxID int
 
 	getuidgid func(os.FileInfo) (int, int, error)
 	chown     func(path string, uid, gid int) error
@@ -22,17 +23,16 @@ type StringMapper interface {
 	Mapper
 }
 
-func NewUidTranslator(uidMappings StringMapper, gidMappings StringMapper) *UidTranslator {
+func NewUidTranslator(maxID int) *UidTranslator {
 	return &UidTranslator{
-		uidMappings: uidMappings,
-		gidMappings: gidMappings,
+		maxID: maxID,
 
 		getuidgid: getuidgid,
 		chown:     os.Lchown,
 	}
 }
 
-func (u UidTranslator) Translate(path string, info os.FileInfo, err error) error {
+func (u UidTranslator) TranslatePath(path string, info os.FileInfo, err error) error {
 	uid, gid, _ := u.getuidgid(info)
 	touid, togid := u.uidMappings.Map(uid), u.gidMappings.Map(gid)
 
@@ -41,6 +41,15 @@ func (u UidTranslator) Translate(path string, info os.FileInfo, err error) error
 	}
 
 	return nil
+}
+
+func (u UidTranslator) TranslateCommand(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags:                 syscall.CLONE_NEWUSER,
+		UidMappings:                u.uidMappings,
+		GidMappings:                u.gidMappings,
+		GidMappingsEnableSetgroups: true,
+	}
 }
 
 func (u UidTranslator) CacheKey() string {

@@ -92,10 +92,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 			},
 		}
 
-		uidTranslator := uidjunk.NewUidTranslator(
-			mappingList,
-			mappingList,
-		)
+		uidTranslator := uidjunk.NewUidTranslator(maxId)
 
 		namespacer = &uidjunk.UidNamespacer{
 			Translator: uidTranslator,

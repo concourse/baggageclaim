@@ -32,6 +32,9 @@ type FilesystemVolume interface {
 	LoadTTL() (TTL, time.Time, error)
 	StoreTTL(TTL) (time.Time, error)
 
+	LoadPrivileged() (bool, error)
+	StorePrivileged(bool) error
+
 	Parent() (FilesystemLiveVolume, bool, error)
 
 	Destroy() error
@@ -234,6 +237,14 @@ func (base *baseVolume) LoadTTL() (TTL, time.Time, error) {
 
 func (base *baseVolume) StoreTTL(ttl TTL) (time.Time, error) {
 	return (&Metadata{base.dir}).StoreTTL(ttl)
+}
+
+func (base *baseVolume) LoadPrivileged() (bool, error) {
+	return (&Metadata{base.dir}).IsPrivileged()
+}
+
+func (base *baseVolume) StorePrivileged(isPrivileged bool) error {
+	return (&Metadata{base.dir}).StorePrivileged(isPrivileged)
 }
 
 func (base *baseVolume) Parent() (FilesystemLiveVolume, bool, error) {

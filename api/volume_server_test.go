@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"syscall"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -139,10 +141,11 @@ var _ = Describe("Volume Server", func() {
 		})
 	})
 
-	Describe("streaming tar files into volumes", func() {
+	FDescribe("streaming tar files into volumes", func() {
 		var (
-			myVolume  volume.Volume
-			tarBuffer *(bytes.Buffer)
+			myVolume     volume.Volume
+			tarBuffer    *(bytes.Buffer)
+			isPrivileged bool
 		)
 
 		JustBeforeEach(func() {
@@ -153,6 +156,7 @@ var _ = Describe("Volume Server", func() {
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
+				Privileged: isPrivileged,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -195,6 +199,65 @@ var _ = Describe("Volume Server", func() {
 				Expect(tarContentsPath).To(BeAnExistingFile())
 
 				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+			})
+
+			Context("when volume is not privileged", func() {
+				BeforeEach(func() {
+					isPrivileged = false
+				})
+
+				It("namespaces volume path", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarInfoPath).To(BeAnExistingFile())
+
+					stat, err := os.Stat(tarInfoPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					maxUID := uidjunk.MustGetMaxValidUID()
+					maxGID := uidjunk.MustGetMaxValidGID()
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
+					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+				})
+			})
+
+			Context("when volume privileged", func() {
+				BeforeEach(func() {
+					isPrivileged = true
+				})
+
+				It("namespaces volume path", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarInfoPath).To(BeAnExistingFile())
+
+					stat, err := os.Stat(tarInfoPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(0)))
+					Expect(sysStat.Gid).To(Equal(uint32(0)))
+				})
 			})
 		})
 

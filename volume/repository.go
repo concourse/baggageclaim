@@ -14,7 +14,7 @@ type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, error)
 	GetVolume(handle string) (Volume, bool, error)
 	GetVolumeStats(handle string) (VolumeStats, bool, error)
-	CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
+	CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error)
 	DestroyVolume(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
@@ -71,7 +71,7 @@ func (repo *repository) DestroyVolume(handle string) error {
 	return nil
 }
 
-func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
+func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
 	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
 
 	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem)
@@ -98,6 +98,12 @@ func (repo *repository) CreateVolume(handle string, strategy Strategy, propertie
 	expiresAt, err := initVolume.StoreTTL(ttl)
 	if err != nil {
 		logger.Error("failed-to-set-properties", err)
+		return Volume{}, err
+	}
+
+	err = initVolume.StorePrivileged(isPrivileged)
+	if err != nil {
+		logger.Error("failed-to-set-privileged", err)
 		return Volume{}, err
 	}
 
@@ -312,11 +318,17 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 		return Volume{}, err
 	}
 
+	isPrivileged, err := liveVolume.LoadPrivileged()
+	if err != nil {
+		return Volume{}, err
+	}
+
 	return Volume{
 		Handle:     liveVolume.Handle(),
 		Path:       liveVolume.DataPath(),
 		Properties: properties,
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
+		Privileged: isPrivileged,
 	}, nil
 }

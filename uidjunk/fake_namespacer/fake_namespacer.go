@@ -14,12 +14,12 @@ type FakeNamespacer struct {
 	cacheKeyReturns     struct {
 		result1 string
 	}
-	NamespaceStub        func(rootfsPath string) error
-	namespaceMutex       sync.RWMutex
-	namespaceArgsForCall []struct {
+	NamespacePathStub        func(rootfsPath string) error
+	namespacePathMutex       sync.RWMutex
+	namespacePathArgsForCall []struct {
 		rootfsPath string
 	}
-	namespaceReturns struct {
+	namespacePathReturns struct {
 		result1 error
 	}
 	invocations      map[string][][]interface{}
@@ -51,35 +51,35 @@ func (fake *FakeNamespacer) CacheKeyReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeNamespacer) Namespace(rootfsPath string) error {
-	fake.namespaceMutex.Lock()
-	fake.namespaceArgsForCall = append(fake.namespaceArgsForCall, struct {
+func (fake *FakeNamespacer) NamespacePath(rootfsPath string) error {
+	fake.namespacePathMutex.Lock()
+	fake.namespacePathArgsForCall = append(fake.namespacePathArgsForCall, struct {
 		rootfsPath string
 	}{rootfsPath})
-	fake.recordInvocation("Namespace", []interface{}{rootfsPath})
-	fake.namespaceMutex.Unlock()
-	if fake.NamespaceStub != nil {
-		return fake.NamespaceStub(rootfsPath)
+	fake.recordInvocation("NamespacePath", []interface{}{rootfsPath})
+	fake.namespacePathMutex.Unlock()
+	if fake.NamespacePathStub != nil {
+		return fake.NamespacePathStub(rootfsPath)
 	} else {
-		return fake.namespaceReturns.result1
+		return fake.namespacePathReturns.result1
 	}
 }
 
-func (fake *FakeNamespacer) NamespaceCallCount() int {
-	fake.namespaceMutex.RLock()
-	defer fake.namespaceMutex.RUnlock()
-	return len(fake.namespaceArgsForCall)
+func (fake *FakeNamespacer) NamespacePathCallCount() int {
+	fake.namespacePathMutex.RLock()
+	defer fake.namespacePathMutex.RUnlock()
+	return len(fake.namespacePathArgsForCall)
 }
 
-func (fake *FakeNamespacer) NamespaceArgsForCall(i int) string {
-	fake.namespaceMutex.RLock()
-	defer fake.namespaceMutex.RUnlock()
-	return fake.namespaceArgsForCall[i].rootfsPath
+func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) string {
+	fake.namespacePathMutex.RLock()
+	defer fake.namespacePathMutex.RUnlock()
+	return fake.namespacePathArgsForCall[i].rootfsPath
 }
 
-func (fake *FakeNamespacer) NamespaceReturns(result1 error) {
-	fake.NamespaceStub = nil
-	fake.namespaceReturns = struct {
+func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {
+	fake.NamespacePathStub = nil
+	fake.namespacePathReturns = struct {
 		result1 error
 	}{result1}
 }
@@ -89,8 +89,8 @@ func (fake *FakeNamespacer) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.cacheKeyMutex.RLock()
 	defer fake.cacheKeyMutex.RUnlock()
-	fake.namespaceMutex.RLock()
-	defer fake.namespaceMutex.RUnlock()
+	fake.namespacePathMutex.RLock()
+	defer fake.namespacePathMutex.RUnlock()
 	return fake.invocations
 }
 
