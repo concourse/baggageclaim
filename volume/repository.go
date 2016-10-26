@@ -8,15 +8,17 @@ import (
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
+var ErrVolumeIsCorrupted = errors.New("volume is corrupted")
 
 //go:generate counterfeiter . Repository
 
 type Repository interface {
-	ListVolumes(queryProperties Properties) (Volumes, error)
+	ListVolumes(queryProperties Properties) (Volumes, []string, error)
 	GetVolume(handle string) (Volume, bool, error)
 	GetVolumeStats(handle string) (VolumeStats, bool, error)
 	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
 	DestroyVolume(handle string) error
+	DestroyVolumeAndDescendants(handle string) error
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
 	SetTTL(handle string, ttl uint) error
@@ -69,7 +71,45 @@ func (repo *repository) DestroyVolume(handle string) error {
 		return err
 	}
 
+	logger.Info("destroyed")
+
 	return nil
+}
+
+func (repo *repository) DestroyVolumeAndDescendants(handle string) error {
+	allVolumes, err := repo.filesystem.ListVolumes()
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, candidate := range allVolumes {
+		if candidate.Handle() == handle {
+			found = true
+		}
+	}
+	if !found {
+		return ErrVolumeDoesNotExist
+	}
+
+	for _, candidate := range allVolumes {
+		candidateParent, found, err := candidate.Parent()
+		if err != nil {
+			continue
+		}
+		if !found {
+			continue
+		}
+
+		if candidateParent.Handle() == handle {
+			err = repo.DestroyVolumeAndDescendants(candidate.Handle())
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return repo.DestroyVolume(handle)
 }
 
 func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
@@ -121,16 +161,17 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	}, nil
 }
 
-func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error) {
+func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, []string, error) {
 	logger := repo.logger.Session("list-volumes", lager.Data{})
 
 	liveVolumes, err := repo.filesystem.ListVolumes()
 	if err != nil {
 		logger.Error("failed-to-list-volumes", err)
-		return Volumes{}, err
+		return nil, nil, err
 	}
 
-	response := make(Volumes, 0, len(liveVolumes))
+	healthyVolumes := make(Volumes, 0, len(liveVolumes))
+	corruptedVolumeHandles := []string{}
 
 	for _, liveVolume := range liveVolumes {
 		volume, err := repo.volumeFrom(liveVolume)
@@ -139,16 +180,17 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, error)
 		}
 
 		if err != nil {
+			corruptedVolumeHandles = append(corruptedVolumeHandles, liveVolume.Handle())
 			logger.Error("failed-hydrating-volume", err)
-			return nil, err
+			continue
 		}
 
 		if volume.Properties.HasProperties(queryProperties) {
-			response = append(response, volume)
+			healthyVolumes = append(healthyVolumes, volume)
 		}
 	}
 
-	return response, nil
+	return healthyVolumes, corruptedVolumeHandles, nil
 }
 
 func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
@@ -298,7 +340,7 @@ func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
 	volume, err := repo.volumeFrom(parentVolume)
 	if err != nil {
 		logger.Error("failed-to-hydrate-parent-volume", err)
-		return Volume{}, false, err
+		return Volume{}, true, ErrVolumeIsCorrupted
 	}
 
 	return volume, true, nil

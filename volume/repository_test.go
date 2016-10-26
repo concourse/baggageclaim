@@ -245,12 +245,106 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
+	Describe("DestroyVolumeAndDescendants", func() {
+		var destroyErr error
+
+		JustBeforeEach(func() {
+			destroyErr = repository.DestroyVolumeAndDescendants("parent")
+		})
+
+		Context("when the volume and its children can be found", func() {
+			var (
+				fakeParent     *volumefakes.FakeFilesystemLiveVolume
+				fakeChild      *volumefakes.FakeFilesystemLiveVolume
+				fakeSibling    *volumefakes.FakeFilesystemLiveVolume
+				fakeGrandchild *volumefakes.FakeFilesystemLiveVolume
+				fakeRoommate   *volumefakes.FakeFilesystemLiveVolume
+			)
+
+			BeforeEach(func() {
+				fakeParent = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeChild = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeSibling = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeGrandchild = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeRoommate = new(volumefakes.FakeFilesystemLiveVolume)
+
+				fakeParent.HandleReturns("parent")
+				fakeChild.HandleReturns("child")
+				fakeSibling.HandleReturns("sibling")
+				fakeGrandchild.HandleReturns("grandchild")
+				fakeRoommate.HandleReturns("unrelated")
+
+				fakeChild.ParentReturns(fakeParent, true, nil)
+				fakeSibling.ParentReturns(fakeParent, true, nil)
+				fakeGrandchild.ParentReturns(fakeChild, true, nil)
+
+				fakeFilesystem.ListVolumesReturns([]volume.FilesystemLiveVolume{
+					fakeParent,
+					fakeChild,
+					fakeSibling,
+					fakeGrandchild,
+					fakeRoommate,
+				}, nil)
+				fakeFilesystem.LookupVolumeStub = func(handle string) (volume.FilesystemLiveVolume, bool, error) {
+					if handle == "child" {
+						return fakeChild, true, nil
+					}
+					if handle == "parent" {
+						return fakeParent, true, nil
+					}
+					if handle == "grandchild" {
+						return fakeGrandchild, true, nil
+					}
+					if handle == "sibling" {
+						return fakeSibling, true, nil
+					}
+					if handle == "unrelated" {
+						return fakeRoommate, true, nil
+					}
+					return nil, false, nil
+				}
+			})
+
+			It("wipes out the whole family", func() {
+				Expect(fakeParent.DestroyCallCount()).To(Equal(1))
+				Expect(fakeChild.DestroyCallCount()).To(Equal(1))
+				Expect(fakeSibling.DestroyCallCount()).To(Equal(1))
+				Expect(fakeGrandchild.DestroyCallCount()).To(Equal(1))
+				Expect(fakeRoommate.DestroyCallCount()).To(Equal(0))
+			})
+		})
+
+		Context("when looking up the volume fails", func() {
+			disaster := errors.New("nope")
+
+			BeforeEach(func() {
+				fakeFilesystem.ListVolumesReturns(nil, disaster)
+			})
+
+			It("returns the error", func() {
+				Expect(destroyErr).To(Equal(disaster))
+			})
+		})
+
+		Context("when the volume can not be found", func() {
+			BeforeEach(func() {
+				fakeFilesystem.ListVolumesReturns([]volume.FilesystemLiveVolume{}, nil)
+			})
+
+			It("returns ErrVolumeDoesNotExist and does not recurse", func() {
+				Expect(destroyErr).To(Equal(volume.ErrVolumeDoesNotExist))
+				Expect(fakeFilesystem.ListVolumesCallCount()).To(Equal(1))
+			})
+		})
+	})
+
 	Describe("ListVolumes", func() {
 		var (
 			queryProperties volume.Properties
 
-			volumes volume.Volumes
-			listErr error
+			corruptedVolumes []string
+			volumes          volume.Volumes
+			listErr          error
 		)
 
 		BeforeEach(func() {
@@ -258,7 +352,7 @@ var _ = Describe("Repository", func() {
 		})
 
 		JustBeforeEach(func() {
-			volumes, listErr = repository.ListVolumes(queryProperties)
+			volumes, corruptedVolumes, listErr = repository.ListVolumes(queryProperties)
 		})
 
 		Context("when volumes are found in the filesystem", func() {
@@ -376,14 +470,36 @@ var _ = Describe("Repository", func() {
 					})
 
 					Context("with any other error", func() {
-						disaster := errors.New("nope")
-
 						BeforeEach(func() {
-							fakeVolume2.LoadPropertiesReturns(nil, disaster)
+							fakeVolume2.LoadPropertiesReturns(nil, errors.New("nope"))
 						})
 
-						It("returns the error", func() {
-							Expect(listErr).To(Equal(disaster))
+						It("returns corrupted and working volumes", func() {
+							Expect(volumes).To(Equal(volume.Volumes{
+								{
+									Handle:     "handle-1",
+									Path:       "handle-1-data-path",
+									Properties: volume.Properties{"a": "a", "b": "b"},
+									TTL:        1,
+									ExpiresAt:  time.Unix(1, 0),
+								},
+								{
+									Handle:     "handle-3",
+									Path:       "handle-3-data-path",
+									Properties: volume.Properties{"b": "b"},
+									TTL:        3,
+									ExpiresAt:  time.Unix(3, 0),
+								},
+								{
+									Handle:     "handle-4",
+									Path:       "handle-4-data-path",
+									Properties: volume.Properties{},
+									TTL:        4,
+									ExpiresAt:  time.Unix(4, 0),
+								},
+							}))
+
+							Expect(corruptedVolumes).To(ConsistOf(fakeVolume2.Handle()))
 						})
 					})
 				})
@@ -433,14 +549,22 @@ var _ = Describe("Repository", func() {
 					})
 
 					Context("with any other error", func() {
-						disaster := errors.New("nope")
-
 						BeforeEach(func() {
-							fakeVolume2.LoadPropertiesReturns(nil, disaster)
+							fakeVolume2.LoadPropertiesReturns(nil, errors.New("nope"))
 						})
 
-						It("returns the error", func() {
-							Expect(listErr).To(Equal(disaster))
+						It("returns corrupted and working volumes", func() {
+							Expect(volumes).To(Equal(volume.Volumes{
+								{
+									Handle:     "handle-1",
+									Path:       "handle-1-data-path",
+									Properties: volume.Properties{"a": "a", "b": "b"},
+									TTL:        1,
+									ExpiresAt:  time.Unix(1, 0),
+								},
+							}))
+
+							Expect(corruptedVolumes).To(ConsistOf(fakeVolume2.Handle()))
 						})
 					})
 				})
@@ -801,8 +925,8 @@ var _ = Describe("Repository", func() {
 						parentVolume.LoadPropertiesReturns(nil, disaster)
 					})
 
-					It("returns the error", func() {
-						Expect(parentErr).To(Equal(disaster))
+					It("returns the special error", func() {
+						Expect(parentErr).To(Equal(volume.ErrVolumeIsCorrupted))
 					})
 				})
 			})
@@ -823,18 +947,6 @@ var _ = Describe("Repository", func() {
 			})
 
 			Context("when getting the parent volume fails", func() {
-				disaster := errors.New("nope")
-
-				BeforeEach(func() {
-					fakeVolume.ParentReturns(nil, false, disaster)
-				})
-
-				It("returns the error", func() {
-					Expect(parentErr).To(Equal(disaster))
-				})
-			})
-
-			Context("when getting the parent fails", func() {
 				disaster := errors.New("nope")
 
 				BeforeEach(func() {

@@ -25,7 +25,7 @@ func NewReaper(
 }
 
 func (reaper *Reaper) Reap(logger lager.Logger) error {
-	volumes, err := reaper.repo.ListVolumes(volume.Properties{})
+	volumes, corruptedHandles, err := reaper.repo.ListVolumes(volume.Properties{})
 	if err != nil {
 		return fmt.Errorf("failed to list volumes: %s", err)
 	}
@@ -34,10 +34,13 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 
 	hasChildren := map[string]bool{}
 
-	for _, volume := range volumes {
-		parentVolume, found, err := reaper.repo.VolumeParent(volume.Handle)
+	for _, maybeChildVolume := range volumes {
+		parentVolume, found, err := reaper.repo.VolumeParent(maybeChildVolume.Handle)
 		if err != nil {
-			return fmt.Errorf("failed to determine parent of volume '%s': %s", volume.Handle, err)
+			if err == volume.ErrVolumeIsCorrupted {
+				continue
+			}
+			return fmt.Errorf("failed to determine parent of volume '%s': %s", maybeChildVolume.Handle, err)
 		}
 
 		if found {
@@ -71,6 +74,22 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 
 				continue
 			}
+		}
+	}
+
+	for _, handle := range corruptedHandles {
+		logger.Info("reaping-corrupted-volume", lager.Data{
+			"handle": handle,
+		})
+
+		err = reaper.repo.DestroyVolumeAndDescendants(handle)
+		if err != nil {
+			destroyErrs = multierror.Append(
+				destroyErrs,
+				fmt.Errorf("failed to destroy %s: %s", handle, err),
+			)
+
+			continue
 		}
 	}
 
