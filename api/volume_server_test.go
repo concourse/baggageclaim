@@ -61,20 +61,25 @@ var _ = Describe("Volume Server", func() {
 			volume.NewLockManager(),
 		)
 
-		strategerizer := volume.NewStrategerizer(&uidgid.NoopNamespacer{})
+		var namespacer uidgid.Namespacer
+		if runtime.GOOS == "linux" {
+			maxUID, err := uidgid.DefaultUIDMap.MaxValid()
+			Expect(err).NotTo(HaveOccurred())
 
-		maxUID, err := uidgid.DefaultUIDMap.MaxValid()
-		Expect(err).NotTo(HaveOccurred())
+			maxGID, err := uidgid.DefaultGIDMap.MaxValid()
+			Expect(err).NotTo(HaveOccurred())
 
-		maxGID, err := uidgid.DefaultGIDMap.MaxValid()
-		Expect(err).NotTo(HaveOccurred())
-
-		maxId := uidgid.Min(maxUID, maxGID)
-		Translator := uidgid.NewTranslator(maxId)
-		namespacer := &uidgid.UidNamespacer{
-			Translator: Translator,
-			Logger:     logger.Session("uid-namespacer"),
+			maxId := uidgid.Min(maxUID, maxGID)
+			Translator := uidgid.NewTranslator(maxId)
+			namespacer = &uidgid.UidNamespacer{
+				Translator: Translator,
+				Logger:     logger.Session("uid-namespacer"),
+			}
+		} else {
+			namespacer = &uidgid.NoopNamespacer{}
 		}
+
+		strategerizer := volume.NewStrategerizer(namespacer)
 
 		handler, err = api.NewHandler(logger, strategerizer, namespacer, repo)
 		Expect(err).NotTo(HaveOccurred())

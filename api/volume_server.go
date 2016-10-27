@@ -330,7 +330,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 
 	srcPath := filepath.Join(vol.Path, subPath)
 
-	err = vs.streamOutSrc(srcPath, w)
+	err = vs.streamOutSrc(vol, srcPath, w)
 	if err != nil {
 		if os.IsNotExist(err) {
 			vs.logger.Error("artifact-source-not-found", err, lager.Data{
@@ -356,7 +356,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (vs *VolumeServer) streamOutSrc(srcPath string, w http.ResponseWriter) error {
+func (vs *VolumeServer) streamOutSrc(vol volume.Volume, srcPath string, w http.ResponseWriter) error {
 	fileInfo, err := os.Stat(srcPath)
 	if err != nil {
 		return err
@@ -374,6 +374,10 @@ func (vs *VolumeServer) streamOutSrc(srcPath string, w http.ResponseWriter) erro
 
 	tarCommand := exec.Command("tar", "-c", tarCommandPath)
 	tarCommand.Dir = tarCommandDir
+
+	if !vol.Privileged {
+		vs.namespacer.NamespaceCommand(tarCommand)
+	}
 
 	readCloser, err := tarCommand.StdoutPipe()
 	if err != nil {
