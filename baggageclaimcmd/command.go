@@ -10,7 +10,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/reaper"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/tedsuo/ifrit"
@@ -71,35 +71,21 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		volumeDriver = &driver.NaiveDriver{}
 	}
 
-	var namespacer uidjunk.Namespacer
+	var namespacer uidgid.Namespacer
 
-	maxUID, maxUIDErr := uidjunk.DefaultUIDMap.MaxValid()
-	maxGID, maxGIDErr := uidjunk.DefaultGIDMap.MaxValid()
+	maxUID, maxUIDErr := uidgid.DefaultUIDMap.MaxValid()
+	maxGID, maxGIDErr := uidgid.DefaultGIDMap.MaxValid()
 
 	if runtime.GOOS == "linux" && maxUIDErr == nil && maxGIDErr == nil {
-		maxId := uidjunk.Min(maxUID, maxGID)
+		maxId := uidgid.Min(maxUID, maxGID)
+		Translator := uidgid.NewTranslator(maxId)
 
-		mappingList := uidjunk.MappingList{
-			{
-				FromID: 0,
-				ToID:   maxId,
-				Size:   1,
-			},
-			{
-				FromID: 1,
-				ToID:   1,
-				Size:   maxId - 1,
-			},
-		}
-
-		uidTranslator := uidjunk.NewUidTranslator(maxId)
-
-		namespacer = &uidjunk.UidNamespacer{
-			Translator: uidTranslator,
+		namespacer = &uidgid.UidNamespacer{
+			Translator: Translator,
 			Logger:     logger.Session("uid-namespacer"),
 		}
 	} else {
-		namespacer = uidjunk.NoopNamespacer{}
+		namespacer = uidgid.NoopNamespacer{}
 	}
 
 	locker := volume.NewLockManager()
@@ -120,6 +106,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
 		strategerizer,
+		namespacer,
 		volumeRepo,
 	)
 	if err != nil {

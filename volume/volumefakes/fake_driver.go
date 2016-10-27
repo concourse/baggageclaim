@@ -42,8 +42,6 @@ type FakeDriver struct {
 	createCopyOnWriteLayerReturns struct {
 		result1 error
 	}
-	invocations      map[string][][]interface{}
-	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeDriver) CreateVolume(path string) error {
@@ -51,7 +49,6 @@ func (fake *FakeDriver) CreateVolume(path string) error {
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
 		path string
 	}{path})
-	fake.recordInvocation("CreateVolume", []interface{}{path})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(path)
@@ -84,7 +81,6 @@ func (fake *FakeDriver) DestroyVolume(path string) error {
 	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
 		path string
 	}{path})
-	fake.recordInvocation("DestroyVolume", []interface{}{path})
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
 		return fake.DestroyVolumeStub(path)
@@ -117,7 +113,6 @@ func (fake *FakeDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	fake.getVolumeSizeInBytesArgsForCall = append(fake.getVolumeSizeInBytesArgsForCall, struct {
 		path string
 	}{path})
-	fake.recordInvocation("GetVolumeSizeInBytes", []interface{}{path})
 	fake.getVolumeSizeInBytesMutex.Unlock()
 	if fake.GetVolumeSizeInBytesStub != nil {
 		return fake.GetVolumeSizeInBytesStub(path)
@@ -152,7 +147,6 @@ func (fake *FakeDriver) CreateCopyOnWriteLayer(path string, parent string) error
 		path   string
 		parent string
 	}{path, parent})
-	fake.recordInvocation("CreateCopyOnWriteLayer", []interface{}{path, parent})
 	fake.createCopyOnWriteLayerMutex.Unlock()
 	if fake.CreateCopyOnWriteLayerStub != nil {
 		return fake.CreateCopyOnWriteLayerStub(path, parent)
@@ -178,32 +172,6 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerReturns(result1 error) {
 	fake.createCopyOnWriteLayerReturns = struct {
 		result1 error
 	}{result1}
-}
-
-func (fake *FakeDriver) Invocations() map[string][][]interface{} {
-	fake.invocationsMutex.RLock()
-	defer fake.invocationsMutex.RUnlock()
-	fake.createVolumeMutex.RLock()
-	defer fake.createVolumeMutex.RUnlock()
-	fake.destroyVolumeMutex.RLock()
-	defer fake.destroyVolumeMutex.RUnlock()
-	fake.getVolumeSizeInBytesMutex.RLock()
-	defer fake.getVolumeSizeInBytesMutex.RUnlock()
-	fake.createCopyOnWriteLayerMutex.RLock()
-	defer fake.createCopyOnWriteLayerMutex.RUnlock()
-	return fake.invocations
-}
-
-func (fake *FakeDriver) recordInvocation(key string, args []interface{}) {
-	fake.invocationsMutex.Lock()
-	defer fake.invocationsMutex.Unlock()
-	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
-	}
-	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
-	}
-	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ volume.Driver = new(FakeDriver)

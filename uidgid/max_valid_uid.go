@@ -1,4 +1,4 @@
-package uidjunk
+package uidgid
 
 import (
 	"bufio"

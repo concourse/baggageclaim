@@ -1,7 +1,6 @@
-package uidjunk
+package uidgid
 
 import (
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -13,13 +12,6 @@ type Namespacer interface {
 	CacheKey() string
 	NamespacePath(rootfsPath string) error
 	NamespaceCommand(cmd *exec.Cmd)
-}
-
-//go:generate counterfeiter -o fake_translator/fake_translator.go . Translator
-type Translator interface {
-	CacheKey() string
-	TranslatePath(path string, info os.FileInfo, err error) error
-	TranslateCommand(exec.Cmd) exec.Cmd
 }
 
 type UidNamespacer struct {

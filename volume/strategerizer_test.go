@@ -3,7 +3,7 @@ package volume_test
 import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/baggageclaimfakes"
-	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
+	"github.com/concourse/baggageclaim/uidgid/fake_namespacer"
 	"github.com/concourse/baggageclaim/volume"
 
 	. "github.com/onsi/ginkgo"

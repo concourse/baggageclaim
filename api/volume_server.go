@@ -12,7 +12,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/tedsuo/rata"
 )
@@ -32,7 +32,7 @@ var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
 	strategerizer volume.Strategerizer
-	namespacer    uidjunk.Namespacer
+	namespacer    uidgid.Namespacer
 	volumeRepo    volume.Repository
 
 	logger lager.Logger
@@ -41,7 +41,7 @@ type VolumeServer struct {
 func NewVolumeServer(
 	logger lager.Logger,
 	strategerizer volume.Strategerizer,
-	namespacer uidjunk.Namespacer,
+	namespacer uidgid.Namespacer,
 	volumeRepo volume.Repository,
 ) *VolumeServer {
 	return &VolumeServer{
@@ -263,11 +263,15 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !vol.Privileged {
+		vs.namespacer.NamespacePath(vol.Path)
+	}
+
 	tarCommand := exec.Command("tar", "-x", "-C", destinationPath)
 	tarCommand.Stdin = req.Body
 
 	if !vol.Privileged {
-		tarCommand = vs.namespacer.NamespaceCommand(tarCommand)
+		vs.namespacer.NamespaceCommand(tarCommand)
 	}
 
 	err = tarCommand.Run()

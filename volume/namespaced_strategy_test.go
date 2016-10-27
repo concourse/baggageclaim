@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"code.cloudfoundry.org/lager/lagertest"
-	"github.com/concourse/baggageclaim/uidjunk/fake_namespacer"
+	"github.com/concourse/baggageclaim/uidgid/fake_namespacer"
 	. "github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
 
@@ -61,7 +61,7 @@ var _ = Describe("NamespacedStrategy", func() {
 
 			Context("when namespacing the data dir succeeds", func() {
 				BeforeEach(func() {
-					fakeNamespacer.NamespaceReturns(nil)
+					fakeNamespacer.NamespacePathReturns(nil)
 				})
 
 				It("succeeds", func() {
@@ -79,7 +79,7 @@ var _ = Describe("NamespacedStrategy", func() {
 				})
 
 				It("namespaced the data path", func() {
-					path := fakeNamespacer.NamespaceArgsForCall(0)
+					path := fakeNamespacer.NamespacePathArgsForCall(0)
 					Expect(path).To(Equal("some-data-path"))
 				})
 			})
@@ -88,7 +88,7 @@ var _ = Describe("NamespacedStrategy", func() {
 				disaster := errors.New("nope")
 
 				BeforeEach(func() {
-					fakeNamespacer.NamespaceReturns(disaster)
+					fakeNamespacer.NamespacePathReturns(disaster)
 				})
 
 				It("returns the error", func() {

@@ -20,8 +20,6 @@ type FakeStrategy struct {
 		result1 volume.FilesystemInitVolume
 		result2 error
 	}
-	invocations      map[string][][]interface{}
-	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volume.Filesystem) (volume.FilesystemInitVolume, error) {
@@ -31,7 +29,6 @@ func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volum
 		arg2 string
 		arg3 volume.Filesystem
 	}{arg1, arg2, arg3})
-	fake.recordInvocation("Materialize", []interface{}{arg1, arg2, arg3})
 	fake.materializeMutex.Unlock()
 	if fake.MaterializeStub != nil {
 		return fake.MaterializeStub(arg1, arg2, arg3)
@@ -58,26 +55,6 @@ func (fake *FakeStrategy) MaterializeReturns(result1 volume.FilesystemInitVolume
 		result1 volume.FilesystemInitVolume
 		result2 error
 	}{result1, result2}
-}
-
-func (fake *FakeStrategy) Invocations() map[string][][]interface{} {
-	fake.invocationsMutex.RLock()
-	defer fake.invocationsMutex.RUnlock()
-	fake.materializeMutex.RLock()
-	defer fake.materializeMutex.RUnlock()
-	return fake.invocations
-}
-
-func (fake *FakeStrategy) recordInvocation(key string, args []interface{}) {
-	fake.invocationsMutex.Lock()
-	defer fake.invocationsMutex.Unlock()
-	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
-	}
-	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
-	}
-	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ volume.Strategy = new(FakeStrategy)

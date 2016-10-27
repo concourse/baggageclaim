@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
@@ -101,8 +101,8 @@ var _ = Describe("Copy On Write Strategy", func() {
 					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
 					Expect(err).ToNot(HaveOccurred())
 
-					maxUID := uidjunk.MustGetMaxValidUID()
-					maxGID := uidjunk.MustGetMaxValidGID()
+					maxUID := uidgid.MustGetMaxValidUID()
+					maxGID := uidgid.MustGetMaxValidGID()
 
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))

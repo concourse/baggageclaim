@@ -41,8 +41,6 @@ type FakeClient struct {
 		result2 bool
 		result3 error
 	}
-	invocations      map[string][][]interface{}
-	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 string, arg3 baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
@@ -52,7 +50,6 @@ func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 string, arg3 baggag
 		arg2 string
 		arg3 baggageclaim.VolumeSpec
 	}{arg1, arg2, arg3})
-	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(arg1, arg2, arg3)
@@ -87,7 +84,6 @@ func (fake *FakeClient) ListVolumes(arg1 lager.Logger, arg2 baggageclaim.VolumeP
 		arg1 lager.Logger
 		arg2 baggageclaim.VolumeProperties
 	}{arg1, arg2})
-	fake.recordInvocation("ListVolumes", []interface{}{arg1, arg2})
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub(arg1, arg2)
@@ -122,7 +118,6 @@ func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggagecla
 		arg1 lager.Logger
 		arg2 string
 	}{arg1, arg2})
-	fake.recordInvocation("LookupVolume", []interface{}{arg1, arg2})
 	fake.lookupVolumeMutex.Unlock()
 	if fake.LookupVolumeStub != nil {
 		return fake.LookupVolumeStub(arg1, arg2)
@@ -150,30 +145,6 @@ func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2
 		result2 bool
 		result3 error
 	}{result1, result2, result3}
-}
-
-func (fake *FakeClient) Invocations() map[string][][]interface{} {
-	fake.invocationsMutex.RLock()
-	defer fake.invocationsMutex.RUnlock()
-	fake.createVolumeMutex.RLock()
-	defer fake.createVolumeMutex.RUnlock()
-	fake.listVolumesMutex.RLock()
-	defer fake.listVolumesMutex.RUnlock()
-	fake.lookupVolumeMutex.RLock()
-	defer fake.lookupVolumeMutex.RUnlock()
-	return fake.invocations
-}
-
-func (fake *FakeClient) recordInvocation(key string, args []interface{}) {
-	fake.invocationsMutex.Lock()
-	defer fake.invocationsMutex.Unlock()
-	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
-	}
-	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
-	}
-	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ baggageclaim.Client = new(FakeClient)

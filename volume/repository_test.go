@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Repository", func() {
+var _ = Describe("Repository", func() {
 	var (
 		logger         *lagertest.TestLogger
 		fakeFilesystem *volumefakes.FakeFilesystem

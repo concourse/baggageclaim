@@ -2,9 +2,10 @@
 package fake_namespacer
 
 import (
+	"os/exec"
 	"sync"
 
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type FakeNamespacer struct {
@@ -22,14 +23,16 @@ type FakeNamespacer struct {
 	namespacePathReturns struct {
 		result1 error
 	}
-	invocations      map[string][][]interface{}
-	invocationsMutex sync.RWMutex
+	NamespaceCommandStub        func(cmd *exec.Cmd)
+	namespaceCommandMutex       sync.RWMutex
+	namespaceCommandArgsForCall []struct {
+		cmd *exec.Cmd
+	}
 }
 
 func (fake *FakeNamespacer) CacheKey() string {
 	fake.cacheKeyMutex.Lock()
 	fake.cacheKeyArgsForCall = append(fake.cacheKeyArgsForCall, struct{}{})
-	fake.recordInvocation("CacheKey", []interface{}{})
 	fake.cacheKeyMutex.Unlock()
 	if fake.CacheKeyStub != nil {
 		return fake.CacheKeyStub()
@@ -56,7 +59,6 @@ func (fake *FakeNamespacer) NamespacePath(rootfsPath string) error {
 	fake.namespacePathArgsForCall = append(fake.namespacePathArgsForCall, struct {
 		rootfsPath string
 	}{rootfsPath})
-	fake.recordInvocation("NamespacePath", []interface{}{rootfsPath})
 	fake.namespacePathMutex.Unlock()
 	if fake.NamespacePathStub != nil {
 		return fake.NamespacePathStub(rootfsPath)
@@ -84,26 +86,27 @@ func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {
 	}{result1}
 }
 
-func (fake *FakeNamespacer) Invocations() map[string][][]interface{} {
-	fake.invocationsMutex.RLock()
-	defer fake.invocationsMutex.RUnlock()
-	fake.cacheKeyMutex.RLock()
-	defer fake.cacheKeyMutex.RUnlock()
-	fake.namespacePathMutex.RLock()
-	defer fake.namespacePathMutex.RUnlock()
-	return fake.invocations
+func (fake *FakeNamespacer) NamespaceCommand(cmd *exec.Cmd) {
+	fake.namespaceCommandMutex.Lock()
+	fake.namespaceCommandArgsForCall = append(fake.namespaceCommandArgsForCall, struct {
+		cmd *exec.Cmd
+	}{cmd})
+	fake.namespaceCommandMutex.Unlock()
+	if fake.NamespaceCommandStub != nil {
+		fake.NamespaceCommandStub(cmd)
+	}
 }
 
-func (fake *FakeNamespacer) recordInvocation(key string, args []interface{}) {
-	fake.invocationsMutex.Lock()
-	defer fake.invocationsMutex.Unlock()
-	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
-	}
-	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
-	}
-	fake.invocations[key] = append(fake.invocations[key], args)
+func (fake *FakeNamespacer) NamespaceCommandCallCount() int {
+	fake.namespaceCommandMutex.RLock()
+	defer fake.namespaceCommandMutex.RUnlock()
+	return len(fake.namespaceCommandArgsForCall)
 }
 
-var _ uidjunk.Namespacer = new(FakeNamespacer)
+func (fake *FakeNamespacer) NamespaceCommandArgsForCall(i int) *exec.Cmd {
+	fake.namespaceCommandMutex.RLock()
+	defer fake.namespaceCommandMutex.RUnlock()
+	return fake.namespaceCommandArgsForCall[i].cmd
+}
+
+var _ uidgid.Namespacer = new(FakeNamespacer)

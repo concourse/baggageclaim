@@ -2,13 +2,13 @@ package volume
 
 import (
 	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type NamespacedStrategy struct {
 	PreStrategy Strategy
 
-	Namespacer uidjunk.Namespacer
+	Namespacer uidgid.Namespacer
 }
 
 func (strategy NamespacedStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {

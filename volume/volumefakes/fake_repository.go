@@ -87,8 +87,6 @@ type FakeRepository struct {
 		result2 bool
 		result3 error
 	}
-	invocations      map[string][][]interface{}
-	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeRepository) ListVolumes(queryProperties volume.Properties) (volume.Volumes, error) {
@@ -96,7 +94,6 @@ func (fake *FakeRepository) ListVolumes(queryProperties volume.Properties) (volu
 	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct {
 		queryProperties volume.Properties
 	}{queryProperties})
-	fake.recordInvocation("ListVolumes", []interface{}{queryProperties})
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub(queryProperties)
@@ -130,7 +127,6 @@ func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, bool, error
 	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
 		handle string
 	}{handle})
-	fake.recordInvocation("GetVolume", []interface{}{handle})
 	fake.getVolumeMutex.Unlock()
 	if fake.GetVolumeStub != nil {
 		return fake.GetVolumeStub(handle)
@@ -165,7 +161,6 @@ func (fake *FakeRepository) GetVolumeStats(handle string) (volume.VolumeStats, b
 	fake.getVolumeStatsArgsForCall = append(fake.getVolumeStatsArgsForCall, struct {
 		handle string
 	}{handle})
-	fake.recordInvocation("GetVolumeStats", []interface{}{handle})
 	fake.getVolumeStatsMutex.Unlock()
 	if fake.GetVolumeStatsStub != nil {
 		return fake.GetVolumeStatsStub(handle)
@@ -204,7 +199,6 @@ func (fake *FakeRepository) CreateVolume(handle string, strategy volume.Strategy
 		ttlInSeconds uint
 		isPrivileged bool
 	}{handle, strategy, properties, ttlInSeconds, isPrivileged})
-	fake.recordInvocation("CreateVolume", []interface{}{handle, strategy, properties, ttlInSeconds, isPrivileged})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(handle, strategy, properties, ttlInSeconds, isPrivileged)
@@ -238,7 +232,6 @@ func (fake *FakeRepository) DestroyVolume(handle string) error {
 	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
 		handle string
 	}{handle})
-	fake.recordInvocation("DestroyVolume", []interface{}{handle})
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
 		return fake.DestroyVolumeStub(handle)
@@ -273,7 +266,6 @@ func (fake *FakeRepository) SetProperty(handle string, propertyName string, prop
 		propertyName  string
 		propertyValue string
 	}{handle, propertyName, propertyValue})
-	fake.recordInvocation("SetProperty", []interface{}{handle, propertyName, propertyValue})
 	fake.setPropertyMutex.Unlock()
 	if fake.SetPropertyStub != nil {
 		return fake.SetPropertyStub(handle, propertyName, propertyValue)
@@ -307,7 +299,6 @@ func (fake *FakeRepository) SetTTL(handle string, ttl uint) error {
 		handle string
 		ttl    uint
 	}{handle, ttl})
-	fake.recordInvocation("SetTTL", []interface{}{handle, ttl})
 	fake.setTTLMutex.Unlock()
 	if fake.SetTTLStub != nil {
 		return fake.SetTTLStub(handle, ttl)
@@ -340,7 +331,6 @@ func (fake *FakeRepository) VolumeParent(handle string) (volume.Volume, bool, er
 	fake.volumeParentArgsForCall = append(fake.volumeParentArgsForCall, struct {
 		handle string
 	}{handle})
-	fake.recordInvocation("VolumeParent", []interface{}{handle})
 	fake.volumeParentMutex.Unlock()
 	if fake.VolumeParentStub != nil {
 		return fake.VolumeParentStub(handle)
@@ -368,40 +358,6 @@ func (fake *FakeRepository) VolumeParentReturns(result1 volume.Volume, result2 b
 		result2 bool
 		result3 error
 	}{result1, result2, result3}
-}
-
-func (fake *FakeRepository) Invocations() map[string][][]interface{} {
-	fake.invocationsMutex.RLock()
-	defer fake.invocationsMutex.RUnlock()
-	fake.listVolumesMutex.RLock()
-	defer fake.listVolumesMutex.RUnlock()
-	fake.getVolumeMutex.RLock()
-	defer fake.getVolumeMutex.RUnlock()
-	fake.getVolumeStatsMutex.RLock()
-	defer fake.getVolumeStatsMutex.RUnlock()
-	fake.createVolumeMutex.RLock()
-	defer fake.createVolumeMutex.RUnlock()
-	fake.destroyVolumeMutex.RLock()
-	defer fake.destroyVolumeMutex.RUnlock()
-	fake.setPropertyMutex.RLock()
-	defer fake.setPropertyMutex.RUnlock()
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	fake.volumeParentMutex.RLock()
-	defer fake.volumeParentMutex.RUnlock()
-	return fake.invocations
-}
-
-func (fake *FakeRepository) recordInvocation(key string, args []interface{}) {
-	fake.invocationsMutex.Lock()
-	defer fake.invocationsMutex.Unlock()
-	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
-	}
-	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
-	}
-	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ volume.Repository = new(FakeRepository)

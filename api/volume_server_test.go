@@ -22,7 +22,7 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -41,6 +41,11 @@ var _ = Describe("Volume Server", func() {
 		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Expect(err).NotTo(HaveOccurred())
 
+		// ioutil.TempDir creates it 0700; we need public readability for
+		// unprivileged StreamIn
+		err = os.Chmod(tempDir, 0755)
+		Expect(err).NotTo(HaveOccurred())
+
 		volumeDir = tempDir
 	})
 
@@ -56,9 +61,22 @@ var _ = Describe("Volume Server", func() {
 			volume.NewLockManager(),
 		)
 
-		strategerizer := volume.NewStrategerizer(&uidjunk.NoopNamespacer{})
+		strategerizer := volume.NewStrategerizer(&uidgid.NoopNamespacer{})
 
-		handler, err = api.NewHandler(logger, strategerizer, repo)
+		maxUID, err := uidgid.DefaultUIDMap.MaxValid()
+		Expect(err).NotTo(HaveOccurred())
+
+		maxGID, err := uidgid.DefaultGIDMap.MaxValid()
+		Expect(err).NotTo(HaveOccurred())
+
+		maxId := uidgid.Min(maxUID, maxGID)
+		Translator := uidgid.NewTranslator(maxId)
+		namespacer := &uidgid.UidNamespacer{
+			Translator: Translator,
+			Logger:     logger.Session("uid-namespacer"),
+		}
+
+		handler, err = api.NewHandler(logger, strategerizer, namespacer, repo)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -141,7 +159,7 @@ var _ = Describe("Volume Server", func() {
 		})
 	})
 
-	FDescribe("streaming tar files into volumes", func() {
+	Describe("streaming tar files into volumes", func() {
 		var (
 			myVolume     volume.Volume
 			tarBuffer    *(bytes.Buffer)
@@ -223,8 +241,8 @@ var _ = Describe("Volume Server", func() {
 					stat, err := os.Stat(tarInfoPath)
 					Expect(err).ToNot(HaveOccurred())
 
-					maxUID := uidjunk.MustGetMaxValidUID()
-					maxGID := uidjunk.MustGetMaxValidGID()
+					maxUID := uidgid.MustGetMaxValidUID()
+					maxGID := uidgid.MustGetMaxValidGID()
 
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
