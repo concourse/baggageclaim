@@ -61,7 +61,7 @@ var _ = Describe("Reaper", func() {
 					nonExpiringVolume,
 					expiringVolume10sec,
 					expiringVolume20sec,
-				}, nil)
+				}, []string{}, nil)
 			})
 
 			It("lists volumes with no filter", func() {
@@ -122,7 +122,7 @@ var _ = Describe("Reaper", func() {
 								expiringVolume20sec,
 								expiringVolume10sec,
 								nonExpiringVolume,
-							}, nil)
+							}, []string{}, nil)
 						})
 
 						It("is not destroyed", func() {
@@ -161,13 +161,28 @@ var _ = Describe("Reaper", func() {
 					})
 				})
 			})
+
+			Context("when some of the listed volumes are corrupted", func() {
+				BeforeEach(func() {
+					repository.ListVolumesReturns([]volume.Volume{
+						nonExpiringVolume,
+					}, []string{
+						"some-terrible-volume",
+					}, nil)
+				})
+
+				It("destroys the corrupted volumes and all their descendents", func() {
+					Expect(repository.DestroyVolumeAndDescendantsCallCount()).To(Equal(1))
+					Expect(repository.DestroyVolumeAndDescendantsArgsForCall(0)).To(Equal("some-terrible-volume"))
+				})
+			})
 		})
 
 		Context("when listing the volumes blows up", func() {
 			disaster := errors.New("nope")
 
 			BeforeEach(func() {
-				repository.ListVolumesReturns(nil, disaster)
+				repository.ListVolumesReturns(nil, nil, disaster)
 			})
 
 			It("returns the error", func() {

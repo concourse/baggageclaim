@@ -31,11 +31,14 @@ type FakeTranslator struct {
 	translateCommandArgsForCall []struct {
 		arg1 *exec.Cmd
 	}
+	invocations      map[string][][]interface{}
+	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeTranslator) CacheKey() string {
 	fake.cacheKeyMutex.Lock()
 	fake.cacheKeyArgsForCall = append(fake.cacheKeyArgsForCall, struct{}{})
+	fake.recordInvocation("CacheKey", []interface{}{})
 	fake.cacheKeyMutex.Unlock()
 	if fake.CacheKeyStub != nil {
 		return fake.CacheKeyStub()
@@ -64,6 +67,7 @@ func (fake *FakeTranslator) TranslatePath(path string, info os.FileInfo, err err
 		info os.FileInfo
 		err  error
 	}{path, info, err})
+	fake.recordInvocation("TranslatePath", []interface{}{path, info, err})
 	fake.translatePathMutex.Unlock()
 	if fake.TranslatePathStub != nil {
 		return fake.TranslatePathStub(path, info, err)
@@ -96,6 +100,7 @@ func (fake *FakeTranslator) TranslateCommand(arg1 *exec.Cmd) {
 	fake.translateCommandArgsForCall = append(fake.translateCommandArgsForCall, struct {
 		arg1 *exec.Cmd
 	}{arg1})
+	fake.recordInvocation("TranslateCommand", []interface{}{arg1})
 	fake.translateCommandMutex.Unlock()
 	if fake.TranslateCommandStub != nil {
 		fake.TranslateCommandStub(arg1)
@@ -112,6 +117,30 @@ func (fake *FakeTranslator) TranslateCommandArgsForCall(i int) *exec.Cmd {
 	fake.translateCommandMutex.RLock()
 	defer fake.translateCommandMutex.RUnlock()
 	return fake.translateCommandArgsForCall[i].arg1
+}
+
+func (fake *FakeTranslator) Invocations() map[string][][]interface{} {
+	fake.invocationsMutex.RLock()
+	defer fake.invocationsMutex.RUnlock()
+	fake.cacheKeyMutex.RLock()
+	defer fake.cacheKeyMutex.RUnlock()
+	fake.translatePathMutex.RLock()
+	defer fake.translatePathMutex.RUnlock()
+	fake.translateCommandMutex.RLock()
+	defer fake.translateCommandMutex.RUnlock()
+	return fake.invocations
+}
+
+func (fake *FakeTranslator) recordInvocation(key string, args []interface{}) {
+	fake.invocationsMutex.Lock()
+	defer fake.invocationsMutex.Unlock()
+	if fake.invocations == nil {
+		fake.invocations = map[string][][]interface{}{}
+	}
+	if fake.invocations[key] == nil {
+		fake.invocations[key] = [][]interface{}{}
+	}
+	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ uidgid.Translator = new(FakeTranslator)

@@ -109,7 +109,7 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	volumes, err := vs.volumeRepo.ListVolumes(properties)
+	volumes, _, err := vs.volumeRepo.ListVolumes(properties)
 	if err != nil {
 		RespondWithError(w, ErrListVolumesFailed, http.StatusInternalServerError)
 		return

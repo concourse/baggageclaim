@@ -34,6 +34,8 @@ type FakeFilesystem struct {
 		result1 []volume.FilesystemLiveVolume
 		result2 error
 	}
+	invocations      map[string][][]interface{}
+	invocationsMutex sync.RWMutex
 }
 
 func (fake *FakeFilesystem) NewVolume(arg1 string) (volume.FilesystemInitVolume, error) {
@@ -41,6 +43,7 @@ func (fake *FakeFilesystem) NewVolume(arg1 string) (volume.FilesystemInitVolume,
 	fake.newVolumeArgsForCall = append(fake.newVolumeArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	fake.recordInvocation("NewVolume", []interface{}{arg1})
 	fake.newVolumeMutex.Unlock()
 	if fake.NewVolumeStub != nil {
 		return fake.NewVolumeStub(arg1)
@@ -74,6 +77,7 @@ func (fake *FakeFilesystem) LookupVolume(arg1 string) (volume.FilesystemLiveVolu
 	fake.lookupVolumeArgsForCall = append(fake.lookupVolumeArgsForCall, struct {
 		arg1 string
 	}{arg1})
+	fake.recordInvocation("LookupVolume", []interface{}{arg1})
 	fake.lookupVolumeMutex.Unlock()
 	if fake.LookupVolumeStub != nil {
 		return fake.LookupVolumeStub(arg1)
@@ -106,6 +110,7 @@ func (fake *FakeFilesystem) LookupVolumeReturns(result1 volume.FilesystemLiveVol
 func (fake *FakeFilesystem) ListVolumes() ([]volume.FilesystemLiveVolume, error) {
 	fake.listVolumesMutex.Lock()
 	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct{}{})
+	fake.recordInvocation("ListVolumes", []interface{}{})
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub()
@@ -126,6 +131,30 @@ func (fake *FakeFilesystem) ListVolumesReturns(result1 []volume.FilesystemLiveVo
 		result1 []volume.FilesystemLiveVolume
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeFilesystem) Invocations() map[string][][]interface{} {
+	fake.invocationsMutex.RLock()
+	defer fake.invocationsMutex.RUnlock()
+	fake.newVolumeMutex.RLock()
+	defer fake.newVolumeMutex.RUnlock()
+	fake.lookupVolumeMutex.RLock()
+	defer fake.lookupVolumeMutex.RUnlock()
+	fake.listVolumesMutex.RLock()
+	defer fake.listVolumesMutex.RUnlock()
+	return fake.invocations
+}
+
+func (fake *FakeFilesystem) recordInvocation(key string, args []interface{}) {
+	fake.invocationsMutex.Lock()
+	defer fake.invocationsMutex.Unlock()
+	if fake.invocations == nil {
+		fake.invocations = map[string][][]interface{}{}
+	}
+	if fake.invocations[key] == nil {
+		fake.invocations[key] = [][]interface{}{}
+	}
+	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
 var _ volume.Filesystem = new(FakeFilesystem)
