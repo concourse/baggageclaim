@@ -83,6 +83,8 @@ type Volume interface {
 
 	// Size returns the exclusive size of the volume on disk in bytes
 	SizeInBytes() (int64, error)
+
+	Destroy() error
 }
 
 // Volumes represents a list of Volume object.

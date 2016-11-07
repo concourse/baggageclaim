@@ -84,6 +84,12 @@ type FakeVolume struct {
 		result1 int64
 		result2 error
 	}
+	DestroyStub        func() error
+	destroyMutex       sync.RWMutex
+	destroyArgsForCall []struct{}
+	destroyReturns     struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -376,6 +382,31 @@ func (fake *FakeVolume) SizeInBytesReturns(result1 int64, result2 error) {
 	}{result1, result2}
 }
 
+func (fake *FakeVolume) Destroy() error {
+	fake.destroyMutex.Lock()
+	fake.destroyArgsForCall = append(fake.destroyArgsForCall, struct{}{})
+	fake.recordInvocation("Destroy", []interface{}{})
+	fake.destroyMutex.Unlock()
+	if fake.DestroyStub != nil {
+		return fake.DestroyStub()
+	} else {
+		return fake.destroyReturns.result1
+	}
+}
+
+func (fake *FakeVolume) DestroyCallCount() int {
+	fake.destroyMutex.RLock()
+	defer fake.destroyMutex.RUnlock()
+	return len(fake.destroyArgsForCall)
+}
+
+func (fake *FakeVolume) DestroyReturns(result1 error) {
+	fake.DestroyStub = nil
+	fake.destroyReturns = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -399,6 +430,8 @@ func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	defer fake.releaseMutex.RUnlock()
 	fake.sizeInBytesMutex.RLock()
 	defer fake.sizeInBytesMutex.RUnlock()
+	fake.destroyMutex.RLock()
+	defer fake.destroyMutex.RUnlock()
 	return fake.invocations
 }
 
