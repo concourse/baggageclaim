@@ -50,6 +50,7 @@ func (c *client) httpClient(logger lager.Logger) *http.Client {
 			Logger:         logger.Session("retry-round-tripper"),
 			BackOffFactory: c.retryBackOffFactory,
 			RoundTripper:   c.nestedRoundTripper,
+			Retryer:        &retryhttp.DefaultRetryer{},
 		},
 	}
 }
