@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -114,7 +115,7 @@ func (bcr *BaggageClaimRunner) Cleanup() {
 }
 
 func (bcr *BaggageClaimRunner) Client() baggageclaim.Client {
-	return client.New(fmt.Sprintf("http://localhost:%d", bcr.port))
+	return client.New(fmt.Sprintf("http://localhost:%d", bcr.port), &http.Transport{DisableKeepAlives: true})
 }
 
 func (bcr *BaggageClaimRunner) VolumeDir() string {

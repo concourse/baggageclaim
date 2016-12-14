@@ -32,15 +32,13 @@ type client struct {
 	nestedRoundTripper  http.RoundTripper
 }
 
-func New(apiURL string) Client {
+func New(apiURL string, nestedRoundTripper http.RoundTripper) Client {
 	return &client{
 		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
 
 		retryBackOffFactory: retryhttp.NewExponentialBackOffFactory(60 * time.Minute),
 
-		nestedRoundTripper: &http.Transport{
-			DisableKeepAlives: true,
-		},
+		nestedRoundTripper: nestedRoundTripper,
 	}
 }
 

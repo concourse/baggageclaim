@@ -54,7 +54,7 @@ var _ = Describe("Baggage Claim Client", func() {
 		BeforeEach(func() {
 			bcServer = ghttp.NewServer()
 			logger = lagertest.NewTestLogger("client")
-			bcClient = client.New(bcServer.URL())
+			bcClient = client.New(bcServer.URL(), &http.Transport{DisableKeepAlives: true})
 		})
 
 		AfterEach(func() {
