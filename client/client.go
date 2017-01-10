@@ -146,7 +146,6 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 }
 
 func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.Volume, bool, error) {
-
 	volumeResponse, found, err := c.getVolumeResponse(logger, handle)
 	if err != nil {
 		return nil, false, err
@@ -172,6 +171,10 @@ func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeRes
 		bcClient:     c,
 		heartbeating: new(sync.WaitGroup),
 		release:      make(chan *time.Duration, 1),
+	}
+
+	if apiVolume.TTLInSeconds == 0 {
+		return volume, true
 	}
 
 	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
