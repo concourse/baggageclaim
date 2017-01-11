@@ -95,10 +95,6 @@ func (cv *clientVolume) Release(finalTTL *time.Duration) {
 }
 
 func IntervalForTTL(ttl time.Duration) time.Duration {
-	if ttl == 0 {
-		return time.Minute
-	}
-
 	interval := ttl / 2
 
 	if interval > time.Minute {
