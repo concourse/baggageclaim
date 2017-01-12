@@ -279,7 +279,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						),
 					)
 
-					_, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					_, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(err).To(Not(HaveOccurred()))
 
 					Consistently(bcServer.ReceivedRequests()).Should(HaveLen(1))
