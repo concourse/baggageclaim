@@ -26,9 +26,12 @@ type BaggageclaimCommand struct {
 
 	VolumesDir DirFlag `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
-	Driver   string `long:"driver" default:"naive" choice:"naive" choice:"btrfs" description:"Driver to use for managing volumes."`
+	Driver string `long:"driver" default:"naive" choice:"naive" choice:"btrfs" choice:"overlay" description:"Driver to use for managing volumes."`
+
 	BtrfsBin string `long:"btrfs-bin" default:"btrfs" description:"Path to btrfs binary"`
 	MkfsBin  string `long:"mkfs-bin" default:"mkfs.btrfs" description:"Path to mkfs.btrfs binary"`
+
+	OverlaysDir string `long:"overlays-dir" description:"Path to directory in which to store overlay data"`
 
 	ReapInterval time.Duration `long:"reap-interval" default:"10s" description:"Interval on which to reap expired volumes."`
 
@@ -61,7 +64,11 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	var volumeDriver volume.Driver
 
-	if cmd.Driver == "btrfs" {
+	if cmd.Driver == "overlay" {
+		volumeDriver = &driver.OverlayDriver{
+			OverlaysDir: cmd.OverlaysDir,
+		}
+	} else if cmd.Driver == "btrfs" {
 		volumeDriver = driver.NewBtrFSDriver(
 			logger.Session("driver"),
 			string(cmd.VolumesDir),
