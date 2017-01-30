@@ -88,16 +88,14 @@ var _ = Describe("Properties", func() {
 	})
 
 	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
-		ttl := time.Second
-
 		volume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-			TTL: ttl,
+			TTL: time.Second,
 		})
 		Expect(err).NotTo(HaveOccurred())
 
 		volume.Release(nil)
 
-		time.Sleep(5 * ttl)
+		time.Sleep(2 * time.Second)
 
 		err = volume.SetProperty("some", "property")
 		Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
