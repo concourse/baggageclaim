@@ -48,10 +48,8 @@ var _ = Describe("TTL's", func() {
 	})
 
 	It("removes the volume after the ttl duration", func() {
-		ttl := 1 * time.Second
-
 		spec := baggageclaim.VolumeSpec{
-			TTL: ttl,
+			TTL: 1 * time.Second,
 		}
 
 		emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
@@ -65,16 +63,14 @@ var _ = Describe("TTL's", func() {
 
 		volumes[0].Release(nil)
 
-		time.Sleep(5 * ttl)
+		time.Sleep(2 * time.Second)
 
 		Expect(runner.CurrentHandles()).To(BeEmpty())
 	})
 
 	Describe("heartbeating", func() {
 		It("keeps the container alive, and lets it expire once released", func() {
-			ttl := 2 * time.Second
-
-			spec := baggageclaim.VolumeSpec{TTL: ttl}
+			spec := baggageclaim.VolumeSpec{TTL: 2 * time.Second}
 
 			volume, err := client.CreateVolume(logger, "some-handle", spec)
 			Expect(err).NotTo(HaveOccurred())
@@ -85,14 +81,13 @@ var _ = Describe("TTL's", func() {
 
 			// note: don't use Eventually; CurrentHandles causes it to heartbeat
 
-			time.Sleep(5 * ttl)
+			time.Sleep(3 * time.Second)
 			Expect(runner.CurrentHandles()).To(BeEmpty())
 		})
 
 		Describe("releasing with a final ttl", func() {
 			It("lets it expire after the given TTL", func() {
-				ttl := 2 * time.Second
-				spec := baggageclaim.VolumeSpec{TTL: ttl}
+				spec := baggageclaim.VolumeSpec{TTL: 2 * time.Second}
 
 				volume, err := client.CreateVolume(logger, "some-handle", spec)
 				Expect(err).NotTo(HaveOccurred())
@@ -101,11 +96,11 @@ var _ = Describe("TTL's", func() {
 
 				volume.Release(baggageclaim.FinalTTL(3 * time.Second))
 
-				finalTtl, _, err := volume.Expiration()
+				ttl, _, err := volume.Expiration()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(finalTtl).To(Equal(3 * time.Second))
+				Expect(ttl).To(Equal(3 * time.Second))
 
-				time.Sleep(5 * ttl)
+				time.Sleep(4 * time.Second)
 				Expect(runner.CurrentHandles()).To(BeEmpty())
 			})
 		})
@@ -117,19 +112,19 @@ var _ = Describe("TTL's", func() {
 				}
 
 				emptyVolume, err := client.CreateVolume(logger, "some-handle", spec)
-				Expect(err).NotTo(HaveOccurred())
+				Ω(err).ShouldNot(HaveOccurred())
 
 				time.Sleep(2 * time.Second)
 
 				lookedUpAt := time.Now()
 
 				_, found, err := client.LookupVolume(logger, emptyVolume.Handle())
-				Expect(err).NotTo(HaveOccurred())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(found).To(BeTrue())
 
 				_, expiresAt, err := emptyVolume.Expiration()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(expiresAt).Should(BeTemporally("~", lookedUpAt.Add(5*time.Second), 1*time.Second))
+				Ω(err).ShouldNot(HaveOccurred())
+				Ω(expiresAt).Should(BeTemporally("~", lookedUpAt.Add(5*time.Second), 1*time.Second))
 			})
 		})
 	})
