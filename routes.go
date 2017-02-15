@@ -13,6 +13,8 @@ const (
 	SetTTL      = "SetTTL"
 	StreamIn    = "StreamIn"
 	StreamOut   = "StreamOut"
+
+	Info = "Info"
 )
 
 var Routes = rata.Routes{
@@ -26,4 +28,6 @@ var Routes = rata.Routes{
 	{Path: "/volumes/:handle/stream-in", Method: "PUT", Name: StreamIn},
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},
 	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
+
+	{Path: "/info", Method: "GET", Name: Info},
 }

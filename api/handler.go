@@ -25,6 +25,8 @@ func NewHandler(
 		volumeRepo,
 	)
 
+	infoServer := NewInfoServer(logger.Session("info-server"))
+
 	handlers := rata.Handlers{
 		baggageclaim.CreateVolume:   http.HandlerFunc(volumeServer.CreateVolume),
 		baggageclaim.ListVolumes:    http.HandlerFunc(volumeServer.ListVolumes),
@@ -35,6 +37,7 @@ func NewHandler(
 		baggageclaim.StreamIn:       http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:      http.HandlerFunc(volumeServer.StreamOut),
 		baggageclaim.DestroyVolume:  http.HandlerFunc(volumeServer.DestroyVolume),
+		baggageclaim.Info:           http.HandlerFunc(infoServer.Info),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)
