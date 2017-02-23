@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"sync"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/uidgid"
 )
 
@@ -15,10 +16,11 @@ type FakeNamespacer struct {
 	cacheKeyReturns     struct {
 		result1 string
 	}
-	NamespacePathStub        func(rootfsPath string) error
+	NamespacePathStub        func(logger lager.Logger, path string) error
 	namespacePathMutex       sync.RWMutex
 	namespacePathArgsForCall []struct {
-		rootfsPath string
+		logger lager.Logger
+		path   string
 	}
 	namespacePathReturns struct {
 		result1 error
@@ -39,9 +41,8 @@ func (fake *FakeNamespacer) CacheKey() string {
 	fake.cacheKeyMutex.Unlock()
 	if fake.CacheKeyStub != nil {
 		return fake.CacheKeyStub()
-	} else {
-		return fake.cacheKeyReturns.result1
 	}
+	return fake.cacheKeyReturns.result1
 }
 
 func (fake *FakeNamespacer) CacheKeyCallCount() int {
@@ -57,18 +58,18 @@ func (fake *FakeNamespacer) CacheKeyReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeNamespacer) NamespacePath(rootfsPath string) error {
+func (fake *FakeNamespacer) NamespacePath(logger lager.Logger, path string) error {
 	fake.namespacePathMutex.Lock()
 	fake.namespacePathArgsForCall = append(fake.namespacePathArgsForCall, struct {
-		rootfsPath string
-	}{rootfsPath})
-	fake.recordInvocation("NamespacePath", []interface{}{rootfsPath})
+		logger lager.Logger
+		path   string
+	}{logger, path})
+	fake.recordInvocation("NamespacePath", []interface{}{logger, path})
 	fake.namespacePathMutex.Unlock()
 	if fake.NamespacePathStub != nil {
-		return fake.NamespacePathStub(rootfsPath)
-	} else {
-		return fake.namespacePathReturns.result1
+		return fake.NamespacePathStub(logger, path)
 	}
+	return fake.namespacePathReturns.result1
 }
 
 func (fake *FakeNamespacer) NamespacePathCallCount() int {
@@ -77,10 +78,10 @@ func (fake *FakeNamespacer) NamespacePathCallCount() int {
 	return len(fake.namespacePathArgsForCall)
 }
 
-func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) string {
+func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) (lager.Logger, string) {
 	fake.namespacePathMutex.RLock()
 	defer fake.namespacePathMutex.RUnlock()
-	return fake.namespacePathArgsForCall[i].rootfsPath
+	return fake.namespacePathArgsForCall[i].logger, fake.namespacePathArgsForCall[i].path
 }
 
 func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {

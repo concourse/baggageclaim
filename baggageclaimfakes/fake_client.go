@@ -56,9 +56,8 @@ func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 string, arg3 baggag
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(arg1, arg2, arg3)
-	} else {
-		return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 	}
+	return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 }
 
 func (fake *FakeClient) CreateVolumeCallCount() int {
@@ -91,9 +90,8 @@ func (fake *FakeClient) ListVolumes(arg1 lager.Logger, arg2 baggageclaim.VolumeP
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub(arg1, arg2)
-	} else {
-		return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
 	}
+	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
 }
 
 func (fake *FakeClient) ListVolumesCallCount() int {
@@ -126,9 +124,8 @@ func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggagecla
 	fake.lookupVolumeMutex.Unlock()
 	if fake.LookupVolumeStub != nil {
 		return fake.LookupVolumeStub(arg1, arg2)
-	} else {
-		return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
 	}
+	return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
 }
 
 func (fake *FakeClient) LookupVolumeCallCount() int {

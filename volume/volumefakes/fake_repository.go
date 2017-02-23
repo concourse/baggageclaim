@@ -109,9 +109,8 @@ func (fake *FakeRepository) ListVolumes(queryProperties volume.Properties) (volu
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub(queryProperties)
-	} else {
-		return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2, fake.listVolumesReturns.result3
 	}
+	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2, fake.listVolumesReturns.result3
 }
 
 func (fake *FakeRepository) ListVolumesCallCount() int {
@@ -144,9 +143,8 @@ func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, bool, error
 	fake.getVolumeMutex.Unlock()
 	if fake.GetVolumeStub != nil {
 		return fake.GetVolumeStub(handle)
-	} else {
-		return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2, fake.getVolumeReturns.result3
 	}
+	return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2, fake.getVolumeReturns.result3
 }
 
 func (fake *FakeRepository) GetVolumeCallCount() int {
@@ -179,9 +177,8 @@ func (fake *FakeRepository) GetVolumeStats(handle string) (volume.VolumeStats, b
 	fake.getVolumeStatsMutex.Unlock()
 	if fake.GetVolumeStatsStub != nil {
 		return fake.GetVolumeStatsStub(handle)
-	} else {
-		return fake.getVolumeStatsReturns.result1, fake.getVolumeStatsReturns.result2, fake.getVolumeStatsReturns.result3
 	}
+	return fake.getVolumeStatsReturns.result1, fake.getVolumeStatsReturns.result2, fake.getVolumeStatsReturns.result3
 }
 
 func (fake *FakeRepository) GetVolumeStatsCallCount() int {
@@ -218,9 +215,8 @@ func (fake *FakeRepository) CreateVolume(handle string, strategy volume.Strategy
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(handle, strategy, properties, ttlInSeconds, isPrivileged)
-	} else {
-		return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 	}
+	return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
 }
 
 func (fake *FakeRepository) CreateVolumeCallCount() int {
@@ -252,9 +248,8 @@ func (fake *FakeRepository) DestroyVolume(handle string) error {
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
 		return fake.DestroyVolumeStub(handle)
-	} else {
-		return fake.destroyVolumeReturns.result1
 	}
+	return fake.destroyVolumeReturns.result1
 }
 
 func (fake *FakeRepository) DestroyVolumeCallCount() int {
@@ -285,9 +280,8 @@ func (fake *FakeRepository) DestroyVolumeAndDescendants(handle string) error {
 	fake.destroyVolumeAndDescendantsMutex.Unlock()
 	if fake.DestroyVolumeAndDescendantsStub != nil {
 		return fake.DestroyVolumeAndDescendantsStub(handle)
-	} else {
-		return fake.destroyVolumeAndDescendantsReturns.result1
 	}
+	return fake.destroyVolumeAndDescendantsReturns.result1
 }
 
 func (fake *FakeRepository) DestroyVolumeAndDescendantsCallCount() int {
@@ -320,9 +314,8 @@ func (fake *FakeRepository) SetProperty(handle string, propertyName string, prop
 	fake.setPropertyMutex.Unlock()
 	if fake.SetPropertyStub != nil {
 		return fake.SetPropertyStub(handle, propertyName, propertyValue)
-	} else {
-		return fake.setPropertyReturns.result1
 	}
+	return fake.setPropertyReturns.result1
 }
 
 func (fake *FakeRepository) SetPropertyCallCount() int {
@@ -354,9 +347,8 @@ func (fake *FakeRepository) SetTTL(handle string, ttl uint) error {
 	fake.setTTLMutex.Unlock()
 	if fake.SetTTLStub != nil {
 		return fake.SetTTLStub(handle, ttl)
-	} else {
-		return fake.setTTLReturns.result1
 	}
+	return fake.setTTLReturns.result1
 }
 
 func (fake *FakeRepository) SetTTLCallCount() int {
@@ -387,9 +379,8 @@ func (fake *FakeRepository) VolumeParent(handle string) (volume.Volume, bool, er
 	fake.volumeParentMutex.Unlock()
 	if fake.VolumeParentStub != nil {
 		return fake.VolumeParentStub(handle)
-	} else {
-		return fake.volumeParentReturns.result1, fake.volumeParentReturns.result2, fake.volumeParentReturns.result3
 	}
+	return fake.volumeParentReturns.result1, fake.volumeParentReturns.result2, fake.volumeParentReturns.result3
 }
 
 func (fake *FakeRepository) VolumeParentCallCount() int {

@@ -55,9 +55,8 @@ func (fake *FakeDriver) CreateVolume(path string) error {
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
 		return fake.CreateVolumeStub(path)
-	} else {
-		return fake.createVolumeReturns.result1
 	}
+	return fake.createVolumeReturns.result1
 }
 
 func (fake *FakeDriver) CreateVolumeCallCount() int {
@@ -88,9 +87,8 @@ func (fake *FakeDriver) DestroyVolume(path string) error {
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
 		return fake.DestroyVolumeStub(path)
-	} else {
-		return fake.destroyVolumeReturns.result1
 	}
+	return fake.destroyVolumeReturns.result1
 }
 
 func (fake *FakeDriver) DestroyVolumeCallCount() int {
@@ -121,9 +119,8 @@ func (fake *FakeDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	fake.getVolumeSizeInBytesMutex.Unlock()
 	if fake.GetVolumeSizeInBytesStub != nil {
 		return fake.GetVolumeSizeInBytesStub(path)
-	} else {
-		return fake.getVolumeSizeInBytesReturns.result1, fake.getVolumeSizeInBytesReturns.result2
 	}
+	return fake.getVolumeSizeInBytesReturns.result1, fake.getVolumeSizeInBytesReturns.result2
 }
 
 func (fake *FakeDriver) GetVolumeSizeInBytesCallCount() int {
@@ -156,9 +153,8 @@ func (fake *FakeDriver) CreateCopyOnWriteLayer(path string, parent string) error
 	fake.createCopyOnWriteLayerMutex.Unlock()
 	if fake.CreateCopyOnWriteLayerStub != nil {
 		return fake.CreateCopyOnWriteLayerStub(path, parent)
-	} else {
-		return fake.createCopyOnWriteLayerReturns.result1
 	}
+	return fake.createCopyOnWriteLayerReturns.result1
 }
 
 func (fake *FakeDriver) CreateCopyOnWriteLayerCallCount() int {

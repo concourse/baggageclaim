@@ -17,7 +17,7 @@ func (strategy NamespacedStrategy) Materialize(logger lager.Logger, handle strin
 		return nil, err
 	}
 
-	err = strategy.Namespacer.NamespacePath(volume.DataPath())
+	err = strategy.Namespacer.NamespacePath(logger, volume.DataPath())
 	if err != nil {
 		volume.Destroy()
 		return nil, err

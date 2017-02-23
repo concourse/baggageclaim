@@ -352,7 +352,7 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !vol.Privileged {
-		err := vs.namespacer.NamespacePath(vol.Path)
+		err := vs.namespacer.NamespacePath(hLog, vol.Path)
 		if err != nil {
 			hLog.Error("failed-to-namespace-path", err)
 			RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)

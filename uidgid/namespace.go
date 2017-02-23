@@ -10,7 +10,7 @@ import (
 //go:generate counterfeiter -o fake_namespacer/fake_namespacer.go . Namespacer
 type Namespacer interface {
 	CacheKey() string
-	NamespacePath(rootfsPath string) error
+	NamespacePath(logger lager.Logger, path string) error
 	NamespaceCommand(cmd *exec.Cmd)
 }
 
@@ -19,18 +19,17 @@ type UidNamespacer struct {
 	Logger     lager.Logger
 }
 
-func (n *UidNamespacer) NamespacePath(rootfsPath string) error {
-	log := n.Logger.Session("namespace-rootfs", lager.Data{
+func (n *UidNamespacer) NamespacePath(logger lager.Logger, rootfsPath string) error {
+	log := logger.Session("namespace", lager.Data{
 		"path": rootfsPath,
 	})
 
-	log.Info("namespace")
+	log.Debug("start")
+	defer log.Debug("done")
 
 	if err := filepath.Walk(rootfsPath, n.Translator.TranslatePath); err != nil {
-		log.Error("walk-failed", err)
+		log.Error("failed-to-walk-and-translate", err)
 	}
-
-	log.Info("namespaced")
 
 	return nil
 }
@@ -45,6 +44,6 @@ func (n *UidNamespacer) CacheKey() string {
 
 type NoopNamespacer struct{}
 
-func (NoopNamespacer) NamespacePath(string) error     { return nil }
-func (NoopNamespacer) NamespaceCommand(cmd *exec.Cmd) {}
-func (NoopNamespacer) CacheKey() string               { return "" }
+func (NoopNamespacer) NamespacePath(lager.Logger, string) error { return nil }
+func (NoopNamespacer) NamespaceCommand(cmd *exec.Cmd)           {}
+func (NoopNamespacer) CacheKey() string                         { return "" }

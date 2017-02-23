@@ -47,9 +47,8 @@ func (fake *FakeFilesystem) NewVolume(arg1 string) (volume.FilesystemInitVolume,
 	fake.newVolumeMutex.Unlock()
 	if fake.NewVolumeStub != nil {
 		return fake.NewVolumeStub(arg1)
-	} else {
-		return fake.newVolumeReturns.result1, fake.newVolumeReturns.result2
 	}
+	return fake.newVolumeReturns.result1, fake.newVolumeReturns.result2
 }
 
 func (fake *FakeFilesystem) NewVolumeCallCount() int {
@@ -81,9 +80,8 @@ func (fake *FakeFilesystem) LookupVolume(arg1 string) (volume.FilesystemLiveVolu
 	fake.lookupVolumeMutex.Unlock()
 	if fake.LookupVolumeStub != nil {
 		return fake.LookupVolumeStub(arg1)
-	} else {
-		return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
 	}
+	return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
 }
 
 func (fake *FakeFilesystem) LookupVolumeCallCount() int {
@@ -114,9 +112,8 @@ func (fake *FakeFilesystem) ListVolumes() ([]volume.FilesystemLiveVolume, error)
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
 		return fake.ListVolumesStub()
-	} else {
-		return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
 	}
+	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
 }
 
 func (fake *FakeFilesystem) ListVolumesCallCount() int {

@@ -109,9 +109,8 @@ func (fake *FakeFilesystemLiveVolume) Handle() string {
 	fake.handleMutex.Unlock()
 	if fake.HandleStub != nil {
 		return fake.HandleStub()
-	} else {
-		return fake.handleReturns.result1
 	}
+	return fake.handleReturns.result1
 }
 
 func (fake *FakeFilesystemLiveVolume) HandleCallCount() int {
@@ -134,9 +133,8 @@ func (fake *FakeFilesystemLiveVolume) DataPath() string {
 	fake.dataPathMutex.Unlock()
 	if fake.DataPathStub != nil {
 		return fake.DataPathStub()
-	} else {
-		return fake.dataPathReturns.result1
 	}
+	return fake.dataPathReturns.result1
 }
 
 func (fake *FakeFilesystemLiveVolume) DataPathCallCount() int {
@@ -159,9 +157,8 @@ func (fake *FakeFilesystemLiveVolume) LoadProperties() (volume.Properties, error
 	fake.loadPropertiesMutex.Unlock()
 	if fake.LoadPropertiesStub != nil {
 		return fake.LoadPropertiesStub()
-	} else {
-		return fake.loadPropertiesReturns.result1, fake.loadPropertiesReturns.result2
 	}
+	return fake.loadPropertiesReturns.result1, fake.loadPropertiesReturns.result2
 }
 
 func (fake *FakeFilesystemLiveVolume) LoadPropertiesCallCount() int {
@@ -187,9 +184,8 @@ func (fake *FakeFilesystemLiveVolume) StoreProperties(arg1 volume.Properties) er
 	fake.storePropertiesMutex.Unlock()
 	if fake.StorePropertiesStub != nil {
 		return fake.StorePropertiesStub(arg1)
-	} else {
-		return fake.storePropertiesReturns.result1
 	}
+	return fake.storePropertiesReturns.result1
 }
 
 func (fake *FakeFilesystemLiveVolume) StorePropertiesCallCount() int {
@@ -218,9 +214,8 @@ func (fake *FakeFilesystemLiveVolume) LoadTTL() (volume.TTL, time.Time, error) {
 	fake.loadTTLMutex.Unlock()
 	if fake.LoadTTLStub != nil {
 		return fake.LoadTTLStub()
-	} else {
-		return fake.loadTTLReturns.result1, fake.loadTTLReturns.result2, fake.loadTTLReturns.result3
 	}
+	return fake.loadTTLReturns.result1, fake.loadTTLReturns.result2, fake.loadTTLReturns.result3
 }
 
 func (fake *FakeFilesystemLiveVolume) LoadTTLCallCount() int {
@@ -247,9 +242,8 @@ func (fake *FakeFilesystemLiveVolume) StoreTTL(arg1 volume.TTL) (time.Time, erro
 	fake.storeTTLMutex.Unlock()
 	if fake.StoreTTLStub != nil {
 		return fake.StoreTTLStub(arg1)
-	} else {
-		return fake.storeTTLReturns.result1, fake.storeTTLReturns.result2
 	}
+	return fake.storeTTLReturns.result1, fake.storeTTLReturns.result2
 }
 
 func (fake *FakeFilesystemLiveVolume) StoreTTLCallCount() int {
@@ -279,9 +273,8 @@ func (fake *FakeFilesystemLiveVolume) LoadPrivileged() (bool, error) {
 	fake.loadPrivilegedMutex.Unlock()
 	if fake.LoadPrivilegedStub != nil {
 		return fake.LoadPrivilegedStub()
-	} else {
-		return fake.loadPrivilegedReturns.result1, fake.loadPrivilegedReturns.result2
 	}
+	return fake.loadPrivilegedReturns.result1, fake.loadPrivilegedReturns.result2
 }
 
 func (fake *FakeFilesystemLiveVolume) LoadPrivilegedCallCount() int {
@@ -307,9 +300,8 @@ func (fake *FakeFilesystemLiveVolume) StorePrivileged(arg1 bool) error {
 	fake.storePrivilegedMutex.Unlock()
 	if fake.StorePrivilegedStub != nil {
 		return fake.StorePrivilegedStub(arg1)
-	} else {
-		return fake.storePrivilegedReturns.result1
 	}
+	return fake.storePrivilegedReturns.result1
 }
 
 func (fake *FakeFilesystemLiveVolume) StorePrivilegedCallCount() int {
@@ -338,9 +330,8 @@ func (fake *FakeFilesystemLiveVolume) Parent() (volume.FilesystemLiveVolume, boo
 	fake.parentMutex.Unlock()
 	if fake.ParentStub != nil {
 		return fake.ParentStub()
-	} else {
-		return fake.parentReturns.result1, fake.parentReturns.result2, fake.parentReturns.result3
 	}
+	return fake.parentReturns.result1, fake.parentReturns.result2, fake.parentReturns.result3
 }
 
 func (fake *FakeFilesystemLiveVolume) ParentCallCount() int {
@@ -365,9 +356,8 @@ func (fake *FakeFilesystemLiveVolume) Destroy() error {
 	fake.destroyMutex.Unlock()
 	if fake.DestroyStub != nil {
 		return fake.DestroyStub()
-	} else {
-		return fake.destroyReturns.result1
 	}
+	return fake.destroyReturns.result1
 }
 
 func (fake *FakeFilesystemLiveVolume) DestroyCallCount() int {
@@ -390,9 +380,8 @@ func (fake *FakeFilesystemLiveVolume) SizeInBytes() (int64, error) {
 	fake.sizeInBytesMutex.Unlock()
 	if fake.SizeInBytesStub != nil {
 		return fake.SizeInBytesStub()
-	} else {
-		return fake.sizeInBytesReturns.result1, fake.sizeInBytesReturns.result2
 	}
+	return fake.sizeInBytesReturns.result1, fake.sizeInBytesReturns.result2
 }
 
 func (fake *FakeFilesystemLiveVolume) SizeInBytesCallCount() int {
@@ -418,9 +407,8 @@ func (fake *FakeFilesystemLiveVolume) NewSubvolume(handle string) (volume.Filesy
 	fake.newSubvolumeMutex.Unlock()
 	if fake.NewSubvolumeStub != nil {
 		return fake.NewSubvolumeStub(handle)
-	} else {
-		return fake.newSubvolumeReturns.result1, fake.newSubvolumeReturns.result2
 	}
+	return fake.newSubvolumeReturns.result1, fake.newSubvolumeReturns.result2
 }
 
 func (fake *FakeFilesystemLiveVolume) NewSubvolumeCallCount() int {
