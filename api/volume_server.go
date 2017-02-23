@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,20 +52,33 @@ func NewVolumeServer(
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
+	hLog := vs.logger.Session("create-volume")
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	var request baggageclaim.VolumeRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
-	req.Body.Close()
 	if err != nil {
 		RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
 		return
 	}
 
+	hLog = hLog.WithData(lager.Data{
+		"handle":     request.Handle,
+		"ttl":        request.TTLInSeconds,
+		"privileged": request.Privileged,
+		"strategy":   request.Strategy,
+	})
+
 	strategy, err := vs.strategerizer.StrategyFor(request)
 	if err != nil {
-		vs.logger.Error("could-not-produce-strategy", err)
+		hLog.Error("could-not-produce-strategy", err)
 		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
 		return
 	}
+
+	hLog.Debug("creating")
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(
 		request.Handle,
@@ -77,6 +89,8 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	)
 
 	if err != nil {
+		hLog.Error("failed-to-create", err)
+
 		var code int
 		switch err {
 		case volume.ErrParentVolumeNotFound:
@@ -90,17 +104,56 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	hLog = hLog.WithData(lager.Data{
+		"volume": createdVolume.Handle,
+	})
+
+	hLog.Debug("created")
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
 	if err := json.NewEncoder(w).Encode(createdVolume); err != nil {
-		vs.logger.Error("failed-to-encode", err, lager.Data{
+		hLog.Error("failed-to-encode", err, lager.Data{
 			"volume-path": createdVolume.Path,
 		})
 	}
 }
 
+func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("destroy", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	err := vs.volumeRepo.DestroyVolume(handle)
+	if err != nil {
+		if err == volume.ErrVolumeDoesNotExist {
+			hLog.Info("volume-does-not-exist")
+			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
+		} else {
+			hLog.Error("failed-to-destroy", err)
+			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	hLog.Info("destroyed")
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
+	hLog := vs.logger.Session("list-volumes")
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	w.Header().Set("Content-Type", "application/json")
 
 	properties, err := ConvertQueryToProperties(req.URL.Query())
@@ -111,12 +164,13 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 
 	volumes, _, err := vs.volumeRepo.ListVolumes(properties)
 	if err != nil {
+		hLog.Error("failed-to-list-volumes", err)
 		RespondWithError(w, ErrListVolumesFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(volumes); err != nil {
-		vs.logger.Error("failed-to-encode", err)
+		hLog.Error("failed-to-encode", err)
 	}
 }
 
@@ -125,19 +179,28 @@ func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
 
 	handle := rata.Param(req, "handle")
 
+	hLog := vs.logger.Session("get-volume", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	vol, found, err := vs.volumeRepo.GetVolume(handle)
 	if err != nil {
+		hLog.Error("failed-to-get-volume", err)
 		RespondWithError(w, ErrGetVolumeFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if !found {
+		hLog.Info("volume-not-found")
 		RespondWithError(w, ErrGetVolumeFailed, http.StatusNotFound)
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(vol); err != nil {
-		vs.logger.Error("failed-to-encode", err)
+		hLog.Error("failed-to-encode", err)
 	}
 }
 
@@ -146,8 +209,16 @@ func (vs *VolumeServer) GetVolumeStats(w http.ResponseWriter, req *http.Request)
 
 	handle := rata.Param(req, "handle")
 
+	hLog := vs.logger.Session("get-volume-stats", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	vol, found, err := vs.volumeRepo.GetVolumeStats(handle)
 	if err != nil {
+		hLog.Error("failed-to-get-volume-stats", err)
 		RespondWithError(w, ErrGetVolumeStatsFailed, http.StatusInternalServerError)
 		return
 	}
@@ -158,11 +229,22 @@ func (vs *VolumeServer) GetVolumeStats(w http.ResponseWriter, req *http.Request)
 	}
 
 	if err := json.NewEncoder(w).Encode(vol); err != nil {
-		vs.logger.Error("failed-to-encode", err)
+		hLog.Error("failed-to-encode", err)
 	}
 }
 
 func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+	propertyName := rata.Param(req, "property")
+
+	hLog := vs.logger.Session("set-property", lager.Data{
+		"volume":   handle,
+		"property": propertyName,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	var request baggageclaim.PropertyRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
@@ -171,12 +253,13 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	}
 
 	propertyValue := request.Value
-	handle := rata.Param(req, "handle")
-	propertyName := rata.Param(req, "property")
-	req.Body.Close()
+
+	hLog.Debug("setting-property")
 
 	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
 	if err != nil {
+		hLog.Error("failed-to-set-property", err)
+
 		if err == volume.ErrVolumeDoesNotExist {
 			RespondWithError(w, ErrSetPropertyFailed, http.StatusNotFound)
 		} else {
@@ -190,6 +273,15 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 }
 
 func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("set-ttl", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
 	var request baggageclaim.TTLRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
@@ -198,11 +290,13 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ttl := request.Value
-	handle := rata.Param(req, "handle")
-	req.Body.Close()
+
+	hLog.Debug("setting-ttl", lager.Data{"ttl": ttl})
 
 	err = vs.volumeRepo.SetTTL(handle, ttl)
 	if err != nil {
+		hLog.Error("failed-to-set-ttl", err)
+
 		if err == volume.ErrVolumeDoesNotExist {
 			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
 		} else {
@@ -216,55 +310,54 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 }
 
 func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
+	handle := rata.Param(req, "handle")
 
-	handle := rata.Param(req, "handle") // handle of destination volume
+	hLog := vs.logger.Session("stream-in", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
 
 	vol, found, err := vs.volumeRepo.GetVolume(handle)
 	if err != nil {
-		vs.logger.Error("failed-to-get-volume", err, lager.Data{
-			"destination-volume-handle": handle,
-		})
+		hLog.Error("failed-to-get-volume", err)
 		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if !found {
-		vs.logger.Error("volume-not-found", err, lager.Data{
-			"destination-volume-handle": handle,
-		})
+		hLog.Info("volume-not-found")
 		RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
 		return
 	}
 
-	queryParams, err := url.ParseQuery(req.URL.RawQuery)
-	if err != nil {
-		vs.logger.Error("failed-to-parse-query-params", err, lager.Data{
-			"destination-volume-handle": handle,
-			"raw-query":                 req.URL.RawQuery,
-		})
-		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
-		return
-	}
-
 	var subPath string
-	if queryPath, ok := queryParams["path"]; ok {
+	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
 	destinationPath := filepath.Join(vol.Path, subPath)
+
+	hLog = hLog.WithData(lager.Data{
+		"sub-path":  subPath,
+		"full-path": destinationPath,
+	})
+
 	err = os.MkdirAll(destinationPath, 0755)
 	if err != nil {
-		vs.logger.Error("failed-to-create-destination-path", err, lager.Data{
-			"destination-volume-handle": handle,
-			"destination-path":          destinationPath,
-		})
+		hLog.Error("failed-to-create-destination-path", err)
 		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if !vol.Privileged {
-		vs.namespacer.NamespacePath(vol.Path)
+		err := vs.namespacer.NamespacePath(vol.Path)
+		if err != nil {
+			hLog.Error("failed-to-namespace-path", err)
+			RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+			return
+		}
 	}
 
 	tarCommand := exec.Command("tar", "-x", "-C", destinationPath)
@@ -276,10 +369,7 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 
 	err = tarCommand.Run()
 	if err != nil {
-		vs.logger.Error("failed-stream-into-volume", err, lager.Data{
-			"destination-volume-handle": handle,
-			"destination-path":          destinationPath,
-		})
+		hLog.Error("failed-to-stream-into-volume", err)
 
 		if _, ok := err.(*exec.ExitError); ok {
 			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
@@ -293,74 +383,50 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) {
-	handle := rata.Param(req, "handle")
-	err := vs.volumeRepo.DestroyVolume(handle)
-	if err != nil {
-		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
-		} else {
-			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
-		}
-
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
 func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
-	handle := rata.Param(req, "handle") // handle of src volume
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("stream-out", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
 
 	vol, found, err := vs.volumeRepo.GetVolume(handle)
 	if err != nil {
-		vs.logger.Error("failed-to-get-volume", err, lager.Data{
-			"destination-volume-handle": handle,
-		})
+		hLog.Error("failed-to-get-volume", err)
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if !found {
-		vs.logger.Error("volume-not-found", err, lager.Data{
-			"src-volume-handle": handle,
-		})
+		hLog.Error("volume-not-found", err)
 		RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
 		return
 	}
 
-	queryParams, err := url.ParseQuery(req.URL.RawQuery)
-	if err != nil {
-		vs.logger.Error("failed-to-parse-query-params", err, lager.Data{
-			"src-volume-handle": handle,
-			"raw-query":         req.URL.RawQuery,
-		})
-		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
-		return
-	}
-
 	var subPath string
-	if queryPath, ok := queryParams["path"]; ok {
+	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
 	srcPath := filepath.Join(vol.Path, subPath)
 
+	hLog = hLog.WithData(lager.Data{
+		"sub-path":  subPath,
+		"full-path": srcPath,
+	})
+
 	err = vs.streamOutSrc(vol, srcPath, w)
 	if err != nil {
 		if os.IsNotExist(err) {
-			vs.logger.Error("artifact-source-not-found", err, lager.Data{
-				"src-volume-handle": handle,
-				"src-path":          srcPath,
-			})
+			hLog.Info("source-path-not-found")
 			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
 			return
 		}
 
-		vs.logger.Error("failed-stream-out-from-volume", err, lager.Data{
-			"src-volume-handle": handle,
-			"src-path":          srcPath,
-		})
+		hLog.Error("failed-to-stream-out-from-volume", err)
 
 		if _, ok := err.(*exec.ExitError); ok {
 			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
