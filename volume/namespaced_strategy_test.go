@@ -79,7 +79,7 @@ var _ = Describe("NamespacedStrategy", func() {
 				})
 
 				It("namespaced the data path", func() {
-					path := fakeNamespacer.NamespacePathArgsForCall(0)
+					_, path := fakeNamespacer.NamespacePathArgsForCall(0)
 					Expect(path).To(Equal("some-data-path"))
 				})
 			})
