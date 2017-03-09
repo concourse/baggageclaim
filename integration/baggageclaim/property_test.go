@@ -84,7 +84,6 @@ var _ = Describe("Properties", func() {
 			"property-name":    "property-value",
 			"another-property": "another-value",
 		}))
-
 	})
 
 	It("returns ErrVolumeNotFound if the specified volume does not exist", func() {
@@ -93,9 +92,7 @@ var _ = Describe("Properties", func() {
 		})
 		Expect(err).NotTo(HaveOccurred())
 
-		volume.Release(nil)
-
-		time.Sleep(2 * time.Second)
+		Expect(volume.Destroy()).To(Succeed())
 
 		err = volume.SetProperty("some", "property")
 		Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
