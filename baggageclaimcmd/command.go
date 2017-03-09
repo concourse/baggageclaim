@@ -21,6 +21,8 @@ import (
 )
 
 type BaggageclaimCommand struct {
+	Logger LagerFlag
+
 	BindIP   IPFlag `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
 	BindPort uint16 `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
 
@@ -48,14 +50,7 @@ func (cmd *BaggageclaimCommand) Execute(args []string) error {
 }
 
 func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
-	logger := lager.NewLogger("baggageclaim")
-	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.INFO)
-	logger.RegisterSink(sink)
-
-	if cmd.Metrics.YellerAPIKey != "" {
-		yellerSink := zest.NewYellerSink(cmd.Metrics.YellerAPIKey, cmd.Metrics.YellerEnvironment)
-		logger.RegisterSink(yellerSink)
-	}
+	logger, _ := cmd.constructLogger()
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
 
@@ -127,6 +122,17 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 			"addr": listenAddr,
 		})
 	}), nil
+}
+
+func (cmd *BaggageclaimCommand) constructLogger() (lager.Logger, *lager.ReconfigurableSink) {
+	logger, reconfigurableSink := cmd.Logger.Logger("baggageclaim")
+
+	if cmd.Metrics.YellerAPIKey != "" {
+		yellerSink := zest.NewYellerSink(cmd.Metrics.YellerAPIKey, cmd.Metrics.YellerEnvironment)
+		logger.RegisterSink(yellerSink)
+	}
+
+	return logger, reconfigurableSink
 }
 
 func onReady(runner ifrit.Runner, cb func()) ifrit.Runner {
