@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -360,22 +359,15 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	tarCommand := exec.Command("tar", "-x", "-C", destinationPath)
-	tarCommand.Stdin = req.Body
-
-	if !vol.Privileged {
-		vs.namespacer.NamespaceCommand(tarCommand)
-	}
-
-	err = tarCommand.Run()
+	badStream, err := vs.streamIn(req.Body, destinationPath, vol.Privileged)
 	if err != nil {
-		hLog.Error("failed-to-stream-into-volume", err)
-
-		if _, ok := err.(*exec.ExitError); ok {
+		if badStream {
+			hLog.Info("bad-stream-payload", lager.Data{"error": err.Error()})
 			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
 			return
 		}
 
+		hLog.Error("failed-to-stream-into-volume", err)
 		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
 		return
 	}
@@ -418,7 +410,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 		"full-path": srcPath,
 	})
 
-	err = vs.streamOutSrc(vol, srcPath, w)
+	err = vs.streamOut(w, srcPath, vol.Privileged)
 	if err != nil {
 		if os.IsNotExist(err) {
 			hLog.Info("source-path-not-found")
@@ -436,45 +428,4 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}
-}
-
-func (vs *VolumeServer) streamOutSrc(vol volume.Volume, srcPath string, w http.ResponseWriter) error {
-	fileInfo, err := os.Stat(srcPath)
-	if err != nil {
-		return err
-	}
-
-	var tarCommandPath, tarCommandDir string
-
-	if fileInfo.IsDir() {
-		tarCommandPath = "."
-		tarCommandDir = srcPath
-	} else {
-		tarCommandPath = filepath.Base(srcPath)
-		tarCommandDir = filepath.Dir(srcPath)
-	}
-
-	tarCommand := exec.Command("tar", "-c", tarCommandPath)
-	tarCommand.Dir = tarCommandDir
-
-	if !vol.Privileged {
-		vs.namespacer.NamespaceCommand(tarCommand)
-	}
-
-	readCloser, err := tarCommand.StdoutPipe()
-	if err != nil {
-		return err
-	}
-
-	err = tarCommand.Start()
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(w, readCloser)
-	if err != nil {
-		return err
-	}
-
-	return tarCommand.Wait()
 }
