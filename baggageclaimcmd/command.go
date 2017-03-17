@@ -85,7 +85,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	locker := volume.NewLockManager()
 
-	filesystem, err := volume.NewFilesystem(volumeDriver, string(cmd.VolumesDir))
+	filesystem, err := volume.NewFilesystem(volumeDriver, cmd.VolumesDir.Path())
 	if err != nil {
 		logger.Fatal("failed-to-initialize-filesystem", err)
 	}
