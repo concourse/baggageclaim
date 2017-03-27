@@ -12,7 +12,7 @@ import (
 // She doesn't even go here!
 // We don't use baggageclaim TTLs post-life, so this test
 // is of little use.
-var _ = XDescribe("TTL's", func() {
+var _ = XDescribe(":skip TTL's", func() {
 	var (
 		runner *BaggageClaimRunner
 		client baggageclaim.Client
