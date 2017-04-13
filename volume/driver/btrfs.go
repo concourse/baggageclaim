@@ -9,35 +9,41 @@ import (
 	"path/filepath"
 	"strings"
 
-	"code.cloudfoundry.org/lager"
 	"time"
+
+	"code.cloudfoundry.org/lager"
 )
 
 type BtrFSDriver struct {
 	btrfsBin string
 	rootPath string
 	logger   lager.Logger
+	timeOut  time.Duration
 }
+
+var killTimeOut = 1 * time.Minute
 
 func NewBtrFSDriver(
 	logger lager.Logger,
 	rootPath string,
 	btrfsBin string,
+	timeOut time.Duration,
 ) *BtrFSDriver {
 	return &BtrFSDriver{
 		logger:   logger,
 		rootPath: rootPath,
 		btrfsBin: btrfsBin,
+		timeOut:  timeOut,
 	}
 }
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
-	_, _, err := driver.run(driver.btrfsBin, "subvolume", "create", path)
+	_, _, err := driver.Run(driver.btrfsBin, "subvolume", "create", path)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = driver.run(driver.btrfsBin, "quota", "enable", path)
+	_, _, err = driver.Run(driver.btrfsBin, "quota", "enable", path)
 	if err != nil {
 		return err
 	}
@@ -74,7 +80,7 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 	}
 
 	for i := len(volumePathsToDelete) - 1; i >= 0; i-- {
-		_, _, err := driver.run(driver.btrfsBin, "subvolume", "delete", volumePathsToDelete[i])
+		_, _, err := driver.Run(driver.btrfsBin, "subvolume", "delete", volumePathsToDelete[i])
 		if err != nil {
 			return err
 		}
@@ -84,12 +90,12 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 }
 
 func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	_, _, err := driver.run(driver.btrfsBin, "subvolume", "snapshot", parent, path)
+	_, _, err := driver.Run(driver.btrfsBin, "subvolume", "snapshot", parent, path)
 	return err
 }
 
 func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	output, _, err := driver.run(driver.btrfsBin, "qgroup", "show", "-F", "--raw", path)
+	output, _, err := driver.Run(driver.btrfsBin, "qgroup", "show", "-F", "--raw", path)
 	if err != nil {
 		return 0, err
 	}
@@ -111,7 +117,7 @@ func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	return exclusiveSize, nil
 }
 
-func (driver *BtrFSDriver) run(command string, args ...string) (string, string, error) {
+func (driver *BtrFSDriver) Run(command string, args ...string) (string, string, error) {
 	cmd := exec.Command(command, args...)
 
 	logger := driver.logger.Session("run-command", lager.Data{
@@ -127,17 +133,40 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 
 	done := make(chan error, 1)
 	go func() {
+		logger.Debug("starting")
 		done <- cmd.Run()
 	}()
 
 	select {
-	case <-time.After(10 * time.Minute):
-		err := cmd.Process.Kill()
-		if err != nil {
-			logger.Error("failed to kill process: ", err)
+	case <-time.After(driver.timeOut):
+		logger = logger.Session("timeout")
+		logger.Info("attempting-to-kill-process")
+
+		kill := make(chan error, 1)
+
+		// btrfs has kernel bugs which can prevent commands from being killable.
+		// https://bugzilla.kernel.org/show_bug.cgi?id=110391
+		// We should attempt to kill this process, but do it in a non-blocking
+		// fashion. If `Kill()` blocks forever, we *will* leak a go-routine.
+		// But, there's nothing we can do about that.
+		go func() {
+			kill <- cmd.Process.Kill()
+			logger.Debug("killed-process")
+		}()
+
+		select {
+		case <-time.After(killTimeOut):
+			err := errors.New("btrfs-kernel-error")
+			logger.Error("fatal-error-timed-out-attempting-to-kill-process-restart-workers", err)
+
 			return "", "", err
+		case err := <-kill:
+			if err != nil {
+				logger.Error("failed-to-kill-process", err)
+			}
+
+			return stdout.String(), stderr.String(), err
 		}
-		logger.Info("Reached timeout, process killed.")
 	case err := <-done:
 		loggerData := lager.Data{
 			"stdout": stdout.String(),
@@ -145,11 +174,11 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 		}
 
 		if err != nil {
-			logger.Error("failed", err, loggerData)
+			logger.Error("process-failed", err, loggerData)
 			return "", "", err
 		}
 
-		logger.Debug("ran", loggerData)
+		logger.Debug("finished")
 	}
 
 	return stdout.String(), stderr.String(), nil

@@ -31,6 +31,7 @@ var _ = Describe("BtrFS", func() {
 		volumeDir  string
 		fsDriver   *driver.BtrFSDriver
 		filesystem *fs.BtrfsFilesystem
+		timeOut    time.Duration
 	)
 
 	BeforeEach(func() {
@@ -39,6 +40,7 @@ var _ = Describe("BtrFS", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		logger := lagertest.NewTestLogger("fs")
+		timeOut = 1 * time.Second
 
 		imagePath := filepath.Join(tempDir, "image.img")
 		volumeDir = filepath.Join(tempDir, "mountpoint")
@@ -47,7 +49,7 @@ var _ = Describe("BtrFS", func() {
 		err = filesystem.Create(100 * 1024 * 1024)
 		Expect(err).NotTo(HaveOccurred())
 
-		fsDriver = driver.NewBtrFSDriver(logger, volumeDir, "btrfs")
+		fsDriver = driver.NewBtrFSDriver(logger, volumeDir, "btrfs", timeOut)
 	})
 
 	AfterEach(func() {
@@ -117,6 +119,12 @@ var _ = Describe("BtrFS", func() {
 
 			Expect(parentVolumePath).NotTo(BeADirectory())
 			Expect(siblingVolumePath).To(BeADirectory())
+		})
+
+		It("times out and errors when a command takes too long", func() {
+			_, _, err := fsDriver.Run("sleep", "15")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("process-killed-on-timeout"))
 		})
 	})
 
