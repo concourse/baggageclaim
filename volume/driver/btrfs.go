@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"code.cloudfoundry.org/lager"
-	"time"
 )
 
 type BtrFSDriver struct {
@@ -125,32 +124,19 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Run()
-	}()
+	err := cmd.Run()
 
-	select {
-	case <-time.After(10 * time.Minute):
-		err := cmd.Process.Kill()
-		if err != nil {
-			logger.Error("failed to kill process: ", err)
-			return "", "", err
-		}
-		logger.Info("Reached timeout, process killed.")
-	case err := <-done:
-		loggerData := lager.Data{
-			"stdout": stdout.String(),
-			"stderr": stderr.String(),
-		}
-
-		if err != nil {
-			logger.Error("failed", err, loggerData)
-			return "", "", err
-		}
-
-		logger.Debug("ran", loggerData)
+	loggerData := lager.Data{
+		"stdout": stdout.String(),
+		"stderr": stderr.String(),
 	}
+
+	if err != nil {
+		logger.Error("failed", err, loggerData)
+		return "", "", err
+	}
+
+	logger.Debug("ran", loggerData)
 
 	return stdout.String(), stderr.String(), nil
 }
