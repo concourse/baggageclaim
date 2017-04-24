@@ -14,7 +14,7 @@ func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) er
 
 func (driver *NaiveDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	stdout := &bytes.Buffer{}
-	cmd := exec.Command("du", "-sk", path)
+	cmd := exec.Command("du", "-s", path)
 	cmd.Stdout = stdout
 
 	err := cmd.Run()
