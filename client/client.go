@@ -30,6 +30,8 @@ type client struct {
 
 	retryBackOffFactory retryhttp.BackOffFactory
 	nestedRoundTripper  http.RoundTripper
+
+	givenHttpClient *http.Client
 }
 
 func New(apiURL string, nestedRoundTripper http.RoundTripper) Client {
@@ -42,7 +44,17 @@ func New(apiURL string, nestedRoundTripper http.RoundTripper) Client {
 	}
 }
 
+func NewWithHTTPClient(apiURL string, httpClient *http.Client) Client {
+	return &client{
+		givenHttpClient:  httpClient,
+		requestGenerator: rata.NewRequestGenerator(apiURL, baggageclaim.Routes),
+	}
+}
+
 func (c *client) httpClient(logger lager.Logger) *http.Client {
+	if c.givenHttpClient != nil {
+		return c.givenHttpClient
+	}
 	return &http.Client{
 		Transport: &retryhttp.RetryRoundTripper{
 			Logger:         logger.Session("retry-round-tripper"),
