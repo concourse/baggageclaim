@@ -12,6 +12,7 @@ import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/tedsuo/rata"
 )
 
@@ -59,12 +60,23 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	var request baggageclaim.VolumeRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
+		hLog.Error("failed-to-decode-request", err)
 		RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
 		return
 	}
 
+	handle := request.Handle
+	if handle == "" {
+		handle, err = vs.generateHandle()
+		if err != nil {
+			hLog.Error("failed-to-generate-handle", err)
+			RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+			return
+		}
+	}
+
 	hLog = hLog.WithData(lager.Data{
-		"handle":     request.Handle,
+		"handle":     handle,
 		"ttl":        request.TTLInSeconds,
 		"privileged": request.Privileged,
 		"strategy":   request.Strategy,
@@ -80,7 +92,7 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("creating")
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(
-		request.Handle,
+		handle,
 		strategy,
 		volume.Properties(request.Properties),
 		request.TTLInSeconds,
@@ -428,4 +440,13 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}
+}
+
+func (vs *VolumeServer) generateHandle() (string, error) {
+	handle, err := uuid.NewV4()
+	if err != nil {
+		return "", err
+	}
+
+	return handle.String(), nil
 }

@@ -700,10 +700,25 @@ var _ = Describe("Volume Server", func() {
 				})
 			})
 
-			Context("when a new directory can be created", func() {
-				It("writes a nice JSON response", func() {
+			It("writes a nice JSON", func() {
+				Expect(recorder.Body).To(ContainSubstring(`"path":`))
+				Expect(recorder.Body).To(ContainSubstring(`"handle":"some-handle"`))
+			})
+
+			Context("when handle is not provided in request", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(map[string]string{
+							"type": "empty",
+						}),
+					})
+				})
+
+				It("generates a handle", func() {
 					Expect(recorder.Body).To(ContainSubstring(`"path":`))
-					Expect(recorder.Body).To(ContainSubstring(`"handle":`))
+					uuidV4Regexp := `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}`
+					Expect(recorder.Body).To(MatchRegexp(`"handle":"` + uuidV4Regexp + `"`))
 				})
 			})
 
