@@ -85,7 +85,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 
 func (driver *OverlayDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	stdout := &bytes.Buffer{}
-	cmd := exec.Command("du", driver.layerDir(path))
+	cmd := exec.Command("du", "-s", driver.layerDir(path))
 	cmd.Stdout = stdout
 
 	err := cmd.Run()
