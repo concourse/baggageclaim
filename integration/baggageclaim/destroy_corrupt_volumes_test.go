@@ -66,19 +66,23 @@ var _ = Describe("reaping corrupted volumes", func() {
 	}
 
 	It("destroys corrupt volume and descendants", func() {
-		parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-			Properties: baggageclaim.VolumeProperties{
-				"property-name": "property-value",
-			},
-		})
+		parentVolume, err := client.CreateVolume(logger,
+			"some-parent-handle",
+			baggageclaim.VolumeSpec{
+				Properties: baggageclaim.VolumeProperties{
+					"property-name": "property-value",
+				},
+			})
 
 		Expect(err).NotTo(HaveOccurred())
-		childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
-			Strategy: baggageclaim.COWStrategy{
-				Parent: parentVolume,
-			},
-			Privileged: false,
-		})
+		childVolume, err := client.CreateVolume(logger,
+			"some-child-handle",
+			baggageclaim.VolumeSpec{
+				Strategy: baggageclaim.COWStrategy{
+					Parent: parentVolume,
+				},
+				Privileged: false,
+			})
 		Expect(err).NotTo(HaveOccurred())
 
 		propertiesDataPath := filepath.Join(filepath.Dir(parentVolume.Path()), propertiesFileName)

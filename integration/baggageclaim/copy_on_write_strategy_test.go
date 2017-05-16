@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 var _ = Describe("Copy On Write Strategy", func() {
@@ -50,13 +50,13 @@ var _ = Describe("Copy On Write Strategy", func() {
 
 		Describe("POST /volumes with strategy: cow", func() {
 			It("creates a copy of the volume", func() {
-				parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				parentVolume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).NotTo(HaveOccurred())
 
 				dataInParent := writeData(parentVolume.Path())
 				Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
-				childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+				childVolume, err := client.CreateVolume(logger, "another-handle", baggageclaim.VolumeSpec{
 					Strategy: baggageclaim.COWStrategy{
 						Parent: parentVolume,
 					},
@@ -84,13 +84,13 @@ var _ = Describe("Copy On Write Strategy", func() {
 						return
 					}
 
-					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					parentVolume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
 					Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
-					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+					childVolume, err := client.CreateVolume(logger, "another-handle", baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
 							Parent: parentVolume,
 						},
@@ -101,8 +101,8 @@ var _ = Describe("Copy On Write Strategy", func() {
 					stat, err := os.Stat(filepath.Join(childVolume.Path(), dataInParent))
 					Expect(err).ToNot(HaveOccurred())
 
-					maxUID := uidjunk.MustGetMaxValidUID()
-					maxGID := uidjunk.MustGetMaxValidGID()
+					maxUID := uidgid.MustGetMaxValidUID()
+					maxGID := uidgid.MustGetMaxValidGID()
 
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
@@ -120,13 +120,13 @@ var _ = Describe("Copy On Write Strategy", func() {
 						return
 					}
 
-					parentVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					parentVolume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(err).NotTo(HaveOccurred())
 
 					dataInParent := writeData(parentVolume.Path())
 					Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
 
-					childVolume, err := client.CreateVolume(logger, baggageclaim.VolumeSpec{
+					childVolume, err := client.CreateVolume(logger, "another-handle", baggageclaim.VolumeSpec{
 						Strategy: baggageclaim.COWStrategy{
 							Parent: parentVolume,
 						},

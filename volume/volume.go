@@ -8,6 +8,7 @@ type Volume struct {
 	Properties Properties `json:"properties"`
 	TTL        TTL        `json:"ttl,omitempty"`
 	ExpiresAt  time.Time  `json:"expires_at"`
+	Privileged bool       `json:"privileged"`
 }
 
 type Volumes []Volume

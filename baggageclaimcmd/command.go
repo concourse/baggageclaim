@@ -10,7 +10,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/reaper"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/tedsuo/ifrit"
@@ -21,6 +21,8 @@ import (
 )
 
 type BaggageclaimCommand struct {
+	Logger LagerFlag
+
 	BindIP   IPFlag `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
 	BindPort uint16 `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
 
@@ -51,14 +53,7 @@ func (cmd *BaggageclaimCommand) Execute(args []string) error {
 }
 
 func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
-	logger := lager.NewLogger("baggageclaim")
-	sink := lager.NewReconfigurableSink(lager.NewWriterSink(os.Stdout, lager.DEBUG), lager.INFO)
-	logger.RegisterSink(sink)
-
-	if cmd.Metrics.YellerAPIKey != "" {
-		yellerSink := zest.NewYellerSink(cmd.Metrics.YellerAPIKey, cmd.Metrics.YellerEnvironment)
-		logger.RegisterSink(yellerSink)
-	}
+	logger, _ := cmd.constructLogger()
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
 
@@ -78,43 +73,26 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		volumeDriver = &driver.NaiveDriver{}
 	}
 
-	var namespacer uidjunk.Namespacer
+	var namespacer uidgid.Namespacer
 
-	maxUID, maxUIDErr := uidjunk.DefaultUIDMap.MaxValid()
-	maxGID, maxGIDErr := uidjunk.DefaultGIDMap.MaxValid()
+	maxUID, maxUIDErr := uidgid.DefaultUIDMap.MaxValid()
+	maxGID, maxGIDErr := uidgid.DefaultGIDMap.MaxValid()
 
 	if runtime.GOOS == "linux" && maxUIDErr == nil && maxGIDErr == nil {
-		maxId := uidjunk.Min(maxUID, maxGID)
+		maxId := uidgid.Min(maxUID, maxGID)
+		Translator := uidgid.NewTranslator(maxId)
 
-		mappingList := uidjunk.MappingList{
-			{
-				FromID: 0,
-				ToID:   maxId,
-				Size:   1,
-			},
-			{
-				FromID: 1,
-				ToID:   1,
-				Size:   maxId - 1,
-			},
-		}
-
-		uidTranslator := uidjunk.NewUidTranslator(
-			mappingList,
-			mappingList,
-		)
-
-		namespacer = &uidjunk.UidNamespacer{
-			Translator: uidTranslator,
+		namespacer = &uidgid.UidNamespacer{
+			Translator: Translator,
 			Logger:     logger.Session("uid-namespacer"),
 		}
 	} else {
-		namespacer = uidjunk.NoopNamespacer{}
+		namespacer = uidgid.NoopNamespacer{}
 	}
 
 	locker := volume.NewLockManager()
 
-	filesystem, err := volume.NewFilesystem(volumeDriver, string(cmd.VolumesDir))
+	filesystem, err := volume.NewFilesystem(volumeDriver, cmd.VolumesDir.Path())
 	if err != nil {
 		logger.Fatal("failed-to-initialize-filesystem", err)
 	}
@@ -130,6 +108,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
 		strategerizer,
+		namespacer,
 		volumeRepo,
 	)
 	if err != nil {
@@ -150,6 +129,17 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 			"addr": listenAddr,
 		})
 	}), nil
+}
+
+func (cmd *BaggageclaimCommand) constructLogger() (lager.Logger, *lager.ReconfigurableSink) {
+	logger, reconfigurableSink := cmd.Logger.Logger("baggageclaim")
+
+	if cmd.Metrics.YellerAPIKey != "" {
+		yellerSink := zest.NewYellerSink(cmd.Metrics.YellerAPIKey, cmd.Metrics.YellerEnvironment)
+		logger.RegisterSink(yellerSink)
+	}
+
+	return logger, reconfigurableSink
 }
 
 func onReady(runner ifrit.Runner, cb func()) ifrit.Runner {

@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/nu7hatch/gouuid"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
@@ -16,7 +15,7 @@ type Repository interface {
 	ListVolumes(queryProperties Properties) (Volumes, []string, error)
 	GetVolume(handle string) (Volume, bool, error)
 	GetVolumeStats(handle string) (VolumeStats, bool, error)
-	CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error)
+	CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error)
 	DestroyVolume(handle string) error
 	DestroyVolumeAndDescendants(handle string) error
 
@@ -112,9 +111,7 @@ func (repo *repository) DestroyVolumeAndDescendants(handle string) error {
 	return repo.DestroyVolume(handle)
 }
 
-func (repo *repository) CreateVolume(strategy Strategy, properties Properties, ttlInSeconds uint) (Volume, error) {
-	handle := repo.generateHandle()
-
+func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
 	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
 
 	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem)
@@ -141,6 +138,12 @@ func (repo *repository) CreateVolume(strategy Strategy, properties Properties, t
 	expiresAt, err := initVolume.StoreTTL(ttl)
 	if err != nil {
 		logger.Error("failed-to-set-properties", err)
+		return Volume{}, err
+	}
+
+	err = initVolume.StorePrivileged(isPrivileged)
+	if err != nil {
+		logger.Error("failed-to-set-privileged", err)
 		return Volume{}, err
 	}
 
@@ -357,20 +360,17 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 		return Volume{}, err
 	}
 
+	isPrivileged, err := liveVolume.LoadPrivileged()
+	if err != nil {
+		return Volume{}, err
+	}
+
 	return Volume{
 		Handle:     liveVolume.Handle(),
 		Path:       liveVolume.DataPath(),
 		Properties: properties,
 		TTL:        ttl,
 		ExpiresAt:  expiresAt,
+		Privileged: isPrivileged,
 	}, nil
-}
-
-func (repo *repository) generateHandle() string {
-	handle, err := uuid.NewV4()
-	if err != nil {
-		repo.logger.Fatal("failed-to-generate-handle", err)
-	}
-
-	return handle.String()
 }

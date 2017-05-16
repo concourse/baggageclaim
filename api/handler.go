@@ -8,17 +8,20 @@ import (
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 )
 
 func NewHandler(
 	logger lager.Logger,
 	strategerizer volume.Strategerizer,
+	namespacer uidgid.Namespacer,
 	volumeRepo volume.Repository,
 ) (http.Handler, error) {
 	volumeServer := NewVolumeServer(
 		logger.Session("volume-server"),
 		strategerizer,
+		namespacer,
 		volumeRepo,
 	)
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type Strategerizer interface {
@@ -23,10 +23,10 @@ var ErrNoStrategy = errors.New("no strategy given")
 var ErrUnknownStrategy = errors.New("unknown strategy")
 
 type strategerizer struct {
-	namespacer uidjunk.Namespacer
+	namespacer uidgid.Namespacer
 }
 
-func NewStrategerizer(namespacer uidjunk.Namespacer) Strategerizer {
+func NewStrategerizer(namespacer uidgid.Namespacer) Strategerizer {
 	return &strategerizer{
 		namespacer: namespacer,
 	}

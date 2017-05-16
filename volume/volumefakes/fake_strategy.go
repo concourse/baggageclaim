@@ -35,9 +35,8 @@ func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volum
 	fake.materializeMutex.Unlock()
 	if fake.MaterializeStub != nil {
 		return fake.MaterializeStub(arg1, arg2, arg3)
-	} else {
-		return fake.materializeReturns.result1, fake.materializeReturns.result2
 	}
+	return fake.materializeReturns.result1, fake.materializeReturns.result2
 }
 
 func (fake *FakeStrategy) MaterializeCallCount() int {

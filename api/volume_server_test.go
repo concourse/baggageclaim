@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"syscall"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,7 +22,7 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/uidjunk"
+	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
 )
@@ -39,6 +41,11 @@ var _ = Describe("Volume Server", func() {
 		tempDir, err = ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 		Expect(err).NotTo(HaveOccurred())
 
+		// ioutil.TempDir creates it 0700; we need public readability for
+		// unprivileged StreamIn
+		err = os.Chmod(tempDir, 0755)
+		Expect(err).NotTo(HaveOccurred())
+
 		volumeDir = tempDir
 	})
 
@@ -54,9 +61,27 @@ var _ = Describe("Volume Server", func() {
 			volume.NewLockManager(),
 		)
 
-		strategerizer := volume.NewStrategerizer(&uidjunk.NoopNamespacer{})
+		var namespacer uidgid.Namespacer
+		if runtime.GOOS == "linux" {
+			maxUID, err := uidgid.DefaultUIDMap.MaxValid()
+			Expect(err).NotTo(HaveOccurred())
 
-		handler, err = api.NewHandler(logger, strategerizer, repo)
+			maxGID, err := uidgid.DefaultGIDMap.MaxValid()
+			Expect(err).NotTo(HaveOccurred())
+
+			maxId := uidgid.Min(maxUID, maxGID)
+			Translator := uidgid.NewTranslator(maxId)
+			namespacer = &uidgid.UidNamespacer{
+				Translator: Translator,
+				Logger:     logger.Session("uid-namespacer"),
+			}
+		} else {
+			namespacer = &uidgid.NoopNamespacer{}
+		}
+
+		strategerizer := volume.NewStrategerizer(namespacer)
+
+		handler, err = api.NewHandler(logger, strategerizer, namespacer, repo)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -91,6 +116,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -105,6 +131,7 @@ var _ = Describe("Volume Server", func() {
 
 			body.Reset()
 			err = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "another-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -139,17 +166,20 @@ var _ = Describe("Volume Server", func() {
 
 	Describe("streaming tar files into volumes", func() {
 		var (
-			myVolume  volume.Volume
-			tarBuffer *(bytes.Buffer)
+			myVolume     volume.Volume
+			tarBuffer    *(bytes.Buffer)
+			isPrivileged bool
 		)
 
 		JustBeforeEach(func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
+				Privileged: isPrivileged,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -193,6 +223,65 @@ var _ = Describe("Volume Server", func() {
 
 				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
 			})
+
+			Context("when volume is not privileged", func() {
+				BeforeEach(func() {
+					isPrivileged = false
+				})
+
+				It("namespaces volume path", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarInfoPath).To(BeAnExistingFile())
+
+					stat, err := os.Stat(tarInfoPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					maxUID := uidgid.MustGetMaxValidUID()
+					maxGID := uidgid.MustGetMaxValidGID()
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
+					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+				})
+			})
+
+			Context("when volume privileged", func() {
+				BeforeEach(func() {
+					isPrivileged = true
+				})
+
+				It("namespaces volume path", func() {
+					if runtime.GOOS != "linux" {
+						Skip("only runs somewhere we can run privileged")
+						return
+					}
+
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarInfoPath).To(BeAnExistingFile())
+
+					stat, err := os.Stat(tarInfoPath)
+					Expect(err).ToNot(HaveOccurred())
+
+					sysStat := stat.Sys().(*syscall.Stat_t)
+					Expect(sysStat.Uid).To(Equal(uint32(0)))
+					Expect(sysStat.Gid).To(Equal(uint32(0)))
+				})
+			})
 		})
 
 		Context("when the tar stream is invalid", func() {
@@ -232,6 +321,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -403,6 +493,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -453,6 +544,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -500,6 +592,7 @@ var _ = Describe("Volume Server", func() {
 			body := &bytes.Buffer{}
 
 			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle",
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
@@ -564,6 +657,7 @@ var _ = Describe("Volume Server", func() {
 
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "empty",
 						}),
@@ -599,16 +693,32 @@ var _ = Describe("Volume Server", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
 				json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Handle: "some-handle",
 					Strategy: encStrategy(map[string]string{
 						"type": "empty",
 					}),
 				})
 			})
 
-			Context("when a new directory can be created", func() {
-				It("writes a nice JSON response", func() {
+			It("writes a nice JSON", func() {
+				Expect(recorder.Body).To(ContainSubstring(`"path":`))
+				Expect(recorder.Body).To(ContainSubstring(`"handle":"some-handle"`))
+			})
+
+			Context("when handle is not provided in request", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(map[string]string{
+							"type": "empty",
+						}),
+					})
+				})
+
+				It("generates a handle", func() {
 					Expect(recorder.Body).To(ContainSubstring(`"path":`))
-					Expect(recorder.Body).To(ContainSubstring(`"handle":`))
+					uuidV4Regexp := `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}`
+					Expect(recorder.Body).To(MatchRegexp(`"handle":"` + uuidV4Regexp + `"`))
 				})
 			})
 
@@ -658,6 +768,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "grime",
 						}),
@@ -684,6 +795,7 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
 					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "cow",
 						}),

@@ -50,9 +50,11 @@ var _ = Describe("Repository", func() {
 
 		JustBeforeEach(func() {
 			createdVolume, createErr = repository.CreateVolume(
+				"some-handle",
 				fakeStrategy,
 				properties,
 				ttlInSeconds,
+				true,
 			)
 		})
 
@@ -64,13 +66,14 @@ var _ = Describe("Repository", func() {
 				fakeStrategy.MaterializeReturns(fakeInitVolume, nil)
 			})
 
-			Context("when setting the properties and ttl succeeds", func() {
+			Context("when setting the properties, ttl and privileged succeeds", func() {
 				var expiresAt time.Time
 
 				BeforeEach(func() {
 					expiresAt = time.Now()
 					fakeInitVolume.StorePropertiesReturns(nil)
 					fakeInitVolume.StoreTTLReturns(expiresAt, nil)
+					fakeInitVolume.StorePrivilegedReturns(nil)
 				})
 
 				Context("when the volume can be initialized", func() {
@@ -85,6 +88,11 @@ var _ = Describe("Repository", func() {
 
 					It("succeeds", func() {
 						Expect(createErr).To(BeNil())
+					})
+
+					It("stores volume privileged with the right value", func() {
+						Expect(fakeInitVolume.StorePrivilegedCallCount()).To(Equal(1))
+						Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(true))
 					})
 
 					It("returns the created volume", func() {
@@ -150,6 +158,26 @@ var _ = Describe("Repository", func() {
 
 				BeforeEach(func() {
 					fakeInitVolume.StoreTTLReturns(time.Time{}, disaster)
+				})
+
+				It("cleans up the volume", func() {
+					Expect(fakeInitVolume.DestroyCallCount()).To(Equal(1))
+				})
+
+				It("does not initialize the volume", func() {
+					Expect(fakeInitVolume.InitializeCallCount()).To(Equal(0))
+				})
+
+				It("returns the error", func() {
+					Expect(createErr).To(Equal(disaster))
+				})
+			})
+
+			Context("when storing the privileged fails", func() {
+				disaster := errors.New("nope")
+
+				BeforeEach(func() {
+					fakeInitVolume.StorePrivilegedReturns(disaster)
 				})
 
 				It("cleans up the volume", func() {
@@ -367,24 +395,28 @@ var _ = Describe("Repository", func() {
 				fakeVolume1.DataPathReturns("handle-1-data-path")
 				fakeVolume1.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
 				fakeVolume1.LoadTTLReturns(1, time.Unix(1, 0), nil)
+				fakeVolume1.LoadPrivilegedReturns(true, nil)
 
 				fakeVolume2 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume2.HandleReturns("handle-2")
 				fakeVolume2.DataPathReturns("handle-2-data-path")
 				fakeVolume2.LoadPropertiesReturns(volume.Properties{"a": "a"}, nil)
 				fakeVolume2.LoadTTLReturns(2, time.Unix(2, 0), nil)
+				fakeVolume2.LoadPrivilegedReturns(false, nil)
 
 				fakeVolume3 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume3.HandleReturns("handle-3")
 				fakeVolume3.DataPathReturns("handle-3-data-path")
 				fakeVolume3.LoadPropertiesReturns(volume.Properties{"b": "b"}, nil)
 				fakeVolume3.LoadTTLReturns(3, time.Unix(3, 0), nil)
+				fakeVolume3.LoadPrivilegedReturns(true, nil)
 
 				fakeVolume4 = new(volumefakes.FakeFilesystemLiveVolume)
 				fakeVolume4.HandleReturns("handle-4")
 				fakeVolume4.DataPathReturns("handle-4-data-path")
 				fakeVolume4.LoadPropertiesReturns(volume.Properties{}, nil)
 				fakeVolume4.LoadTTLReturns(4, time.Unix(4, 0), nil)
+				fakeVolume4.LoadPrivilegedReturns(false, nil)
 
 				fakeFilesystem.ListVolumesReturns([]volume.FilesystemLiveVolume{
 					fakeVolume1,
@@ -411,6 +443,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{"a": "a", "b": "b"},
 							TTL:        1,
 							ExpiresAt:  time.Unix(1, 0),
+							Privileged: true,
 						},
 						{
 							Handle:     "handle-2",
@@ -418,6 +451,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{"a": "a"},
 							TTL:        2,
 							ExpiresAt:  time.Unix(2, 0),
+							Privileged: false,
 						},
 						{
 							Handle:     "handle-3",
@@ -425,6 +459,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{"b": "b"},
 							TTL:        3,
 							ExpiresAt:  time.Unix(3, 0),
+							Privileged: true,
 						},
 						{
 							Handle:     "handle-4",
@@ -432,6 +467,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{},
 							TTL:        4,
 							ExpiresAt:  time.Unix(4, 0),
+							Privileged: false,
 						},
 					}))
 				})
@@ -450,6 +486,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"a": "a", "b": "b"},
 									TTL:        1,
 									ExpiresAt:  time.Unix(1, 0),
+									Privileged: true,
 								},
 								{
 									Handle:     "handle-3",
@@ -457,6 +494,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"b": "b"},
 									TTL:        3,
 									ExpiresAt:  time.Unix(3, 0),
+									Privileged: true,
 								},
 								{
 									Handle:     "handle-4",
@@ -464,6 +502,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{},
 									TTL:        4,
 									ExpiresAt:  time.Unix(4, 0),
+									Privileged: false,
 								},
 							}))
 						})
@@ -482,6 +521,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"a": "a", "b": "b"},
 									TTL:        1,
 									ExpiresAt:  time.Unix(1, 0),
+									Privileged: true,
 								},
 								{
 									Handle:     "handle-3",
@@ -489,6 +529,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"b": "b"},
 									TTL:        3,
 									ExpiresAt:  time.Unix(3, 0),
+									Privileged: true,
 								},
 								{
 									Handle:     "handle-4",
@@ -496,6 +537,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{},
 									TTL:        4,
 									ExpiresAt:  time.Unix(4, 0),
+									Privileged: false,
 								},
 							}))
 
@@ -518,6 +560,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{"a": "a", "b": "b"},
 							TTL:        1,
 							ExpiresAt:  time.Unix(1, 0),
+							Privileged: true,
 						},
 						{
 							Handle:     "handle-2",
@@ -525,6 +568,7 @@ var _ = Describe("Repository", func() {
 							Properties: volume.Properties{"a": "a"},
 							TTL:        2,
 							ExpiresAt:  time.Unix(2, 0),
+							Privileged: false,
 						},
 					}))
 				})
@@ -543,6 +587,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"a": "a", "b": "b"},
 									TTL:        1,
 									ExpiresAt:  time.Unix(1, 0),
+									Privileged: true,
 								},
 							}))
 						})
@@ -561,6 +606,7 @@ var _ = Describe("Repository", func() {
 									Properties: volume.Properties{"a": "a", "b": "b"},
 									TTL:        1,
 									ExpiresAt:  time.Unix(1, 0),
+									Privileged: true,
 								},
 							}))
 
@@ -604,6 +650,7 @@ var _ = Describe("Repository", func() {
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
 				fakeVolume.LoadTTLReturns(1, time.Unix(1, 0), nil)
+				fakeVolume.LoadPrivilegedReturns(true, nil)
 
 				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
 			})
@@ -625,6 +672,7 @@ var _ = Describe("Repository", func() {
 					Properties: volume.Properties{"a": "a", "b": "b"},
 					TTL:        1,
 					ExpiresAt:  time.Unix(1, 0),
+					Privileged: true,
 				}))
 			})
 
@@ -798,6 +846,7 @@ var _ = Describe("Repository", func() {
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
 				fakeVolume.LoadTTLReturns(1, time.Unix(1, 0), nil)
+				fakeVolume.LoadPrivilegedReturns(false, nil)
 
 				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
 			})
@@ -881,6 +930,7 @@ var _ = Describe("Repository", func() {
 				fakeVolume.DataPathReturns("some-data-path")
 				fakeVolume.LoadPropertiesReturns(volume.Properties{"a": "a", "b": "b"}, nil)
 				fakeVolume.LoadTTLReturns(1, time.Unix(1, 0), nil)
+				fakeVolume.LoadPrivilegedReturns(false, nil)
 
 				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
 			})
@@ -894,6 +944,7 @@ var _ = Describe("Repository", func() {
 					parentVolume.DataPathReturns("parent-data-path")
 					parentVolume.LoadPropertiesReturns(volume.Properties{"parent": "property"}, nil)
 					parentVolume.LoadTTLReturns(2, time.Unix(2, 0), nil)
+					parentVolume.LoadPrivilegedReturns(true, nil)
 
 					fakeVolume.ParentReturns(parentVolume, true, nil)
 				})
@@ -915,6 +966,7 @@ var _ = Describe("Repository", func() {
 						Properties: volume.Properties{"parent": "property"},
 						TTL:        2,
 						ExpiresAt:  time.Unix(2, 0),
+						Privileged: true,
 					}))
 				})
 

@@ -258,7 +258,7 @@ var _ = Describe("Baggage Claim Client", func() {
 							},
 						),
 					)
-					createdVolume, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					createdVolume, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
 					Expect(err).To(Equal(volume.ErrVolumeDoesNotExist))
 				})
@@ -279,7 +279,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						),
 					)
 
-					_, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					_, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(err).To(Not(HaveOccurred()))
 
 					Consistently(bcServer.ReceivedRequests()).Should(HaveLen(1))
@@ -289,7 +289,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
 					mockErrorResponse("POST", "/volumes", "lost baggage", http.StatusInternalServerError)
-					createdVolume, err := bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+					createdVolume, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
@@ -317,7 +317,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 				)
 				var err error
-				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -370,7 +370,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 				)
 				var err error
-				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -436,7 +436,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 				)
 				var err error
-				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -477,7 +477,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 				)
 				var err error
-				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -518,7 +518,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 				)
 				var err error
-				vol, err = bcClient.CreateVolume(logger, baggageclaim.VolumeSpec{})
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 				Expect(err).ToNot(HaveOccurred())
 			})
 
