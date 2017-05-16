@@ -145,10 +145,10 @@ func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-does-not-exist")
-			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
+			RespondWithError(w, ErrDestroyVolumeFailed, http.StatusNotFound)
 		} else {
 			hLog.Error("failed-to-destroy", err)
-			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
+			RespondWithError(w, ErrDestroyVolumeFailed, http.StatusInternalServerError)
 		}
 
 		return
