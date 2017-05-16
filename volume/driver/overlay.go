@@ -27,7 +27,7 @@ func (driver *OverlayDriver) CreateVolume(path string) error {
 		return err
 	}
 
-	return syscall.Mount(path, layerDir, "", syscall.MS_BIND, "")
+	return syscall.Mount(layerDir, path, "", syscall.MS_BIND, "")
 }
 
 func (driver *OverlayDriver) DestroyVolume(path string) error {
