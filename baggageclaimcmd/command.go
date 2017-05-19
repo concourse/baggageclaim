@@ -56,17 +56,21 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
 
-	var namespacer uidgid.Namespacer
+	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 
 	if runtime.GOOS == "linux" {
-		Translator := uidgid.NewTranslator(uidgid.NewPrivilegedMapper())
+		privilegedNamespacer = &uidgid.UidNamespacer{
+			Translator: uidgid.NewTranslator(uidgid.NewPrivilegedMapper()),
+			Logger:     logger.Session("uid-namespacer"),
+		}
 
-		namespacer = &uidgid.UidNamespacer{
-			Translator: Translator,
+		unprivilegedNamespacer = &uidgid.UidNamespacer{
+			Translator: uidgid.NewTranslator(uidgid.NewUnprivilegedMapper()),
 			Logger:     logger.Session("uid-namespacer"),
 		}
 	} else {
-		namespacer = uidgid.NoopNamespacer{}
+		privilegedNamespacer = uidgid.NoopNamespacer{}
+		unprivilegedNamespacer = uidgid.NoopNamespacer{}
 	}
 
 	locker := volume.NewLockManager()
@@ -80,7 +84,8 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		logger.Session("repository"),
 		filesystem,
 		locker,
-		namespacer,
+		privilegedNamespacer,
+		unprivilegedNamespacer,
 	)
 
 	apiHandler, err := api.NewHandler(

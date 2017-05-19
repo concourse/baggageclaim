@@ -41,14 +41,23 @@ func NewUnprivilegedMapper() Mapper {
 }
 
 func (m uidGidMapper) Apply(cmd *exec.Cmd) {
+	cmd.SysProcAttr.Credential = &syscall.Credential{
+		Uid: uint32(m.uids[0].ContainerID),
+		Gid: uint32(m.gids[0].ContainerID),
+	}
+
 	cmd.SysProcAttr.UidMappings = m.uids
 	cmd.SysProcAttr.GidMappings = m.gids
 }
 
 func findMapping(idMap []syscall.SysProcIDMap, fromID int) int {
 	for _, id := range idMap {
-		if delta := fromID - id.ContainerID; delta < id.Size {
-			return id.HostID + delta
+		if id.Size != 1 {
+			continue
+		}
+
+		if id.ContainerID == fromID {
+			return id.HostID
 		}
 	}
 

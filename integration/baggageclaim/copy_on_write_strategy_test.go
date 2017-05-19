@@ -108,6 +108,47 @@ var _ = Describe("Copy On Write Strategy", func() {
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
 					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
 				})
+
+				Context("when making a privileged copy of an unprivileged volume", func() {
+					It("maps (MAX_UID) to 0", func() {
+						user, err := user.Current()
+						Expect(err).NotTo(HaveOccurred())
+
+						if user.Uid != "0" {
+							Skip("must be run as root")
+							return
+						}
+
+						parentVolume, err := client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
+						Expect(err).NotTo(HaveOccurred())
+
+						dataInParent := writeData(parentVolume.Path())
+						Expect(dataExistsInVolume(dataInParent, parentVolume.Path())).To(BeTrue())
+
+						childVolume, err := client.CreateVolume(logger, "another-handle", baggageclaim.VolumeSpec{
+							Strategy: baggageclaim.COWStrategy{
+								Parent: parentVolume,
+							},
+							Privileged: false,
+						})
+						Expect(err).NotTo(HaveOccurred())
+
+						subChildVolume, err := client.CreateVolume(logger, "yet-another-handle", baggageclaim.VolumeSpec{
+							Strategy: baggageclaim.COWStrategy{
+								Parent: childVolume,
+							},
+							Privileged: true,
+						})
+						Expect(err).NotTo(HaveOccurred())
+
+						stat, err := os.Stat(filepath.Join(subChildVolume.Path(), dataInParent))
+						Expect(err).ToNot(HaveOccurred())
+
+						sysStat := stat.Sys().(*syscall.Stat_t)
+						Expect(sysStat.Uid).To(Equal(uint32(0)))
+						Expect(sysStat.Gid).To(Equal(uint32(0)))
+					})
+				})
 			})
 
 			Context("when privileged", func() {

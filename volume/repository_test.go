@@ -14,10 +14,11 @@ import (
 
 var _ = Describe("Repository", func() {
 	var (
-		logger         *lagertest.TestLogger
-		fakeFilesystem *volumefakes.FakeFilesystem
-		fakeLocker     *volumefakes.FakeLockManager
-		fakeNamespacer *uidgidfakes.FakeNamespacer
+		logger                     *lagertest.TestLogger
+		fakeFilesystem             *volumefakes.FakeFilesystem
+		fakeLocker                 *volumefakes.FakeLockManager
+		fakePrivilegedNamespacer   *uidgidfakes.FakeNamespacer
+		fakeUnprivilegedNamespacer *uidgidfakes.FakeNamespacer
 
 		repository volume.Repository
 	)
@@ -26,13 +27,15 @@ var _ = Describe("Repository", func() {
 		logger = lagertest.NewTestLogger("test")
 		fakeFilesystem = new(volumefakes.FakeFilesystem)
 		fakeLocker = new(volumefakes.FakeLockManager)
-		fakeNamespacer = new(uidgidfakes.FakeNamespacer)
+		fakePrivilegedNamespacer = new(uidgidfakes.FakeNamespacer)
+		fakeUnprivilegedNamespacer = new(uidgidfakes.FakeNamespacer)
 
 		repository = volume.NewRepository(
 			logger,
 			fakeFilesystem,
 			fakeLocker,
-			fakeNamespacer,
+			fakePrivilegedNamespacer,
+			fakeUnprivilegedNamespacer,
 		)
 	})
 
@@ -127,8 +130,27 @@ var _ = Describe("Repository", func() {
 							Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(true))
 						})
 
-						It("does not namespace the data path", func() {
-							Expect(fakeNamespacer.NamespacePathCallCount()).To(Equal(0))
+						It("namespaces the data path as unprivileged before initialization", func() {
+							Expect(fakeUnprivilegedNamespacer.NamespacePathCallCount()).To(Equal(0))
+							Expect(fakePrivilegedNamespacer.NamespacePathCallCount()).To(Equal(1))
+							_, path := fakePrivilegedNamespacer.NamespacePathArgsForCall(0)
+							Expect(path).To(Equal("init-data-path"))
+						})
+
+						Context("when namespacing fails", func() {
+							disaster := errors.New("nope")
+
+							BeforeEach(func() {
+								fakePrivilegedNamespacer.NamespacePathReturns(disaster)
+							})
+
+							It("returns the error", func() {
+								Expect(createErr).To(Equal(disaster))
+							})
+
+							It("destroys the initializing volume", func() {
+								Expect(fakeInitVolume.DestroyCallCount()).To(Equal(1))
+							})
 						})
 					})
 
@@ -142,9 +164,10 @@ var _ = Describe("Repository", func() {
 							Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(false))
 						})
 
-						It("namespaces the data path before initialization", func() {
-							Expect(fakeNamespacer.NamespacePathCallCount()).To(Equal(1))
-							_, path := fakeNamespacer.NamespacePathArgsForCall(0)
+						It("namespaces the data path as unprivileged before initialization", func() {
+							Expect(fakePrivilegedNamespacer.NamespacePathCallCount()).To(Equal(0))
+							Expect(fakeUnprivilegedNamespacer.NamespacePathCallCount()).To(Equal(1))
+							_, path := fakeUnprivilegedNamespacer.NamespacePathArgsForCall(0)
 							Expect(path).To(Equal("init-data-path"))
 						})
 
@@ -152,7 +175,7 @@ var _ = Describe("Repository", func() {
 							disaster := errors.New("nope")
 
 							BeforeEach(func() {
-								fakeNamespacer.NamespacePathReturns(disaster)
+								fakeUnprivilegedNamespacer.NamespacePathReturns(disaster)
 							})
 
 							It("returns the error", func() {

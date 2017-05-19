@@ -55,29 +55,28 @@ var _ = Describe("Volume Server", func() {
 		fs, err := volume.NewFilesystem(&driver.NaiveDriver{}, volumeDir)
 		Expect(err).NotTo(HaveOccurred())
 
-		var namespacer uidgid.Namespacer
+		var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 		if runtime.GOOS == "linux" {
-			maxUID, err := uidgid.DefaultUIDMap.MaxValid()
-			Expect(err).NotTo(HaveOccurred())
+			privilegedNamespacer = &uidgid.UidNamespacer{
+				Translator: uidgid.NewTranslator(uidgid.NewPrivilegedMapper()),
+				Logger:     logger.Session("uid-namespacer"),
+			}
 
-			maxGID, err := uidgid.DefaultGIDMap.MaxValid()
-			Expect(err).NotTo(HaveOccurred())
-
-			maxId := uidgid.Min(maxUID, maxGID)
-			Translator := uidgid.NewTranslator(maxId)
-			namespacer = &uidgid.UidNamespacer{
-				Translator: Translator,
+			unprivilegedNamespacer = &uidgid.UidNamespacer{
+				Translator: uidgid.NewTranslator(uidgid.NewUnprivilegedMapper()),
 				Logger:     logger.Session("uid-namespacer"),
 			}
 		} else {
-			namespacer = &uidgid.NoopNamespacer{}
+			privilegedNamespacer = &uidgid.NoopNamespacer{}
+			unprivilegedNamespacer = &uidgid.NoopNamespacer{}
 		}
 
 		repo := volume.NewRepository(
 			logger,
 			fs,
 			volume.NewLockManager(),
-			namespacer,
+			privilegedNamespacer,
+			unprivilegedNamespacer,
 		)
 
 		strategerizer := volume.NewStrategerizer()

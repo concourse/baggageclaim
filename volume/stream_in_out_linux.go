@@ -11,9 +11,7 @@ func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool)
 	tarCommand := exec.Command("tar", "-x", "-C", dest)
 	tarCommand.Stdin = stream
 
-	if !privileged {
-		repo.namespacer.NamespaceCommand(tarCommand)
-	}
+	repo.namespacer(privileged).NamespaceCommand(tarCommand)
 
 	err := tarCommand.Run()
 	if err != nil {
@@ -45,25 +43,14 @@ func (repo *repository) streamOut(w io.Writer, src string, privileged bool) erro
 
 	tarCommand := exec.Command("tar", "-c", tarCommandPath)
 	tarCommand.Dir = tarCommandDir
+	tarCommand.Stdout = w
 
-	if !privileged {
-		repo.namespacer.NamespaceCommand(tarCommand)
-	}
+	repo.namespacer(privileged).NamespaceCommand(tarCommand)
 
-	readCloser, err := tarCommand.StdoutPipe()
+	err = tarCommand.Run()
 	if err != nil {
 		return err
 	}
 
-	err = tarCommand.Start()
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(w, readCloser)
-	if err != nil {
-		return err
-	}
-
-	return tarCommand.Wait()
+	return nil
 }

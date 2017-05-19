@@ -40,20 +40,28 @@ type repository struct {
 
 	locker LockManager
 
-	namespacer uidgid.Namespacer
+	namespacer func(bool) uidgid.Namespacer
 }
 
 func NewRepository(
 	logger lager.Logger,
 	filesystem Filesystem,
 	locker LockManager,
-	namespacer uidgid.Namespacer,
+	privilegedNamespacer uidgid.Namespacer,
+	unprivilegedNamespacer uidgid.Namespacer,
 ) Repository {
 	return &repository{
 		logger:     logger,
 		filesystem: filesystem,
 		locker:     locker,
-		namespacer: namespacer,
+
+		namespacer: func(privileged bool) uidgid.Namespacer {
+			if privileged {
+				return privilegedNamespacer
+			} else {
+				return unprivilegedNamespacer
+			}
+		},
 	}
 }
 
@@ -159,12 +167,10 @@ func (repo *repository) CreateVolume(handle string, strategy Strategy, propertie
 		return Volume{}, err
 	}
 
-	if !isPrivileged {
-		err := repo.namespacer.NamespacePath(logger.Session("namespace"), initVolume.DataPath())
-		if err != nil {
-			logger.Error("failed-to-namespace-data", err)
-			return Volume{}, err
-		}
+	err = repo.namespacer(isPrivileged).NamespacePath(logger.Session("namespace"), initVolume.DataPath())
+	if err != nil {
+		logger.Error("failed-to-namespace-data", err)
+		return Volume{}, err
 	}
 
 	liveVolume, err := initVolume.Initialize()
@@ -370,21 +376,19 @@ func (repo *repository) StreamIn(handle string, path string, stream io.Reader) (
 		return false, err
 	}
 
-	isPrivileged, err := volume.LoadPrivileged()
+	privileged, err := volume.LoadPrivileged()
 	if err != nil {
 		logger.Error("failed-to-check-if-volume-is-privileged", err)
 		return false, err
 	}
 
-	if !isPrivileged {
-		err := repo.namespacer.NamespacePath(logger, volume.DataPath())
-		if err != nil {
-			logger.Error("failed-to-namespace-path", err)
-			return false, err
-		}
+	err = repo.namespacer(privileged).NamespacePath(logger, volume.DataPath())
+	if err != nil {
+		logger.Error("failed-to-namespace-path", err)
+		return false, err
 	}
 
-	return repo.streamIn(stream, destinationPath, isPrivileged)
+	return repo.streamIn(stream, destinationPath, privileged)
 }
 
 func (repo *repository) StreamOut(handle string, path string, dest io.Writer) error {
