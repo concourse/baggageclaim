@@ -84,14 +84,12 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		logger.Session("repository"),
 		filesystem,
 		locker,
+		namespacer,
 	)
-
-	strategerizer := volume.NewStrategerizer(namespacer)
 
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
-		strategerizer,
-		namespacer,
+		volume.NewStrategerizer(),
 		volumeRepo,
 	)
 	if err != nil {

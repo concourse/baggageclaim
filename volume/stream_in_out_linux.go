@@ -1,4 +1,4 @@
-package api
+package volume
 
 import (
 	"io"
@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 )
 
-func (vs *VolumeServer) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
+func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
 	tarCommand := exec.Command("tar", "-x", "-C", dest)
 	tarCommand.Stdin = stream
 
 	if !privileged {
-		vs.namespacer.NamespaceCommand(tarCommand)
+		repo.namespacer.NamespaceCommand(tarCommand)
 	}
 
 	err := tarCommand.Run()
@@ -27,7 +27,7 @@ func (vs *VolumeServer) streamIn(stream io.Reader, dest string, privileged bool)
 	return false, nil
 }
 
-func (vs *VolumeServer) streamOut(w io.Writer, src string, privileged bool) error {
+func (repo *repository) streamOut(w io.Writer, src string, privileged bool) error {
 	fileInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (vs *VolumeServer) streamOut(w io.Writer, src string, privileged bool) erro
 	tarCommand.Dir = tarCommandDir
 
 	if !privileged {
-		vs.namespacer.NamespaceCommand(tarCommand)
+		repo.namespacer.NamespaceCommand(tarCommand)
 	}
 
 	readCloser, err := tarCommand.StdoutPipe()

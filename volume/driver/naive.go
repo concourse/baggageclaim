@@ -13,4 +13,3 @@ func (driver *NaiveDriver) CreateVolume(path string) error {
 func (driver *NaiveDriver) DestroyVolume(path string) error {
 	return os.RemoveAll(path)
 }
-

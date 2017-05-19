@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type Strategerizer interface {
@@ -22,14 +21,10 @@ const (
 var ErrNoStrategy = errors.New("no strategy given")
 var ErrUnknownStrategy = errors.New("unknown strategy")
 
-type strategerizer struct {
-	namespacer uidgid.Namespacer
-}
+type strategerizer struct{}
 
-func NewStrategerizer(namespacer uidgid.Namespacer) Strategerizer {
-	return &strategerizer{
-		namespacer: namespacer,
-	}
+func NewStrategerizer() Strategerizer {
+	return &strategerizer{}
 }
 
 func (s *strategerizer) StrategyFor(request baggageclaim.VolumeRequest) (Strategy, error) {
@@ -53,13 +48,6 @@ func (s *strategerizer) StrategyFor(request baggageclaim.VolumeRequest) (Strateg
 		strategy = ImportStrategy{strategyInfo["path"]}
 	default:
 		return nil, ErrUnknownStrategy
-	}
-
-	if !request.Privileged {
-		strategy = NamespacedStrategy{
-			PreStrategy: strategy,
-			Namespacer:  s.namespacer,
-		}
 	}
 
 	return strategy, nil

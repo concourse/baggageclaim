@@ -5,12 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/tedsuo/rata"
@@ -31,7 +28,6 @@ var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
 	strategerizer volume.Strategerizer
-	namespacer    uidgid.Namespacer
 	volumeRepo    volume.Repository
 
 	logger lager.Logger
@@ -40,12 +36,10 @@ type VolumeServer struct {
 func NewVolumeServer(
 	logger lager.Logger,
 	strategerizer volume.Strategerizer,
-	namespacer uidgid.Namespacer,
 	volumeRepo volume.Repository,
 ) *VolumeServer {
 	return &VolumeServer{
 		strategerizer: strategerizer,
-		namespacer:    namespacer,
 		volumeRepo:    volumeRepo,
 		logger:        logger,
 	}
@@ -330,49 +324,19 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	vol, found, err := vs.volumeRepo.GetVolume(handle)
-	if err != nil {
-		hLog.Error("failed-to-get-volume", err)
-		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		hLog.Info("volume-not-found")
-		RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
-		return
-	}
-
 	var subPath string
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
-	destinationPath := filepath.Join(vol.Path, subPath)
-
-	hLog = hLog.WithData(lager.Data{
-		"sub-path":  subPath,
-		"full-path": destinationPath,
-	})
-
-	err = os.MkdirAll(destinationPath, 0755)
+	badStream, err := vs.volumeRepo.StreamIn(handle, subPath, req.Body)
 	if err != nil {
-		hLog.Error("failed-to-create-destination-path", err)
-		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
-		return
-	}
-
-	if !vol.Privileged {
-		err := vs.namespacer.NamespacePath(hLog, vol.Path)
-		if err != nil {
-			hLog.Error("failed-to-namespace-path", err)
-			RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+		if err == volume.ErrVolumeDoesNotExist {
+			hLog.Info("volume-not-found")
+			RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
 			return
 		}
-	}
 
-	badStream, err := vs.streamIn(req.Body, destinationPath, vol.Privileged)
-	if err != nil {
 		if badStream {
 			hLog.Info("bad-stream-payload", lager.Data{"error": err.Error()})
 			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
@@ -397,46 +361,26 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	vol, found, err := vs.volumeRepo.GetVolume(handle)
-	if err != nil {
-		hLog.Error("failed-to-get-volume", err)
-		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		hLog.Error("volume-not-found", err)
-		RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
-		return
-	}
-
 	var subPath string
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
-	srcPath := filepath.Join(vol.Path, subPath)
-
-	hLog = hLog.WithData(lager.Data{
-		"sub-path":  subPath,
-		"full-path": srcPath,
-	})
-
-	err = vs.streamOut(w, srcPath, vol.Privileged)
+	err := vs.volumeRepo.StreamOut(handle, subPath, w)
 	if err != nil {
+		if err == volume.ErrVolumeDoesNotExist {
+			hLog.Info("volume-not-found")
+			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			return
+		}
+
 		if os.IsNotExist(err) {
 			hLog.Info("source-path-not-found")
 			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
 			return
 		}
 
-		hLog.Error("failed-to-stream-out-from-volume", err)
-
-		if _, ok := err.(*exec.ExitError); ok {
-			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
-			return
-		}
-
+		hLog.Error("failed-to-get-volume", err)
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}

@@ -6,9 +6,9 @@ import (
 	"os/exec"
 )
 
-//go:generate counterfeiter -o fake_translator/fake_translator.go . Translator
+//go:generate counterfeiter . Translator
+
 type Translator interface {
-	CacheKey() string
 	TranslatePath(path string, info os.FileInfo, err error) error
 	TranslateCommand(*exec.Cmd)
 }

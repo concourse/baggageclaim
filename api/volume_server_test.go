@@ -55,12 +55,6 @@ var _ = Describe("Volume Server", func() {
 		fs, err := volume.NewFilesystem(&driver.NaiveDriver{}, volumeDir)
 		Expect(err).NotTo(HaveOccurred())
 
-		repo := volume.NewRepository(
-			logger,
-			fs,
-			volume.NewLockManager(),
-		)
-
 		var namespacer uidgid.Namespacer
 		if runtime.GOOS == "linux" {
 			maxUID, err := uidgid.DefaultUIDMap.MaxValid()
@@ -79,9 +73,16 @@ var _ = Describe("Volume Server", func() {
 			namespacer = &uidgid.NoopNamespacer{}
 		}
 
-		strategerizer := volume.NewStrategerizer(namespacer)
+		repo := volume.NewRepository(
+			logger,
+			fs,
+			volume.NewLockManager(),
+			namespacer,
+		)
 
-		handler, err = api.NewHandler(logger, strategerizer, namespacer, repo)
+		strategerizer := volume.NewStrategerizer()
+
+		handler, err = api.NewHandler(logger, strategerizer, repo)
 		Expect(err).NotTo(HaveOccurred())
 	})
 

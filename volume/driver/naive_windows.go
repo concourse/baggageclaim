@@ -2,11 +2,11 @@ package driver
 
 import (
 	"bytes"
-	"os/exec"
 	"errors"
+	"os/exec"
+	"regexp"
 	"strconv"
 	"syscall"
-	"regexp"
 )
 
 func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {

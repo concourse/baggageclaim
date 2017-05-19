@@ -2,6 +2,11 @@ package volume
 
 import (
 	"errors"
+	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/concourse/baggageclaim/uidgid"
 
 	"code.cloudfoundry.org/lager"
 )
@@ -22,6 +27,9 @@ type Repository interface {
 	SetProperty(handle string, propertyName string, propertyValue string) error
 	SetTTL(handle string, ttl uint) error
 
+	StreamIn(handle string, path string, stream io.Reader) (bool, error)
+	StreamOut(handle string, path string, dest io.Writer) error
+
 	VolumeParent(handle string) (Volume, bool, error)
 }
 
@@ -31,17 +39,21 @@ type repository struct {
 	filesystem Filesystem
 
 	locker LockManager
+
+	namespacer uidgid.Namespacer
 }
 
 func NewRepository(
 	logger lager.Logger,
 	filesystem Filesystem,
 	locker LockManager,
+	namespacer uidgid.Namespacer,
 ) Repository {
 	return &repository{
 		logger:     logger,
 		filesystem: filesystem,
 		locker:     locker,
+		namespacer: namespacer,
 	}
 }
 
@@ -145,6 +157,14 @@ func (repo *repository) CreateVolume(handle string, strategy Strategy, propertie
 	if err != nil {
 		logger.Error("failed-to-set-privileged", err)
 		return Volume{}, err
+	}
+
+	if !isPrivileged {
+		err := repo.namespacer.NamespacePath(logger.Session("namespace"), initVolume.DataPath())
+		if err != nil {
+			logger.Error("failed-to-namespace-data", err)
+			return Volume{}, err
+		}
 	}
 
 	liveVolume, err := initVolume.Initialize()
@@ -314,6 +334,84 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	}
 
 	return nil
+}
+
+func (repo *repository) StreamIn(handle string, path string, stream io.Reader) (bool, error) {
+	logger := repo.logger.Session("stream-in", lager.Data{
+		"volume":   handle,
+		"sub-path": path,
+	})
+
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return false, err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return false, ErrVolumeDoesNotExist
+	}
+
+	destinationPath := filepath.Join(volume.DataPath(), path)
+
+	logger = logger.WithData(lager.Data{
+		"full-path": destinationPath,
+	})
+
+	err = os.MkdirAll(destinationPath, 0755)
+	if err != nil {
+		logger.Error("failed-to-create-destination-path", err)
+		return false, err
+	}
+
+	isPrivileged, err := volume.LoadPrivileged()
+	if err != nil {
+		logger.Error("failed-to-check-if-volume-is-privileged", err)
+		return false, err
+	}
+
+	if !isPrivileged {
+		err := repo.namespacer.NamespacePath(logger, volume.DataPath())
+		if err != nil {
+			logger.Error("failed-to-namespace-path", err)
+			return false, err
+		}
+	}
+
+	return repo.streamIn(stream, destinationPath, isPrivileged)
+}
+
+func (repo *repository) StreamOut(handle string, path string, dest io.Writer) error {
+	logger := repo.logger.Session("stream-in", lager.Data{
+		"volume":   handle,
+		"sub-path": path,
+	})
+
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
+	}
+
+	srcPath := filepath.Join(volume.DataPath(), path)
+
+	logger = logger.WithData(lager.Data{
+		"full-path": srcPath,
+	})
+
+	isPrivileged, err := volume.LoadPrivileged()
+	if err != nil {
+		logger.Error("failed-to-check-if-volume-is-privileged", err)
+		return err
+	}
+
+	return repo.streamOut(dest, srcPath, isPrivileged)
 }
 
 func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {

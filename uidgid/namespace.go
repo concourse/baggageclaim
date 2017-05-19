@@ -7,9 +7,9 @@ import (
 	"code.cloudfoundry.org/lager"
 )
 
-//go:generate counterfeiter -o fake_namespacer/fake_namespacer.go . Namespacer
+//go:generate counterfeiter . Namespacer
+
 type Namespacer interface {
-	CacheKey() string
 	NamespacePath(logger lager.Logger, path string) error
 	NamespaceCommand(cmd *exec.Cmd)
 }
@@ -38,12 +38,7 @@ func (n *UidNamespacer) NamespaceCommand(cmd *exec.Cmd) {
 	n.Translator.TranslateCommand(cmd)
 }
 
-func (n *UidNamespacer) CacheKey() string {
-	return n.Translator.CacheKey()
-}
-
 type NoopNamespacer struct{}
 
 func (NoopNamespacer) NamespacePath(lager.Logger, string) error { return nil }
 func (NoopNamespacer) NamespaceCommand(cmd *exec.Cmd)           {}
-func (NoopNamespacer) CacheKey() string                         { return "" }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager/lagertest"
+	"github.com/concourse/baggageclaim/uidgid/uidgidfakes"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
 	. "github.com/onsi/ginkgo"
@@ -16,6 +17,7 @@ var _ = Describe("Repository", func() {
 		logger         *lagertest.TestLogger
 		fakeFilesystem *volumefakes.FakeFilesystem
 		fakeLocker     *volumefakes.FakeLockManager
+		fakeNamespacer *uidgidfakes.FakeNamespacer
 
 		repository volume.Repository
 	)
@@ -24,11 +26,13 @@ var _ = Describe("Repository", func() {
 		logger = lagertest.NewTestLogger("test")
 		fakeFilesystem = new(volumefakes.FakeFilesystem)
 		fakeLocker = new(volumefakes.FakeLockManager)
+		fakeNamespacer = new(uidgidfakes.FakeNamespacer)
 
 		repository = volume.NewRepository(
 			logger,
 			fakeFilesystem,
 			fakeLocker,
+			fakeNamespacer,
 		)
 	})
 
@@ -37,6 +41,7 @@ var _ = Describe("Repository", func() {
 			fakeStrategy *volumefakes.FakeStrategy
 			properties   volume.Properties
 			ttlInSeconds uint
+			privileged   bool
 
 			createdVolume volume.Volume
 			createErr     error
@@ -46,6 +51,7 @@ var _ = Describe("Repository", func() {
 			fakeStrategy = new(volumefakes.FakeStrategy)
 			properties = volume.Properties{"some": "properties"}
 			ttlInSeconds = 42
+			privileged = false
 		})
 
 		JustBeforeEach(func() {
@@ -54,7 +60,7 @@ var _ = Describe("Repository", func() {
 				fakeStrategy,
 				properties,
 				ttlInSeconds,
-				true,
+				privileged,
 			)
 		})
 
@@ -73,6 +79,7 @@ var _ = Describe("Repository", func() {
 					expiresAt = time.Now()
 					fakeInitVolume.StorePropertiesReturns(nil)
 					fakeInitVolume.StoreTTLReturns(expiresAt, nil)
+					fakeInitVolume.DataPathReturns("init-data-path")
 					fakeInitVolume.StorePrivilegedReturns(nil)
 				})
 
@@ -88,11 +95,6 @@ var _ = Describe("Repository", func() {
 
 					It("succeeds", func() {
 						Expect(createErr).To(BeNil())
-					})
-
-					It("stores volume privileged with the right value", func() {
-						Expect(fakeInitVolume.StorePrivilegedCallCount()).To(Equal(1))
-						Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(true))
 					})
 
 					It("returns the created volume", func() {
@@ -113,6 +115,54 @@ var _ = Describe("Repository", func() {
 
 					It("does not destroy the volume (due to busted cleanup logic)", func() {
 						Expect(fakeInitVolume.DestroyCallCount()).To(Equal(0))
+					})
+
+					Context("when the volume is privileged", func() {
+						BeforeEach(func() {
+							privileged = true
+						})
+
+						It("stores volume privileged with the right value", func() {
+							Expect(fakeInitVolume.StorePrivilegedCallCount()).To(Equal(1))
+							Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(true))
+						})
+
+						It("does not namespace the data path", func() {
+							Expect(fakeNamespacer.NamespacePathCallCount()).To(Equal(0))
+						})
+					})
+
+					Context("when the volume is not privileged", func() {
+						BeforeEach(func() {
+							privileged = false
+						})
+
+						It("stores volume privileged with the right value", func() {
+							Expect(fakeInitVolume.StorePrivilegedCallCount()).To(Equal(1))
+							Expect(fakeInitVolume.StorePrivilegedArgsForCall(0)).To(Equal(false))
+						})
+
+						It("namespaces the data path before initialization", func() {
+							Expect(fakeNamespacer.NamespacePathCallCount()).To(Equal(1))
+							_, path := fakeNamespacer.NamespacePathArgsForCall(0)
+							Expect(path).To(Equal("init-data-path"))
+						})
+
+						Context("when namespacing fails", func() {
+							disaster := errors.New("nope")
+
+							BeforeEach(func() {
+								fakeNamespacer.NamespacePathReturns(disaster)
+							})
+
+							It("returns the error", func() {
+								Expect(createErr).To(Equal(disaster))
+							})
+
+							It("destroys the initializing volume", func() {
+								Expect(fakeInitVolume.DestroyCallCount()).To(Equal(1))
+							})
+						})
 					})
 				})
 

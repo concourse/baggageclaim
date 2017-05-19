@@ -1,6 +1,6 @@
 // +build !linux
 
-package api
+package volume
 
 import (
 	"io"
@@ -10,7 +10,7 @@ import (
 	"github.com/concourse/go-archive/tarfs"
 )
 
-func (vs *VolumeServer) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
+func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
 	err := tarfs.Extract(stream, dest)
 	if err != nil {
 		return true, err
@@ -19,7 +19,7 @@ func (vs *VolumeServer) streamIn(stream io.Reader, dest string, privileged bool)
 	return false, nil
 }
 
-func (vs *VolumeServer) streamOut(w io.Writer, src string, privileged bool) error {
+func (repo *repository) streamOut(w io.Writer, src string, privileged bool) error {
 	fileInfo, err := os.Stat(src)
 	if err != nil {
 		return err
