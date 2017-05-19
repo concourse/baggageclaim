@@ -22,6 +22,7 @@ var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
 var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
+var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of volume")
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
 var ErrStreamOutNotFound = errors.New("no such file or directory")
@@ -314,6 +315,43 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("set-privileged", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	var request baggageclaim.PrivilegedRequest
+	err := json.NewDecoder(req.Body).Decode(&request)
+	if err != nil {
+		RespondWithError(w, ErrSetPrivilegedFailed, http.StatusBadRequest)
+		return
+	}
+
+	privileged := request.Value
+
+	hLog.Debug("setting-privileged", lager.Data{"privileged": privileged})
+
+	err = vs.volumeRepo.SetPrivileged(handle, privileged)
+	if err != nil {
+		hLog.Error("failed-to-change-privileged-status", err)
+
+		if err == volume.ErrVolumeDoesNotExist {
+			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusNotFound)
+		} else {
+			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	handle := rata.Param(req, "handle")
 
@@ -380,7 +418,7 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		hLog.Error("failed-to-get-volume", err)
+		hLog.Error("failed-to-stream-out", err)
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}

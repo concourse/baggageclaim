@@ -77,6 +77,10 @@ func (cv *clientVolume) SetTTL(ttl time.Duration) error {
 	return cv.bcClient.setTTL(cv.logger, cv.handle, ttl)
 }
 
+func (cv *clientVolume) SetPrivileged(privileged bool) error {
+	return cv.bcClient.setPrivileged(cv.logger, cv.handle, privileged)
+}
+
 func (cv *clientVolume) Destroy() error {
 	return cv.bcClient.destroy(cv.logger, cv.handle)
 }

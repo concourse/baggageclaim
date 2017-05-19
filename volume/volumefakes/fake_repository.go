@@ -118,6 +118,18 @@ type FakeRepository struct {
 	setTTLReturnsOnCall map[int]struct {
 		result1 error
 	}
+	SetPrivilegedStub        func(handle string, privileged bool) error
+	setPrivilegedMutex       sync.RWMutex
+	setPrivilegedArgsForCall []struct {
+		handle     string
+		privileged bool
+	}
+	setPrivilegedReturns struct {
+		result1 error
+	}
+	setPrivilegedReturnsOnCall map[int]struct {
+		result1 error
+	}
 	StreamInStub        func(handle string, path string, stream io.Reader) (bool, error)
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
@@ -577,6 +589,55 @@ func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeRepository) SetPrivileged(handle string, privileged bool) error {
+	fake.setPrivilegedMutex.Lock()
+	ret, specificReturn := fake.setPrivilegedReturnsOnCall[len(fake.setPrivilegedArgsForCall)]
+	fake.setPrivilegedArgsForCall = append(fake.setPrivilegedArgsForCall, struct {
+		handle     string
+		privileged bool
+	}{handle, privileged})
+	fake.recordInvocation("SetPrivileged", []interface{}{handle, privileged})
+	fake.setPrivilegedMutex.Unlock()
+	if fake.SetPrivilegedStub != nil {
+		return fake.SetPrivilegedStub(handle, privileged)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.setPrivilegedReturns.result1
+}
+
+func (fake *FakeRepository) SetPrivilegedCallCount() int {
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
+	return len(fake.setPrivilegedArgsForCall)
+}
+
+func (fake *FakeRepository) SetPrivilegedArgsForCall(i int) (string, bool) {
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
+	return fake.setPrivilegedArgsForCall[i].handle, fake.setPrivilegedArgsForCall[i].privileged
+}
+
+func (fake *FakeRepository) SetPrivilegedReturns(result1 error) {
+	fake.SetPrivilegedStub = nil
+	fake.setPrivilegedReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) SetPrivilegedReturnsOnCall(i int, result1 error) {
+	fake.SetPrivilegedStub = nil
+	if fake.setPrivilegedReturnsOnCall == nil {
+		fake.setPrivilegedReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.setPrivilegedReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeRepository) StreamIn(handle string, path string, stream io.Reader) (bool, error) {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
@@ -753,6 +814,8 @@ func (fake *FakeRepository) Invocations() map[string][][]interface{} {
 	defer fake.setPropertyMutex.RUnlock()
 	fake.setTTLMutex.RLock()
 	defer fake.setTTLMutex.RUnlock()
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()

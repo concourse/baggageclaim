@@ -29,6 +29,7 @@ func NewHandler(
 		baggageclaim.GetVolumeStats: http.HandlerFunc(volumeServer.GetVolumeStats),
 		baggageclaim.SetProperty:    http.HandlerFunc(volumeServer.SetProperty),
 		baggageclaim.SetTTL:         http.HandlerFunc(volumeServer.SetTTL),
+		baggageclaim.SetPrivileged:  http.HandlerFunc(volumeServer.SetPrivileged),
 		baggageclaim.StreamIn:       http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:      http.HandlerFunc(volumeServer.StreamOut),
 		baggageclaim.DestroyVolume:  http.HandlerFunc(volumeServer.DestroyVolume),

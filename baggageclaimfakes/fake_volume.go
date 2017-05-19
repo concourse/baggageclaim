@@ -51,6 +51,17 @@ type FakeVolume struct {
 	setPropertyReturnsOnCall map[int]struct {
 		result1 error
 	}
+	SetPrivilegedStub        func(bool) error
+	setPrivilegedMutex       sync.RWMutex
+	setPrivilegedArgsForCall []struct {
+		arg1 bool
+	}
+	setPrivilegedReturns struct {
+		result1 error
+	}
+	setPrivilegedReturnsOnCall map[int]struct {
+		result1 error
+	}
 	StreamInStub        func(path string, tarStream io.Reader) error
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
@@ -302,6 +313,54 @@ func (fake *FakeVolume) SetPropertyReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.setPropertyReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolume) SetPrivileged(arg1 bool) error {
+	fake.setPrivilegedMutex.Lock()
+	ret, specificReturn := fake.setPrivilegedReturnsOnCall[len(fake.setPrivilegedArgsForCall)]
+	fake.setPrivilegedArgsForCall = append(fake.setPrivilegedArgsForCall, struct {
+		arg1 bool
+	}{arg1})
+	fake.recordInvocation("SetPrivileged", []interface{}{arg1})
+	fake.setPrivilegedMutex.Unlock()
+	if fake.SetPrivilegedStub != nil {
+		return fake.SetPrivilegedStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fake.setPrivilegedReturns.result1
+}
+
+func (fake *FakeVolume) SetPrivilegedCallCount() int {
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
+	return len(fake.setPrivilegedArgsForCall)
+}
+
+func (fake *FakeVolume) SetPrivilegedArgsForCall(i int) bool {
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
+	return fake.setPrivilegedArgsForCall[i].arg1
+}
+
+func (fake *FakeVolume) SetPrivilegedReturns(result1 error) {
+	fake.SetPrivilegedStub = nil
+	fake.setPrivilegedReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolume) SetPrivilegedReturnsOnCall(i int, result1 error) {
+	fake.SetPrivilegedStub = nil
+	if fake.setPrivilegedReturnsOnCall == nil {
+		fake.setPrivilegedReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.setPrivilegedReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -613,6 +672,8 @@ func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	defer fake.setTTLMutex.RUnlock()
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()

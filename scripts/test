@@ -16,4 +16,3 @@ fi
 
 cd $baggageclaim_dir
 ginkgo -r -p
-

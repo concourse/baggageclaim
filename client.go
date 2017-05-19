@@ -65,6 +65,10 @@ type Volume interface {
 	// filter the results in the ListVolumes call above.
 	SetProperty(key string, value string) error
 
+	// SetPrivileged namespaces or un-namespaces the UID/GID ownership of the
+	// volume's contents.
+	SetPrivileged(bool) error
+
 	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
 	// to stream the contents of the Reader into this volume at the specified path.
 	StreamIn(path string, tarStream io.Reader) error
@@ -84,6 +88,9 @@ type Volume interface {
 	// Size returns the exclusive size of the volume on disk in bytes
 	SizeInBytes() (int64, error)
 
+	// Destroy removes the volume and its contents. Note that it does not
+	// safeguard against child volumes being present. To safely remove a volume
+	// that may have children, set a TTL instead.
 	Destroy() error
 }
 

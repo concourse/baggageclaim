@@ -26,6 +26,7 @@ type Repository interface {
 
 	SetProperty(handle string, propertyName string, propertyValue string) error
 	SetTTL(handle string, ttl uint) error
+	SetPrivileged(handle string, privileged bool) error
 
 	StreamIn(handle string, path string, stream io.Reader) (bool, error)
 	StreamOut(handle string, path string, dest io.Writer) error
@@ -341,6 +342,40 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	_, err = volume.StoreTTL(TTL(ttl))
 	if err != nil {
 		logger.Error("failed-to-store-ttl", err)
+		return err
+	}
+
+	return nil
+}
+
+func (repo *repository) SetPrivileged(handle string, privileged bool) error {
+	repo.locker.Lock(handle)
+	defer repo.locker.Unlock(handle)
+
+	logger := repo.logger.Session("set-privileged", lager.Data{
+		"volume": handle,
+	})
+
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
+	}
+
+	err = repo.namespacer(privileged).NamespacePath(logger, volume.DataPath())
+	if err != nil {
+		logger.Error("failed-to-namespace-volume", err)
+		return err
+	}
+
+	err = volume.StorePrivileged(privileged)
+	if err != nil {
+		logger.Error("failed-to-store-privileged", err)
 		return err
 	}
 

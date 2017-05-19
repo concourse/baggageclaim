@@ -32,3 +32,7 @@ type PropertyRequest struct {
 type TTLRequest struct {
 	Value uint `json:"value"`
 }
+
+type PrivilegedRequest struct {
+	Value bool `json:"value"`
+}
