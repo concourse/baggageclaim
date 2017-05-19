@@ -185,7 +185,7 @@ func (repo *repository) CreateVolume(handle string, strategy Strategy, propertie
 }
 
 func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, []string, error) {
-	logger := repo.logger.Session("list-volumes", lager.Data{})
+	logger := repo.logger.Session("list-volumes")
 
 	liveVolumes, err := repo.filesystem.ListVolumes()
 	if err != nil {
@@ -246,7 +246,7 @@ func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
 }
 
 func (repo *repository) GetVolumeStats(handle string) (VolumeStats, bool, error) {
-	logger := repo.logger.Session("get-volume", lager.Data{
+	logger := repo.logger.Session("get-volume-stats", lager.Data{
 		"volume": handle,
 	})
 
@@ -278,7 +278,10 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("set-property")
+	logger := repo.logger.Session("set-property", lager.Data{
+		"volume":   handle,
+		"property": propertyName,
+	})
 
 	volume, found, err := repo.filesystem.LookupVolume(handle)
 	if err != nil {
@@ -314,7 +317,9 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("set-ttl")
+	logger := repo.logger.Session("set-ttl", lager.Data{
+		"volume": handle,
+	})
 
 	volume, found, err := repo.filesystem.LookupVolume(handle)
 	if err != nil {
