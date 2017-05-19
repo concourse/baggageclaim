@@ -8,15 +8,15 @@ import (
 
 type IDMap string
 
-const DefaultUIDMap IDMap = "/proc/self/uid_map"
-const DefaultGIDMap IDMap = "/proc/self/gid_map"
+const defaultUIDMap IDMap = "/proc/self/uid_map"
+const defaultGIDMap IDMap = "/proc/self/gid_map"
 
 func MustGetMaxValidUID() int {
-	return must(DefaultUIDMap.MaxValid())
+	return must(defaultUIDMap.MaxValid())
 }
 
 func MustGetMaxValidGID() int {
-	return must(DefaultGIDMap.MaxValid())
+	return must(defaultGIDMap.MaxValid())
 }
 
 func (u IDMap) MaxValid() (int, error) {
@@ -33,13 +33,13 @@ func (u IDMap) MaxValid() (int, error) {
 			return 0, ParseError{Line: scanner.Text(), Err: err}
 		}
 
-		m = Max(m, container+size-1)
+		m = max(m, container+size-1)
 	}
 
 	return m, nil
 }
 
-func Min(a, b int) int {
+func min(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -47,7 +47,7 @@ func Min(a, b int) int {
 	return b
 }
 
-func Max(a, b int) int {
+func max(a, b int) int {
 	if a > b {
 		return a
 	}

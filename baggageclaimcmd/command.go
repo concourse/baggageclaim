@@ -58,12 +58,8 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	var namespacer uidgid.Namespacer
 
-	maxUID, maxUIDErr := uidgid.DefaultUIDMap.MaxValid()
-	maxGID, maxGIDErr := uidgid.DefaultGIDMap.MaxValid()
-
-	if runtime.GOOS == "linux" && maxUIDErr == nil && maxGIDErr == nil {
-		maxId := uidgid.Min(maxUID, maxGID)
-		Translator := uidgid.NewTranslator(maxId)
+	if runtime.GOOS == "linux" {
+		Translator := uidgid.NewTranslator(uidgid.NewPrivilegedMapper())
 
 		namespacer = &uidgid.UidNamespacer{
 			Translator: Translator,

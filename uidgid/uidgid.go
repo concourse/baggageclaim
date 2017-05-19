@@ -15,6 +15,6 @@ func (t *translator) setuidgid(cmd *exec.Cmd) {
 	panic("not supported")
 }
 
-func newMappings(maxID int) StringMapper {
+func newMappings(maxID int) Mapper {
 	panic("not supported")
 }

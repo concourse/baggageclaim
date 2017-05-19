@@ -1,7 +1,6 @@
 package uidgid
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 )
@@ -14,8 +13,8 @@ type Translator interface {
 }
 
 type translator struct {
-	mappings StringMapper
-	chown    func(path string, uid int, gid int) error
+	mapper Mapper
+	chown  func(path string, uid int, gid int) error
 }
 
 type Mapper interface {
@@ -23,26 +22,17 @@ type Mapper interface {
 	Apply(*exec.Cmd)
 }
 
-type StringMapper interface {
-	fmt.Stringer
-	Mapper
-}
-
-func NewTranslator(maxID int) *translator {
+func NewTranslator(mapper Mapper) *translator {
 	return &translator{
-		mappings: newMappings(maxID),
-		chown:    os.Lchown,
+		mapper: mapper,
+		chown:  os.Lchown,
 	}
-}
-
-func (t *translator) CacheKey() string {
-	return t.mappings.String()
 }
 
 func (t *translator) TranslatePath(path string, info os.FileInfo, err error) error {
 	uid, gid, _ := t.getuidgid(info)
 
-	touid, togid := t.mappings.Map(uid, gid)
+	touid, togid := t.mapper.Map(uid, gid)
 
 	if touid != uid || togid != gid {
 		t.chown(path, touid, togid)
