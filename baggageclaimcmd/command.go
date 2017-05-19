@@ -12,7 +12,6 @@ import (
 	"github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
-	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
@@ -57,22 +56,6 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
 
-	var volumeDriver volume.Driver
-
-	if cmd.Driver == "overlay" {
-		volumeDriver = &driver.OverlayDriver{
-			OverlaysDir: cmd.OverlaysDir,
-		}
-	} else if cmd.Driver == "btrfs" {
-		volumeDriver = driver.NewBtrFSDriver(
-			logger.Session("driver"),
-			string(cmd.VolumesDir),
-			cmd.BtrfsBin,
-		)
-	} else {
-		volumeDriver = &driver.NaiveDriver{}
-	}
-
 	var namespacer uidgid.Namespacer
 
 	maxUID, maxUIDErr := uidgid.DefaultUIDMap.MaxValid()
@@ -92,7 +75,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	locker := volume.NewLockManager()
 
-	filesystem, err := volume.NewFilesystem(volumeDriver, cmd.VolumesDir.Path())
+	filesystem, err := volume.NewFilesystem(cmd.driver(logger), cmd.VolumesDir.Path())
 	if err != nil {
 		logger.Fatal("failed-to-initialize-filesystem", err)
 	}
