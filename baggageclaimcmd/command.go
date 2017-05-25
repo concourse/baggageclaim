@@ -27,7 +27,7 @@ type BaggageclaimCommand struct {
 
 	VolumesDir DirFlag `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
-	Driver string `long:"driver" default:"naive" choice:"naive" choice:"btrfs" choice:"overlay" description:"Driver to use for managing volumes."`
+	Driver string `long:"driver" default:"detect" choice:"detect" choice:"naive" choice:"btrfs" choice:"overlay" description:"Driver to use for managing volumes."`
 
 	BtrfsBin string `long:"btrfs-bin" default:"btrfs" description:"Path to btrfs binary"`
 	MkfsBin  string `long:"mkfs-bin" default:"mkfs.btrfs" description:"Path to mkfs.btrfs binary"`
@@ -75,9 +75,16 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	locker := volume.NewLockManager()
 
-	filesystem, err := volume.NewFilesystem(cmd.driver(logger), cmd.VolumesDir.Path())
+	driver, err := cmd.driver(logger)
 	if err != nil {
-		logger.Fatal("failed-to-initialize-filesystem", err)
+		logger.Error("failed-to-set-up-driver", err)
+		return nil, err
+	}
+
+	filesystem, err := volume.NewFilesystem(driver, cmd.VolumesDir.Path())
+	if err != nil {
+		logger.Error("failed-to-initialize-filesystem", err)
+		return nil, err
 	}
 
 	volumeRepo := volume.NewRepository(
@@ -102,8 +109,8 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	morbidReality := reaper.NewReaper(clock, volumeRepo)
 
 	members := []grouper.Member{
-		{"api", http_server.New(listenAddr, apiHandler)},
-		{"reaper", reaper.NewRunner(logger, clock, cmd.ReapInterval, morbidReality.Reap)},
+		{Name: "api", Runner: http_server.New(listenAddr, apiHandler)},
+		{Name: "reaper", Runner: reaper.NewRunner(logger, clock, cmd.ReapInterval, morbidReality.Reap)},
 	}
 
 	return onReady(grouper.NewParallel(os.Interrupt, members), func() {

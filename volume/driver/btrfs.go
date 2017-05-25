@@ -13,19 +13,16 @@ import (
 )
 
 type BtrFSDriver struct {
-	btrfsBin string
-	rootPath string
 	logger   lager.Logger
+	btrfsBin string
 }
 
 func NewBtrFSDriver(
 	logger lager.Logger,
-	rootPath string,
 	btrfsBin string,
 ) *BtrFSDriver {
 	return &BtrFSDriver{
 		logger:   logger,
-		rootPath: rootPath,
 		btrfsBin: btrfsBin,
 	}
 }
