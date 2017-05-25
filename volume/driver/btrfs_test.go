@@ -47,7 +47,7 @@ var _ = Describe("BtrFS", func() {
 		err = filesystem.Create(100 * 1024 * 1024)
 		Expect(err).NotTo(HaveOccurred())
 
-		fsDriver = driver.NewBtrFSDriver(logger, volumeDir, "btrfs")
+		fsDriver = driver.NewBtrFSDriver(logger, "btrfs")
 	})
 
 	AfterEach(func() {
