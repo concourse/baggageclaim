@@ -92,6 +92,7 @@ func (bcr *BaggageClaimRunner) Start() {
 			"--bind-port", strconv.Itoa(bcr.port),
 			"--volumes", bcr.volumeDir,
 			"--reap-interval", "100ms",
+			"--driver", "naive",
 		),
 		StartCheck: "baggageclaim.listening",
 	})
