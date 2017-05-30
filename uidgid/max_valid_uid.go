@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 )
 
 type IDMap string
@@ -11,12 +12,23 @@ type IDMap string
 const defaultUIDMap IDMap = "/proc/self/uid_map"
 const defaultGIDMap IDMap = "/proc/self/gid_map"
 
+func Supported() bool {
+	return runtime.GOOS == "linux" &&
+		defaultUIDMap.Supported() &&
+		defaultGIDMap.Supported()
+}
+
 func MustGetMaxValidUID() int {
 	return must(defaultUIDMap.MaxValid())
 }
 
 func MustGetMaxValidGID() int {
 	return must(defaultGIDMap.MaxValid())
+}
+
+func (u IDMap) Supported() bool {
+	_, err := os.Open(string(u))
+	return os.IsNotExist(err)
 }
 
 func (u IDMap) MaxValid() (int, error) {

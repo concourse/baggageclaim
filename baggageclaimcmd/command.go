@@ -3,7 +3,6 @@ package baggageclaimcmd
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"time"
 
 	"code.cloudfoundry.org/clock"
@@ -58,7 +57,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 
-	if runtime.GOOS == "linux" {
+	if uidgid.Supported() {
 		privilegedNamespacer = &uidgid.UidNamespacer{
 			Translator: uidgid.NewTranslator(uidgid.NewPrivilegedMapper()),
 			Logger:     logger.Session("uid-namespacer"),
