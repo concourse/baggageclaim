@@ -28,7 +28,7 @@ func MustGetMaxValidGID() int {
 
 func (u IDMap) Supported() bool {
 	_, err := os.Open(string(u))
-	return os.IsNotExist(err)
+	return !os.IsNotExist(err)
 }
 
 func (u IDMap) MaxValid() (int, error) {
