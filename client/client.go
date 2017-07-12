@@ -109,6 +109,52 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	return v, nil
 }
 
+func (c *client) CreateVolumeAsync(logger lager.Logger, handle string, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.VolumeFuture, error) {
+	strategy := volumeSpec.Strategy
+	if strategy == nil {
+		strategy = baggageclaim.EmptyStrategy{}
+	}
+
+	buffer := &bytes.Buffer{}
+	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
+		Handle:       handle,
+		Strategy:     strategy.Encode(),
+		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
+		Properties:   volumeSpec.Properties,
+		Privileged:   volumeSpec.Privileged,
+	})
+
+	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolumeAsync, nil, buffer)
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
+		return nil, getError(response)
+	}
+
+	if header := response.Header.Get("Content-Type"); header != "application/json" {
+		return nil, fmt.Errorf("unexpected content-type of: %s", header)
+	}
+
+	var volumeFutureResponse baggageclaim.VolumeFutureResponse
+	err = json.NewDecoder(response.Body).Decode(&volumeFutureResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	volumeFuture := &volumeFuture{
+		client: c,
+		handle: volumeFutureResponse.Handle,
+		logger: logger,
+	}
+
+	return volumeFuture, nil
+}
+
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
 	if properties == nil {
 		properties = baggageclaim.VolumeProperties{}

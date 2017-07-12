@@ -23,6 +23,17 @@ type Client interface {
 	// could not be created.
 	CreateVolume(lager.Logger, string, VolumeSpec) (Volume, error)
 
+	// CreateVolumeAsync will create a volume on the remote server asynchronously.
+	// By passing in a VolumeSpec with a different strategy you can chosse the
+	// type of volume that you want to create.
+	//
+	// You are required to pass in a logger to the call to retain context across
+	// the library boundary.
+	//
+	// CreateVolumeAsync returns a future for either the volume that is going to
+	// be created or an error as to why it could not be created.
+	CreateVolumeAsync(lager.Logger, string, VolumeSpec) (VolumeFuture, error)
+
 	// ListVolumes lists the volumes that are present on the server. A
 	// VolumeProperties object can be passed in to filter the volumes that are in
 	// the response.
@@ -91,6 +102,20 @@ type Volume interface {
 	// Destroy removes the volume and its contents. Note that it does not
 	// safeguard against child volumes being present. To safely remove a volume
 	// that may have children, set a TTL instead.
+	Destroy() error
+}
+
+//go:generate counterfeiter . VolumeFuture
+
+type VolumeFuture interface {
+	// Wait will wait until the future has been provided with a value, which is
+	// either the volume that was created or an error as to why it could not be
+	// created.
+	Wait() (Volume, error)
+
+	// Destroy removes the future from the remote server. This can be used to
+	// either stop waiting for a value, or remove the value from the remote
+	// server after it is no longer needed.
 	Destroy() error
 }
 

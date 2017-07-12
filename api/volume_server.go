@@ -28,8 +28,9 @@ var ErrStreamOutFailed = errors.New("failed to stream out from volume")
 var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
-	strategerizer volume.Strategerizer
-	volumeRepo    volume.Repository
+	strategerizer  volume.Strategerizer
+	volumeRepo     volume.Repository
+	volumePromises map[string]volume.Promise
 
 	logger lager.Logger
 }
@@ -40,9 +41,10 @@ func NewVolumeServer(
 	volumeRepo volume.Repository,
 ) *VolumeServer {
 	return &VolumeServer{
-		strategerizer: strategerizer,
-		volumeRepo:    volumeRepo,
-		logger:        logger,
+		strategerizer:  strategerizer,
+		volumeRepo:     volumeRepo,
+		volumePromises: make(map[string]volume.Promise),
+		logger:         logger,
 	}
 }
 
@@ -118,6 +120,197 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(createdVolume); err != nil {
+		hLog.Error("failed-to-encode", err, lager.Data{
+			"volume-path": createdVolume.Path,
+		})
+	}
+}
+
+func (vs *VolumeServer) CreateVolumeAsync(w http.ResponseWriter, req *http.Request) {
+	hLog := vs.logger.Session("create-volume-async")
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	var request baggageclaim.VolumeRequest
+	err := json.NewDecoder(req.Body).Decode(&request)
+	if err != nil {
+		hLog.Error("failed-to-decode-request", err)
+		RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+		return
+	}
+
+	handle := request.Handle
+	if handle == "" {
+		handle, err = vs.generateHandle()
+		if err != nil {
+			hLog.Error("failed-to-generate-handle", err)
+			RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+		}
+	}
+
+	hLog = hLog.WithData(lager.Data{
+		"handle":     handle,
+		"ttl":        request.TTLInSeconds,
+		"privileged": request.Privileged,
+		"strategy":   request.Strategy,
+	})
+
+	strategy, err := vs.strategerizer.StrategyFor(request)
+	if err != nil {
+		hLog.Error("could-not-produce-strategy", err)
+		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
+		return
+	}
+
+	promise := volume.NewPromise()
+
+	vs.volumePromises[handle] = promise
+
+	go func() {
+		hLog.Debug("creating")
+
+		createdVolume, err := vs.volumeRepo.CreateVolume(
+			handle,
+			strategy,
+			volume.Properties(request.Properties),
+			request.TTLInSeconds,
+			request.Privileged,
+		)
+
+		if err != nil {
+			hLog.Error("failed-to-create", err)
+
+			promise.Reject(err)
+			return
+		}
+
+		hLog = hLog.WithData(lager.Data{
+			"volume": createdVolume.Handle,
+		})
+
+		hLog.Debug("created")
+
+		err = promise.Fulfill(createdVolume)
+		if err != nil {
+			if err == volume.ErrPromiseCanceled {
+				hLog.Info("promise-was-canceled")
+
+				hLogDestroy := vs.logger.Session("destroy", lager.Data{
+					"volume": createdVolume.Handle,
+				})
+
+				hLogDestroy.Debug("start")
+				defer hLogDestroy.Debug("done")
+
+				err := vs.volumeRepo.DestroyVolume(createdVolume.Handle)
+				if err != nil {
+					if err != volume.ErrVolumeDoesNotExist {
+						hLog.Error("failed-to-destroy", err)
+					}
+				}
+			} else {
+				hLog.Error("failed-to-fulfill-promise", err)
+			}
+
+			return
+		}
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	future := baggageclaim.VolumeFutureResponse{
+		Handle: handle,
+	}
+
+	if err := json.NewEncoder(w).Encode(future); err != nil {
+		hLog.Error("failed-to-encode", err, lager.Data{
+			"future": future.Handle,
+		})
+	}
+}
+
+func (vs *VolumeServer) CreateVolumeAsyncCancel(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("create-volume-async-cancel", lager.Data{
+		"handle": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	promise, exists := vs.volumePromises[handle]
+	if !exists {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if promise.IsPending() {
+		err := promise.Reject(volume.ErrPromiseCanceled)
+		if err != nil {
+			hLog.Error("failed-to-reject-promise", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	delete(vs.volumePromises, handle)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (vs *VolumeServer) CreateVolumeAsyncCheck(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("create-volume-async-check", lager.Data{
+		"handle": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	promise, exists := vs.volumePromises[handle]
+	if !exists {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	if promise.IsPending() {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	createdVolume, err, errPromise := promise.GetValue()
+	if errPromise != nil {
+		hLog.Error("failed-to-get-value-from-promise", errPromise)
+		RespondWithError(w, errPromise, http.StatusInternalServerError)
+		return
+	}
+
+	if err != nil {
+		var code int
+		switch err {
+		case volume.ErrParentVolumeNotFound:
+			code = httpUnprocessableEntity
+		case volume.ErrNoParentVolumeProvided:
+			code = httpUnprocessableEntity
+		default:
+			code = http.StatusInternalServerError
+		}
+		RespondWithError(w, ErrCreateVolumeFailed, code)
+		return
+	}
+
+	hLog = hLog.WithData(lager.Data{
+		"volume": createdVolume.Handle,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(createdVolume); err != nil {
 		hLog.Error("failed-to-encode", err, lager.Data{
