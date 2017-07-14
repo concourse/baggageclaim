@@ -9,7 +9,13 @@ import (
 
 var _ = Describe("Volume Promise", func() {
 	var (
-		promise Promise
+		promise    Promise
+		testErr    = errors.New("some-error")
+		testVolume = Volume{
+			Handle:     "some-handle",
+			Path:       "some-path",
+			Properties: make(Properties),
+		}
 	)
 
 	BeforeEach(func() {
@@ -30,33 +36,21 @@ var _ = Describe("Volume Promise", func() {
 
 	Context("when fulfilled", func() {
 		It("is not pending", func() {
-			promise.Fulfill(Volume{})
+			promise.Fulfill(testVolume)
 
 			Expect(promise.IsPending()).To(BeFalse())
 		})
 
 		It("returns a non-empty volume in value", func() {
-			volume := Volume{
-				Handle:     "test-handle",
-				Path:       "test-path",
-				Properties: make(Properties),
-			}
-
-			promise.Fulfill(volume)
+			promise.Fulfill(testVolume)
 
 			val, _, _ := promise.GetValue()
 
-			Expect(val).To(Equal(volume))
+			Expect(val).To(Equal(testVolume))
 		})
 
 		It("returns a nil error in value", func() {
-			volume := Volume{
-				Handle:     "test-handle",
-				Path:       "test-path",
-				Properties: make(Properties),
-			}
-
-			promise.Fulfill(volume)
+			promise.Fulfill(testVolume)
 
 			_, val, _ := promise.GetValue()
 
@@ -64,25 +58,47 @@ var _ = Describe("Volume Promise", func() {
 		})
 
 		It("can return a value", func() {
-			volume := Volume{
-				Handle:     "test-handle",
-				Path:       "test-path",
-				Properties: make(Properties),
-			}
-
-			promise.Fulfill(volume)
+			promise.Fulfill(testVolume)
 
 			_, _, err := promise.GetValue()
 
 			Expect(err).To(BeNil())
 		})
+
+		Context("when not pending", func() {
+			Context("when canceled", func() {
+				It("returns ErrPromiseCanceled", func() {
+					promise.Reject(ErrPromiseCanceled)
+
+					err := promise.Fulfill(testVolume)
+
+					Expect(err).To(Equal(ErrPromiseCanceled))
+				})
+			})
+
+			Context("when fulfilled", func() {
+				It("returns ErrPromiseNotPending", func() {
+					promise.Fulfill(testVolume)
+
+					err := promise.Fulfill(testVolume)
+
+					Expect(err).To(Equal(ErrPromiseNotPending))
+				})
+			})
+
+			Context("when rejected", func() {
+				It("returns ErrPromiseNotPending", func() {
+					promise.Reject(testErr)
+
+					err := promise.Fulfill(testVolume)
+
+					Expect(err).To(Equal(ErrPromiseNotPending))
+				})
+			})
+		})
 	})
 
 	Context("when rejected", func() {
-		var (
-			testErr = errors.New("test-error")
-		)
-
 		It("is not pending", func() {
 			promise.Reject(testErr)
 
@@ -115,12 +131,12 @@ var _ = Describe("Volume Promise", func() {
 
 		Context("when rejecting again", func() {
 			Context("when canceled", func() {
-				It("returns ErrPromiseCanceled", func() {
+				It("returns ErrPromiseNotPending", func() {
 					promise.Reject(ErrPromiseCanceled)
 
 					err := promise.Reject(testErr)
 
-					Expect(err).To(Equal(ErrPromiseCanceled))
+					Expect(err).To(Equal(ErrPromiseNotPending))
 				})
 			})
 
