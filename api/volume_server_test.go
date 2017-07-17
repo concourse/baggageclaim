@@ -859,6 +859,167 @@ var _ = Describe("Volume Server", func() {
 				handler.ServeHTTP(recorder, request)
 			})
 
+			Context("when invalid JSON is submitted", func() {
+				BeforeEach(func() {
+					body = bytes.NewBufferString("{{{{{{")
+				})
+
+				It("returns a 400 Bad Request response", func() {
+					Expect(recorder.Code).To(Equal(http.StatusBadRequest))
+				})
+
+				It("writes a nice JSON response", func() {
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					Consistently(func() io.Reader {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getReq)
+						return getRecorder.Body
+					}).Should(MatchJSON("[]"))
+				})
+			})
+
+			Context("when no strategy is submitted", func() {
+				BeforeEach(func() {
+					body = bytes.NewBufferString("{}")
+				})
+
+				It("returns a 422 Unprocessable Entity response", func() {
+					Expect(recorder.Code).To(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					Consistently(func() io.Reader {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getReq)
+						return getRecorder.Body
+					}).Should(MatchJSON("[]"))
+				})
+			})
+
+			Context("when an unrecognized strategy is submitted", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
+						Strategy: encStrategy(map[string]string{
+							"type": "grime",
+						}),
+					})
+				})
+
+				It("returns a 422 Unprocessable Entity response", func() {
+					Expect(recorder.Code).To(Equal(422))
+				})
+
+				It("writes a nice JSON response", func() {
+					Expect(recorder.Body).To(ContainSubstring(`"error":`))
+				})
+
+				It("does not create a volume", func() {
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					Consistently(func() io.Reader {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getReq)
+						return getRecorder.Body
+					}).Should(MatchJSON("[]"))
+				})
+			})
+
+			Context("when the strategy is cow but no parent volume is provided", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
+						Strategy: encStrategy(map[string]string{
+							"type": "cow",
+						}),
+					})
+				})
+
+				It("returns a 201 Created response", func() {
+					Expect(recorder.Code).To(Equal(201))
+				})
+
+				It("writes a nice JSON response", func() {
+					Expect(recorder.Body).To(ContainSubstring(`"handle":"some-handle"`))
+				})
+
+				It("does not create a volume", func() {
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					Consistently(func() io.Reader {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getReq)
+						return getRecorder.Body
+					}).Should(MatchJSON("[]"))
+				})
+			})
+
+			Context("when the strategy is cow and the parent volume does not exist", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Handle: "some-handle",
+						Strategy: encStrategy(map[string]string{
+							"type":   "cow",
+							"volume": "#pain",
+						}),
+					})
+				})
+
+				It("returns a 201 Created response", func() {
+					Expect(recorder.Code).To(Equal(201))
+				})
+
+				It("writes a nice JSON response", func() {
+					Expect(recorder.Body).To(ContainSubstring(`"handle":"some-handle"`))
+				})
+
+				It("does not create a volume", func() {
+					getReq, _ := http.NewRequest("GET", "/volumes", nil)
+					Consistently(func() io.Reader {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getReq)
+						return getRecorder.Body
+					}).Should(MatchJSON("[]"))
+				})
+			})
+
+			Context("when handle is not provided in request", func() {
+				BeforeEach(func() {
+					body = &bytes.Buffer{}
+					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+						Strategy: encStrategy(map[string]string{
+							"type": "empty",
+						}),
+					})
+				})
+
+				It("generates a handle", func() {
+					uuidV4Regexp := `[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}`
+
+					var response baggageclaim.VolumeFutureResponse
+					err := json.NewDecoder(recorder.Body).Decode(&response)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(response.Handle).To(MatchRegexp(uuidV4Regexp))
+
+					getRequest, _ := http.NewRequest("GET", "/volumes-async/"+response.Handle, nil)
+					Eventually(func() int {
+						getRecorder := httptest.NewRecorder()
+						handler.ServeHTTP(getRecorder, getRequest)
+						return getRecorder.Code
+					}).Should(Equal(http.StatusOK))
+				})
+			})
+
 			Context("when there are properties given", func() {
 				var properties baggageclaim.VolumeProperties
 
@@ -882,16 +1043,12 @@ var _ = Describe("Volume Server", func() {
 						var response baggageclaim.VolumeFutureResponse
 						err := json.NewDecoder(recorder.Body).Decode(&response)
 						Expect(err).NotTo(HaveOccurred())
+						Expect(response.Handle).To(Equal("some-handle"))
 
-						Expect(response.Handle).ToNot(Equal(""))
-
+						request, _ := http.NewRequest("GET", "/volumes-async/"+response.Handle, nil)
 						Eventually(func() int {
 							recorder = httptest.NewRecorder()
-
-							request, _ := http.NewRequest("GET", "/volumes-async/"+response.Handle, nil)
-
 							handler.ServeHTTP(recorder, request)
-
 							return recorder.Code
 						}).Should(Equal(http.StatusOK))
 					})
