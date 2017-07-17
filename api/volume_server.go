@@ -30,7 +30,7 @@ var ErrStreamOutNotFound = errors.New("no such file or directory")
 type VolumeServer struct {
 	strategerizer  volume.Strategerizer
 	volumeRepo     volume.Repository
-	volumePromises map[string]volume.Promise
+	volumePromises volume.PromiseList
 
 	logger lager.Logger
 }
@@ -43,7 +43,7 @@ func NewVolumeServer(
 	return &VolumeServer{
 		strategerizer:  strategerizer,
 		volumeRepo:     volumeRepo,
-		volumePromises: make(map[string]volume.Promise),
+		volumePromises: volume.NewPromiseList(),
 		logger:         logger,
 	}
 }
@@ -167,7 +167,12 @@ func (vs *VolumeServer) CreateVolumeAsync(w http.ResponseWriter, req *http.Reque
 
 	promise := volume.NewPromise()
 
-	vs.volumePromises[handle] = promise
+	err = vs.volumePromises.AddPromise(handle, promise)
+	if err != nil {
+		hLog.Error("failed-to-add-promise", err)
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
 
 	go func() {
 		hLog.Debug("creating")
@@ -243,8 +248,8 @@ func (vs *VolumeServer) CreateVolumeAsyncCancel(w http.ResponseWriter, req *http
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	promise, exists := vs.volumePromises[handle]
-	if !exists {
+	promise := vs.volumePromises.GetPromise(handle)
+	if promise == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -258,7 +263,7 @@ func (vs *VolumeServer) CreateVolumeAsyncCancel(w http.ResponseWriter, req *http
 		}
 	}
 
-	delete(vs.volumePromises, handle)
+	vs.volumePromises.RemovePromise(handle)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -273,8 +278,8 @@ func (vs *VolumeServer) CreateVolumeAsyncCheck(w http.ResponseWriter, req *http.
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	promise, exists := vs.volumePromises[handle]
-	if !exists {
+	promise := vs.volumePromises.GetPromise(handle)
+	if promise == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
