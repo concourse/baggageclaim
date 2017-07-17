@@ -845,6 +845,59 @@ var _ = Describe("Volume Server", func() {
 				})
 			})
 		})
+
+		Describe("creating a volume asynchronously", func() {
+			var (
+				recorder *httptest.ResponseRecorder
+				body     io.ReadWriter
+			)
+
+			JustBeforeEach(func() {
+				recorder = httptest.NewRecorder()
+				request, _ := http.NewRequest("POST", "/volumes-async", body)
+
+				handler.ServeHTTP(recorder, request)
+			})
+
+			Context("when there are properties given", func() {
+				var properties baggageclaim.VolumeProperties
+
+				Context("with valid properties", func() {
+					BeforeEach(func() {
+						properties = baggageclaim.VolumeProperties{
+							"property-name": "property-value",
+						}
+
+						body = &bytes.Buffer{}
+						json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+							Handle: "some-handle",
+							Strategy: encStrategy(map[string]string{
+								"type": "empty",
+							}),
+							Properties: properties,
+						})
+					})
+
+					It("returns a handle", func() {
+						var response baggageclaim.VolumeFutureResponse
+						err := json.NewDecoder(recorder.Body).Decode(&response)
+						Expect(err).NotTo(HaveOccurred())
+
+						Expect(response.Handle).ToNot(Equal(""))
+
+						Eventually(func() int {
+							recorder = httptest.NewRecorder()
+
+							request, _ := http.NewRequest("GET", "/volumes-async/"+response.Handle, nil)
+
+							handler.ServeHTTP(recorder, request)
+
+							return recorder.Code
+						}).Should(Equal(http.StatusOK))
+					})
+				})
+			})
+		})
 	})
 })
 
