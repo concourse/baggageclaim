@@ -44,7 +44,7 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
 
 		diskSize := fsStat.Blocks * uint64(fsStat.Bsize)
 		mountSize := diskSize - (10 * 1024 * 1024 * 1024)
-		if mountSize < 0 {
+		if int64(mountSize) < 0 {
 			mountSize = diskSize
 		}
 
