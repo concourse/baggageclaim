@@ -27,12 +27,13 @@ var _ = Describe("Privileges", func() {
 
 	maxUID := uidgid.MustGetMaxValidUID()
 	maxGID := uidgid.MustGetMaxValidGID()
+	mode := 0755 | os.ModeSetuid | os.ModeSetgid
 
 	writeData := func(volumePath string) string {
 		filename := randSeq(10)
 		newFilePath := filepath.Join(volumePath, filename)
 
-		err := ioutil.WriteFile(newFilePath, []byte(filename), 0755)
+		err := ioutil.WriteFile(newFilePath, []byte(filename), mode)
 		Expect(err).NotTo(HaveOccurred())
 
 		return filename
@@ -56,6 +57,11 @@ var _ = Describe("Privileges", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dataFilename = writeData(baseVolume.Path())
+
+		stat, err := os.Stat(filepath.Join(baseVolume.Path(), dataFilename))
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(stat.Mode().String()).To(Equal(mode.String()))
 	})
 
 	AfterEach(func() {
@@ -84,6 +90,7 @@ var _ = Describe("Privileges", func() {
 			sysStat := stat.Sys().(*syscall.Stat_t)
 			Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
 			Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+			Expect(stat.Mode().String()).To(Equal(mode.String()))
 		})
 
 		Describe("streaming out of the volume", func() {
@@ -132,6 +139,7 @@ var _ = Describe("Privileges", func() {
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(0)))
 					Expect(sysStat.Gid).To(Equal(uint32(0)))
+					Expect(stat.Mode().String()).To(Equal(mode.String()))
 				})
 			})
 		})
@@ -148,6 +156,7 @@ var _ = Describe("Privileges", func() {
 				sysStat := stat.Sys().(*syscall.Stat_t)
 				Expect(sysStat.Uid).To(Equal(uint32(0)))
 				Expect(sysStat.Gid).To(Equal(uint32(0)))
+				Expect(stat.Mode().String()).To(Equal(mode.String()))
 			})
 
 			Describe("streaming out of the volume", func() {
@@ -190,6 +199,7 @@ var _ = Describe("Privileges", func() {
 				sysStat := stat.Sys().(*syscall.Stat_t)
 				Expect(sysStat.Uid).To(Equal(uint32(0)))
 				Expect(sysStat.Gid).To(Equal(uint32(0)))
+				Expect(stat.Mode().String()).To(Equal(mode.String()))
 			})
 
 			Describe("converting the volume to unprivileged", func() {
@@ -204,6 +214,7 @@ var _ = Describe("Privileges", func() {
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
 					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+					Expect(stat.Mode().String()).To(Equal(mode.String()))
 				})
 			})
 		})
@@ -230,6 +241,7 @@ var _ = Describe("Privileges", func() {
 			sysStat := stat.Sys().(*syscall.Stat_t)
 			Expect(sysStat.Uid).To(Equal(uint32(0)))
 			Expect(sysStat.Gid).To(Equal(uint32(0)))
+			Expect(stat.Mode().String()).To(Equal(mode.String()))
 		})
 
 		Describe("streaming out of the volume", func() {
@@ -268,7 +280,7 @@ var _ = Describe("Privileges", func() {
 					Expect(err).NotTo(HaveOccurred())
 				})
 
-				FIt("maps uid 0 to (MAX_UID)", func() {
+				It("maps uid 0 to (MAX_UID)", func() {
 					err := unprivilegedVolume.StreamIn(".", tarStream)
 					Expect(err).ToNot(HaveOccurred())
 
@@ -278,6 +290,7 @@ var _ = Describe("Privileges", func() {
 					sysStat := stat.Sys().(*syscall.Stat_t)
 					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
 					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
+					Expect(stat.Mode().String()).To(Equal(mode.String()))
 				})
 			})
 		})

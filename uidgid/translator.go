@@ -15,6 +15,7 @@ type Translator interface {
 type translator struct {
 	mapper Mapper
 	chown  func(path string, uid int, gid int) error
+	chmod  func(name string, mode os.FileMode) error
 }
 
 type Mapper interface {
@@ -26,6 +27,7 @@ func NewTranslator(mapper Mapper) *translator {
 	return &translator{
 		mapper: mapper,
 		chown:  os.Lchown,
+		chmod:  os.Chmod,
 	}
 }
 
@@ -35,7 +37,9 @@ func (t *translator) TranslatePath(path string, info os.FileInfo, err error) err
 	touid, togid := t.mapper.Map(uid, gid)
 
 	if touid != uid || togid != gid {
+		mode := info.Mode()
 		t.chown(path, touid, togid)
+		t.chmod(path, mode)
 	}
 
 	return nil

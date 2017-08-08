@@ -9,7 +9,7 @@ import (
 )
 
 func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	return exec.Command("cp", "-r", parent, path).Run()
+	return exec.Command("cp", "-rp", parent, path).Run()
 }
 
 func (driver *NaiveDriver) GetVolumeSizeInBytes(path string) (int64, error) {
