@@ -22,3 +22,7 @@ func (t *translator) setuidgid(cmd *exec.Cmd) {
 
 	t.mapper.Apply(cmd)
 }
+
+func (t *translator) hasStickyBit(info os.FileInfo) bool {
+	return info.Mode()&os.ModeSticky != 0
+}

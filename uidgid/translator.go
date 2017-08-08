@@ -31,11 +31,14 @@ func NewTranslator(mapper Mapper) *translator {
 
 func (t *translator) TranslatePath(path string, info os.FileInfo, err error) error {
 	uid, gid, _ := t.getuidgid(info)
+	willItStick := t.hasStickyBit(info)
 
 	touid, togid := t.mapper.Map(uid, gid)
 
-	if touid != uid || togid != gid {
-		t.chown(path, touid, togid)
+	if !willItStick {
+		if touid != uid || togid != gid {
+			t.chown(path, touid, togid)
+		}
 	}
 
 	return nil

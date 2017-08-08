@@ -18,3 +18,7 @@ func (t *translator) setuidgid(cmd *exec.Cmd) {
 func newMappings(maxID int) Mapper {
 	panic("not supported")
 }
+
+func (t *translator) hasStickyBit(info os.FileInfo) bool {
+	panic("not supported")
+}
