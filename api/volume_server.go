@@ -136,9 +136,9 @@ func (vs *VolumeServer) CreateVolumeAsyncCancel(w http.ResponseWriter, req *http
 			RespondWithError(w, err, http.StatusInternalServerError)
 			return
 		}
-	} else {
-		vs.volumePromises.RemovePromise(handle)
 	}
+
+	vs.volumePromises.RemovePromise(handle)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -598,8 +598,6 @@ func (h *createVolumeHandlerAsync) creationSucceeded(createdVolume volume.Volume
 	if err != nil {
 		if err == volume.ErrPromiseCanceled {
 			hLog.Info("promise-was-canceled")
-
-			defer h.server.volumePromises.RemovePromise(createdVolume.Handle)
 
 			hLogDestroy := h.server.logger.Session("destroy", lager.Data{
 				"volume": createdVolume.Handle,

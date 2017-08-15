@@ -110,11 +110,11 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 
 	defer volumeFuture.Destroy()
 
-	v, err := volumeFuture.Wait()
+	volume, err := volumeFuture.Wait()
 	if err != nil {
 		return nil, err
 	}
-	return v, nil
+	return volume, nil
 }
 
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
