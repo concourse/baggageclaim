@@ -28,7 +28,7 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		return nil, err
 	}
 
-	backoffFactor := uint(1)
+	backoffFactor := uint(0)
 
 	for {
 		response, err := f.client.httpClient(f.logger).Do(request)
@@ -39,7 +39,9 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		if response.StatusCode == http.StatusNoContent {
 			response.Body.Close()
 
-			time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * time.Second)
+			if backoffFactor != 0 {
+				time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * time.Second)
+			}
 
 			if backoffFactor < 5 {
 				backoffFactor++
