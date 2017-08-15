@@ -80,50 +80,6 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 		Privileged:   volumeSpec.Privileged,
 	})
 
-	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
-	response, err := c.httpClient(logger).Do(request)
-	if err != nil {
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode != 201 {
-		return nil, getError(response)
-	}
-
-	if header := response.Header.Get("Content-Type"); header != "application/json" {
-		return nil, fmt.Errorf("unexpected content-type of: %s", header)
-	}
-
-	var volumeResponse baggageclaim.VolumeResponse
-	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
-	if !initialHeartbeatSuccess {
-		return nil, volume.ErrVolumeDoesNotExist
-	}
-	return v, nil
-}
-
-func (c *client) CreateVolumeAsync(logger lager.Logger, handle string, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
-	strategy := volumeSpec.Strategy
-	if strategy == nil {
-		strategy = baggageclaim.EmptyStrategy{}
-	}
-
-	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
-		Handle:       handle,
-		Strategy:     strategy.Encode(),
-		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
-		Properties:   volumeSpec.Properties,
-		Privileged:   volumeSpec.Privileged,
-	})
-
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolumeAsync, nil, buffer)
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
