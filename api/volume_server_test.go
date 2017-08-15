@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -843,6 +844,119 @@ var _ = Describe("Volume Server", func() {
 					handler.ServeHTTP(getRecorder, getReq)
 					Expect(getRecorder.Body).To(MatchJSON("[]"))
 				})
+			})
+		})
+	})
+
+	Describe("creating a volume asynchronously", func() {
+		It("returns a volume future", func() {
+			body := &bytes.Buffer{}
+			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				Handle: "some-handle-1",
+				Strategy: encStrategy(map[string]string{
+					"type": "empty",
+				}),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			recorder := httptest.NewRecorder()
+			request, err := http.NewRequest("POST", "/volumes-async", body)
+			Expect(err).NotTo(HaveOccurred())
+
+			handler.ServeHTTP(recorder, request)
+
+			Expect(recorder.Code).To(Equal(201))
+
+			var volumeFuture baggageclaim.VolumeFutureResponse
+			err = json.NewDecoder(recorder.Body).Decode(&volumeFuture)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(volumeFuture.Handle).To(Equal("some-handle-1"))
+		})
+
+		Context("after creating a future", func() {
+			It("returns a volume as soon as it has been created", func() {
+				body := &bytes.Buffer{}
+				err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Handle: "some-handle-2",
+					Strategy: encStrategy(map[string]string{
+						"type": "empty",
+					}),
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				recorder := httptest.NewRecorder()
+				request, err := http.NewRequest("POST", "/volumes-async", body)
+				Expect(err).NotTo(HaveOccurred())
+
+				handler.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(Equal(201))
+
+				var volumeFuture baggageclaim.VolumeFutureResponse
+				err = json.NewDecoder(recorder.Body).Decode(&volumeFuture)
+				Expect(err).NotTo(HaveOccurred())
+
+				recorder = httptest.NewRecorder()
+				request, err = http.NewRequest("GET", "/volumes-async/"+volumeFuture.Handle, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				handler.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(SatisfyAny(Equal(204), Equal(200)))
+
+				Eventually(func() *httptest.ResponseRecorder {
+					recorder = httptest.NewRecorder()
+					request, err := http.NewRequest("GET", "/volumes-async/"+volumeFuture.Handle, nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					handler.ServeHTTP(recorder, request)
+
+					return recorder
+				}).Should(SatisfyAll(
+					WithTransform(func(recorder *httptest.ResponseRecorder) int { return recorder.Code }, Equal(200)),
+					WithTransform(func(recorder *httptest.ResponseRecorder) baggageclaim.VolumeResponse {
+						var volumeResponse baggageclaim.VolumeResponse
+						err := json.NewDecoder(recorder.Body).Decode(&volumeResponse)
+						Expect(err).NotTo(HaveOccurred())
+						volumeResponse.ExpiresAt = time.Time{}
+						return volumeResponse
+					}, Equal(baggageclaim.VolumeResponse{
+						Handle:     "some-handle-2",
+						Path:       volumeDir + "/live/some-handle-2/volume",
+						Properties: nil,
+					})),
+				))
+			})
+
+			It("can be canceled", func() {
+				body := &bytes.Buffer{}
+				err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Handle: "some-handle-3",
+					Strategy: encStrategy(map[string]string{
+						"type": "empty",
+					}),
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				recorder := httptest.NewRecorder()
+				request, err := http.NewRequest("POST", "/volumes-async", body)
+				Expect(err).NotTo(HaveOccurred())
+
+				handler.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(Equal(201))
+
+				var volumeFuture baggageclaim.VolumeFutureResponse
+				err = json.NewDecoder(recorder.Body).Decode(&volumeFuture)
+				Expect(err).NotTo(HaveOccurred())
+
+				recorder = httptest.NewRecorder()
+				request, err = http.NewRequest("DELETE", "/volumes-async/"+volumeFuture.Handle, nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				handler.ServeHTTP(recorder, request)
+
+				Expect(recorder.Code).To(Equal(204))
 			})
 		})
 	})
