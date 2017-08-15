@@ -17,7 +17,6 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/retryhttp"
 )
 
