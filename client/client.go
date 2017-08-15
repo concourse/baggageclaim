@@ -109,7 +109,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	return v, nil
 }
 
-func (c *client) CreateVolumeAsync(logger lager.Logger, handle string, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.VolumeFuture, error) {
+func (c *client) CreateVolumeAsync(logger lager.Logger, handle string, volumeSpec baggageclaim.VolumeSpec) (baggageclaim.Volume, error) {
 	strategy := volumeSpec.Strategy
 	if strategy == nil {
 		strategy = baggageclaim.EmptyStrategy{}
@@ -152,7 +152,13 @@ func (c *client) CreateVolumeAsync(logger lager.Logger, handle string, volumeSpe
 		logger: logger,
 	}
 
-	return volumeFuture, nil
+	defer volumeFuture.Destroy()
+
+	v, err := volumeFuture.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
