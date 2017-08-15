@@ -24,21 +24,6 @@ type FakeClient struct {
 		result1 baggageclaim.Volume
 		result2 error
 	}
-	CreateVolumeAsyncStub        func(lager.Logger, string, baggageclaim.VolumeSpec) (baggageclaim.VolumeFuture, error)
-	createVolumeAsyncMutex       sync.RWMutex
-	createVolumeAsyncArgsForCall []struct {
-		arg1 lager.Logger
-		arg2 string
-		arg3 baggageclaim.VolumeSpec
-	}
-	createVolumeAsyncReturns struct {
-		result1 baggageclaim.VolumeFuture
-		result2 error
-	}
-	createVolumeAsyncReturnsOnCall map[int]struct {
-		result1 baggageclaim.VolumeFuture
-		result2 error
-	}
 	ListVolumesStub        func(lager.Logger, baggageclaim.VolumeProperties) (baggageclaim.Volumes, error)
 	listVolumesMutex       sync.RWMutex
 	listVolumesArgsForCall []struct {
@@ -122,59 +107,6 @@ func (fake *FakeClient) CreateVolumeReturnsOnCall(i int, result1 baggageclaim.Vo
 	}
 	fake.createVolumeReturnsOnCall[i] = struct {
 		result1 baggageclaim.Volume
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeClient) CreateVolumeAsync(arg1 lager.Logger, arg2 string, arg3 baggageclaim.VolumeSpec) (baggageclaim.VolumeFuture, error) {
-	fake.createVolumeAsyncMutex.Lock()
-	ret, specificReturn := fake.createVolumeAsyncReturnsOnCall[len(fake.createVolumeAsyncArgsForCall)]
-	fake.createVolumeAsyncArgsForCall = append(fake.createVolumeAsyncArgsForCall, struct {
-		arg1 lager.Logger
-		arg2 string
-		arg3 baggageclaim.VolumeSpec
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("CreateVolumeAsync", []interface{}{arg1, arg2, arg3})
-	fake.createVolumeAsyncMutex.Unlock()
-	if fake.CreateVolumeAsyncStub != nil {
-		return fake.CreateVolumeAsyncStub(arg1, arg2, arg3)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.createVolumeAsyncReturns.result1, fake.createVolumeAsyncReturns.result2
-}
-
-func (fake *FakeClient) CreateVolumeAsyncCallCount() int {
-	fake.createVolumeAsyncMutex.RLock()
-	defer fake.createVolumeAsyncMutex.RUnlock()
-	return len(fake.createVolumeAsyncArgsForCall)
-}
-
-func (fake *FakeClient) CreateVolumeAsyncArgsForCall(i int) (lager.Logger, string, baggageclaim.VolumeSpec) {
-	fake.createVolumeAsyncMutex.RLock()
-	defer fake.createVolumeAsyncMutex.RUnlock()
-	return fake.createVolumeAsyncArgsForCall[i].arg1, fake.createVolumeAsyncArgsForCall[i].arg2, fake.createVolumeAsyncArgsForCall[i].arg3
-}
-
-func (fake *FakeClient) CreateVolumeAsyncReturns(result1 baggageclaim.VolumeFuture, result2 error) {
-	fake.CreateVolumeAsyncStub = nil
-	fake.createVolumeAsyncReturns = struct {
-		result1 baggageclaim.VolumeFuture
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeClient) CreateVolumeAsyncReturnsOnCall(i int, result1 baggageclaim.VolumeFuture, result2 error) {
-	fake.CreateVolumeAsyncStub = nil
-	if fake.createVolumeAsyncReturnsOnCall == nil {
-		fake.createVolumeAsyncReturnsOnCall = make(map[int]struct {
-			result1 baggageclaim.VolumeFuture
-			result2 error
-		})
-	}
-	fake.createVolumeAsyncReturnsOnCall[i] = struct {
-		result1 baggageclaim.VolumeFuture
 		result2 error
 	}{result1, result2}
 }
@@ -291,8 +223,6 @@ func (fake *FakeClient) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
-	fake.createVolumeAsyncMutex.RLock()
-	defer fake.createVolumeAsyncMutex.RUnlock()
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
 	fake.lookupVolumeMutex.RLock()
