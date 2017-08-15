@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -27,6 +28,8 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		return nil, err
 	}
 
+	backoffFactor := uint(1)
+
 	for {
 		response, err := f.client.httpClient(f.logger).Do(request)
 		if err != nil {
@@ -36,7 +39,11 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		if response.StatusCode == http.StatusNoContent {
 			response.Body.Close()
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * time.Second)
+
+			if backoffFactor < 5 {
+				backoffFactor++
+			}
 
 			continue
 		}
