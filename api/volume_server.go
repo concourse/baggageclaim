@@ -140,7 +140,7 @@ func (vs *VolumeServer) CreateVolumeAsyncCancel(w http.ResponseWriter, req *http
 
 	vs.volumePromises.RemovePromise(handle)
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (vs *VolumeServer) CreateVolumeAsyncCheck(w http.ResponseWriter, req *http.Request) {
@@ -181,7 +181,7 @@ func (vs *VolumeServer) CreateVolumeAsyncCheck(w http.ResponseWriter, req *http.
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(createdVolume); err != nil {
 		hLog.Error("failed-to-encode", err, lager.Data{
