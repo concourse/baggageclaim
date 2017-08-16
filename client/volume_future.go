@@ -3,11 +3,11 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	"github.com/cenkalti/backoff"
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
@@ -28,7 +28,10 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		return nil, err
 	}
 
-	backoffFactor := uint(0)
+	exponentialBackoff := backoff.NewExponentialBackOff()
+	exponentialBackoff.InitialInterval = 10 * time.Millisecond
+	exponentialBackoff.MaxInterval = 10 * time.Second
+	exponentialBackoff.MaxElapsedTime = 0
 
 	for {
 		response, err := f.client.httpClient(f.logger).Do(request)
@@ -39,13 +42,7 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 		if response.StatusCode == http.StatusNoContent {
 			response.Body.Close()
 
-			if backoffFactor != 0 {
-				time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * 10 * time.Millisecond)
-			}
-
-			if backoffFactor < 8 {
-				backoffFactor++
-			}
+			time.Sleep(exponentialBackoff.NextBackOff())
 
 			continue
 		}
