@@ -40,10 +40,10 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 			response.Body.Close()
 
 			if backoffFactor != 0 {
-				time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * time.Second)
+				time.Sleep(time.Duration(rand.Intn((1<<backoffFactor)-1)) * 10 * time.Millisecond)
 			}
 
-			if backoffFactor < 5 {
+			if backoffFactor < 8 {
 				backoffFactor++
 			}
 
