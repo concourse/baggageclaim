@@ -94,6 +94,20 @@ type Volume interface {
 	Destroy() error
 }
 
+//go:generate counterfeiter . VolumeFuture
+
+type VolumeFuture interface {
+	// Wait will wait until the future has been provided with a value, which is
+	// either the volume that was created or an error as to why it could not be
+	// created.
+	Wait() (Volume, error)
+
+	// Destroy removes the future from the remote server. This can be used to
+	// either stop waiting for a value, or remove the value from the remote
+	// server after it is no longer needed.
+	Destroy() error
+}
+
 // Volumes represents a list of Volume object.
 type Volumes []Volume
 

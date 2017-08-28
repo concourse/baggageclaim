@@ -242,8 +242,14 @@ var _ = Describe("Baggage Claim Client", func() {
 				It("reports that the volume could not be found", func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
-							ghttp.VerifyRequest("POST", "/volumes"),
-							ghttp.RespondWithJSONEncoded(201, volume.Volume{
+							ghttp.VerifyRequest("POST", "/volumes-async"),
+							ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+								Handle: "some-handle",
+							}),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+							ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 								Handle:     "some-handle",
 								Path:       "some-path",
 								Properties: volume.Properties{},
@@ -257,6 +263,10 @@ var _ = Describe("Baggage Claim Client", func() {
 								api.RespondWithError(w, volume.ErrVolumeDoesNotExist, http.StatusNotFound)
 							},
 						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
 					)
 					createdVolume, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
@@ -268,8 +278,14 @@ var _ = Describe("Baggage Claim Client", func() {
 				It("does not call set TTL", func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
-							ghttp.VerifyRequest("POST", "/volumes"),
-							ghttp.RespondWithJSONEncoded(201, volume.Volume{
+							ghttp.VerifyRequest("POST", "/volumes-async"),
+							ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+								Handle: "some-handle",
+							}),
+						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+							ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 								Handle:     "some-handle",
 								Path:       "some-path",
 								Properties: volume.Properties{},
@@ -277,18 +293,37 @@ var _ = Describe("Baggage Claim Client", func() {
 								ExpiresAt:  time.Now().Add(time.Second),
 							}),
 						),
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
 					)
 
 					_, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(err).To(Not(HaveOccurred()))
 
-					Consistently(bcServer.ReceivedRequests()).Should(HaveLen(1))
+					Consistently(bcServer.ReceivedRequests()).Should(HaveLen(3))
 				})
 			})
 
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
-					mockErrorResponse("POST", "/volumes", "lost baggage", http.StatusInternalServerError)
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("POST", "/volumes-async"),
+							ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+								Handle: "some-handle",
+							}),
+						),
+					)
+					mockErrorResponse("GET", "/volumes-async/some-handle", "lost baggage", http.StatusInternalServerError)
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
+					)
+
 					createdVolume, err := bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
 					Expect(createdVolume).To(BeNil())
 					Expect(err).To(HaveOccurred())
@@ -302,8 +337,14 @@ var _ = Describe("Baggage Claim Client", func() {
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes"),
-						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 							Handle:     "some-handle",
 							Path:       "some-path",
 							Properties: volume.Properties{},
@@ -313,6 +354,10 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
 						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
@@ -355,8 +400,14 @@ var _ = Describe("Baggage Claim Client", func() {
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes"),
-						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 							Handle:     "some-handle",
 							Path:       "some-path",
 							Properties: volume.Properties{},
@@ -367,6 +418,10 @@ var _ = Describe("Baggage Claim Client", func() {
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
 						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+						ghttp.RespondWith(http.StatusNoContent, nil),
 					),
 				)
 				var err error
@@ -421,8 +476,14 @@ var _ = Describe("Baggage Claim Client", func() {
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes"),
-						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 							Handle:     "some-handle",
 							Path:       "some-path",
 							Properties: volume.Properties{},
@@ -432,6 +493,10 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
 						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
@@ -462,8 +527,14 @@ var _ = Describe("Baggage Claim Client", func() {
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes"),
-						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 							Handle:     "some-handle",
 							Path:       "some-path",
 							Properties: volume.Properties{},
@@ -474,6 +545,10 @@ var _ = Describe("Baggage Claim Client", func() {
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
 						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+						ghttp.RespondWith(http.StatusNoContent, nil),
 					),
 				)
 				var err error
@@ -503,8 +578,14 @@ var _ = Describe("Baggage Claim Client", func() {
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes"),
-						ghttp.RespondWithJSONEncoded(201, volume.Volume{
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
 							Handle:     "some-handle",
 							Path:       "some-path",
 							Properties: volume.Properties{},
@@ -514,6 +595,10 @@ var _ = Describe("Baggage Claim Client", func() {
 					),
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("PUT", "/volumes/some-handle/ttl"),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
 						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)

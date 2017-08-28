@@ -25,6 +25,10 @@ type VolumeStatsResponse struct {
 	SizeInBytes int64 `json:"size_in_bytes"`
 }
 
+type VolumeFutureResponse struct {
+	Handle string `json:"handle"`
+}
+
 type PropertyRequest struct {
 	Value string `json:"value"`
 }

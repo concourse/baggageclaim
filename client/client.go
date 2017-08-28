@@ -17,7 +17,6 @@ import (
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/retryhttp"
 )
 
@@ -80,7 +79,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 		Privileged:   volumeSpec.Privileged,
 	})
 
-	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolume, nil, buffer)
+	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolumeAsync, nil, buffer)
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return nil, err
@@ -88,7 +87,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 
 	defer response.Body.Close()
 
-	if response.StatusCode != 201 {
+	if response.StatusCode != http.StatusCreated {
 		return nil, getError(response)
 	}
 
@@ -96,17 +95,25 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 		return nil, fmt.Errorf("unexpected content-type of: %s", header)
 	}
 
-	var volumeResponse baggageclaim.VolumeResponse
-	err = json.NewDecoder(response.Body).Decode(&volumeResponse)
+	var volumeFutureResponse baggageclaim.VolumeFutureResponse
+	err = json.NewDecoder(response.Body).Decode(&volumeFutureResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
-	if !initialHeartbeatSuccess {
-		return nil, volume.ErrVolumeDoesNotExist
+	volumeFuture := &volumeFuture{
+		client: c,
+		handle: volumeFutureResponse.Handle,
+		logger: logger,
 	}
-	return v, nil
+
+	defer volumeFuture.Destroy()
+
+	volume, err := volumeFuture.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return volume, nil
 }
 
 func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
