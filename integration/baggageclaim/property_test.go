@@ -1,8 +1,6 @@
 package integration_test
 
 import (
-	"time"
-
 	"github.com/concourse/baggageclaim"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
