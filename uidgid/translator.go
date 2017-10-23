@@ -39,7 +39,9 @@ func (t *translator) TranslatePath(path string, info os.FileInfo, err error) err
 	if touid != uid || togid != gid {
 		mode := info.Mode()
 		t.chown(path, touid, togid)
-		t.chmod(path, mode)
+		if mode&os.ModeSymlink == 0 {
+			t.chmod(path, mode)
+		}
 	}
 
 	return nil
