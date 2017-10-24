@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"archive/tar"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -23,11 +24,15 @@ var _ = Describe("Privileges", func() {
 
 		baseVolume   baggageclaim.Volume
 		dataFilename string
+		linkSentinel string
+
+		sentinelMode os.FileMode
 	)
 
 	maxUID := uidgid.MustGetMaxValidUID()
 	maxGID := uidgid.MustGetMaxValidGID()
 	mode := 0755 | os.ModeSetuid | os.ModeSetgid
+	sentinelMode = 0000
 
 	writeData := func(volumePath string) string {
 		filename := randSeq(10)
@@ -37,6 +42,27 @@ var _ = Describe("Privileges", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		return filename
+	}
+
+	makeSentinel := func(volumePath string) string {
+		sentinel, err := ioutil.TempFile("",
+			fmt.Sprintf("baggageclaim_link_sentinel_%d", GinkgoParallelNode()))
+
+		Expect(err).NotTo(HaveOccurred())
+
+		err = os.Chmod(sentinel.Name(), sentinelMode)
+		Expect(err).NotTo(HaveOccurred())
+
+		linkName := randSeq(10)
+		err = os.Symlink(sentinel.Name(), filepath.Join(volumePath, linkName))
+		Expect(err).NotTo(HaveOccurred())
+		return sentinel.Name()
+	}
+
+	checkMode := func(filePath string, mode os.FileMode) {
+		stat, err := os.Stat(filePath)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(stat.Mode().String()).To(Equal(mode.String()))
 	}
 
 	BeforeEach(func() {
@@ -57,14 +83,15 @@ var _ = Describe("Privileges", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		dataFilename = writeData(baseVolume.Path())
+		checkMode(filepath.Join(baseVolume.Path(), dataFilename), mode)
 
-		stat, err := os.Stat(filepath.Join(baseVolume.Path(), dataFilename))
-		Expect(err).NotTo(HaveOccurred())
-
-		Expect(stat.Mode().String()).To(Equal(mode.String()))
+		linkSentinel = makeSentinel(baseVolume.Path())
+		checkMode(linkSentinel, sentinelMode)
 	})
 
 	AfterEach(func() {
+		err := os.RemoveAll(linkSentinel)
+		Expect(err).NotTo(HaveOccurred())
 		runner.Stop()
 		runner.Cleanup()
 	})
@@ -91,6 +118,10 @@ var _ = Describe("Privileges", func() {
 			Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
 			Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
 			Expect(stat.Mode().String()).To(Equal(mode.String()))
+		})
+
+		It("does not affect the host filesystem by following symlinks", func() {
+			checkMode(linkSentinel, sentinelMode)
 		})
 
 		Describe("streaming out of the volume", func() {
@@ -242,6 +273,10 @@ var _ = Describe("Privileges", func() {
 			Expect(sysStat.Uid).To(Equal(uint32(0)))
 			Expect(sysStat.Gid).To(Equal(uint32(0)))
 			Expect(stat.Mode().String()).To(Equal(mode.String()))
+		})
+
+		It("does not affect the host filesystem by following symlinks", func() {
+			checkMode(linkSentinel, sentinelMode)
 		})
 
 		Describe("streaming out of the volume", func() {
