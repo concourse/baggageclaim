@@ -141,15 +141,19 @@ type Strategy interface {
 type ImportStrategy struct {
 	// The location of the directory on the host to import.
 	Path string
+	// Follow symlinks and import them as files instead of links.
+	FollowSymlinks bool
 }
 
 func (strategy ImportStrategy) Encode() *json.RawMessage {
 	payload, _ := json.Marshal(struct {
-		Type string `json:"type"`
-		Path string `json:"path"`
+		Type           string `json:"type"`
+		Path           string `json:"path"`
+		FollowSymlinks bool   `json:"follow_symlinks"`
 	}{
-		Type: "import",
-		Path: strategy.Path,
+		Type:           "import",
+		Path:           strategy.Path,
+		FollowSymlinks: strategy.FollowSymlinks,
 	})
 
 	msg := json.RawMessage(payload)

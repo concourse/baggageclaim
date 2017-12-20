@@ -8,7 +8,8 @@ import (
 )
 
 type ImportStrategy struct {
-	Path string
+	Path           string
+	FollowSymlinks bool
 }
 
 func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
@@ -19,7 +20,12 @@ func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, f
 
 	destination := initVolume.DataPath()
 
-	cmd := exec.Command("cp", "-a", filepath.Clean(strategy.Path)+"/.", destination)
+	cpFlags := "-a"
+	if strategy.FollowSymlinks {
+		cpFlags = "-Lr"
+	}
+
+	cmd := exec.Command("cp", cpFlags, filepath.Clean(strategy.Path)+"/.", destination)
 	err = cmd.Run()
 	if err != nil {
 		return nil, err

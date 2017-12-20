@@ -32,20 +32,31 @@ func (s *strategerizer) StrategyFor(request baggageclaim.VolumeRequest) (Strateg
 		return nil, ErrNoStrategy
 	}
 
-	var strategyInfo map[string]string
+	var strategyInfo map[string]interface{}
 	err := json.Unmarshal(*request.Strategy, &strategyInfo)
 	if err != nil {
 		return nil, fmt.Errorf("malformed strategy: %s", err)
 	}
 
+	strategyType, ok := strategyInfo["type"].(string)
+	if !ok {
+		return nil, ErrUnknownStrategy
+	}
+
 	var strategy Strategy
-	switch strategyInfo["type"] {
+	switch strategyType {
 	case StrategyEmpty:
 		strategy = EmptyStrategy{}
 	case StrategyCopyOnWrite:
-		strategy = COWStrategy{strategyInfo["volume"]}
+		volume, _ := strategyInfo["volume"].(string)
+		strategy = COWStrategy{volume}
 	case StrategyImport:
-		strategy = ImportStrategy{strategyInfo["path"]}
+		path, _ := strategyInfo["path"].(string)
+		followSymlinks, _ := strategyInfo["follow_symlinks"].(bool)
+		strategy = ImportStrategy{
+			Path:           path,
+			FollowSymlinks: followSymlinks,
+		}
 	default:
 		return nil, ErrUnknownStrategy
 	}

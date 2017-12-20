@@ -48,11 +48,50 @@ var _ = Describe("Strategerizer", func() {
 			})
 		})
 
+		Context("with an import strategy", func() {
+			BeforeEach(func() {
+				request.Strategy = baggageclaim.ImportStrategy{
+					Path: "/some/host/path",
+				}.Encode()
+			})
+
+			It("succeeds", func() {
+				Expect(strategyForErr).ToNot(HaveOccurred())
+			})
+
+			It("constructs an import strategy", func() {
+				Expect(strategy).To(Equal(volume.ImportStrategy{
+					Path:           "/some/host/path",
+					FollowSymlinks: false,
+				}))
+			})
+
+			Context("when follow symlinks is set", func() {
+				BeforeEach(func() {
+					request.Strategy = baggageclaim.ImportStrategy{
+						Path:           "/some/host/path",
+						FollowSymlinks: true,
+					}.Encode()
+				})
+
+				It("succeeds", func() {
+					Expect(strategyForErr).ToNot(HaveOccurred())
+				})
+
+				It("constructs an import strategy", func() {
+					Expect(strategy).To(Equal(volume.ImportStrategy{
+						Path:           "/some/host/path",
+						FollowSymlinks: true,
+					}))
+				})
+			})
+		})
+
 		Context("with a COW strategy", func() {
 			BeforeEach(func() {
 				volume := new(baggageclaimfakes.FakeVolume)
 				volume.HandleReturns("parent-handle")
-				request.Strategy = baggageclaim.COWStrategy{volume}.Encode()
+				request.Strategy = baggageclaim.COWStrategy{Parent: volume}.Encode()
 			})
 
 			It("succeeds", func() {
@@ -60,7 +99,7 @@ var _ = Describe("Strategerizer", func() {
 			})
 
 			It("constructs a COW strategy", func() {
-				Expect(strategy).To(Equal(volume.COWStrategy{"parent-handle"}))
+				Expect(strategy).To(Equal(volume.COWStrategy{ParentHandle: "parent-handle"}))
 			})
 		})
 	})
