@@ -2,12 +2,10 @@ package driver
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"code.cloudfoundry.org/lager"
 )
@@ -29,11 +27,6 @@ func NewBtrFSDriver(
 
 func (driver *BtrFSDriver) CreateVolume(path string) error {
 	_, _, err := driver.run(driver.btrfsBin, "subvolume", "create", path)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = driver.run(driver.btrfsBin, "quota", "enable", path)
 	if err != nil {
 		return err
 	}
@@ -85,26 +78,22 @@ func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) er
 }
 
 func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	output, _, err := driver.run(driver.btrfsBin, "qgroup", "show", "-F", "--raw", path)
+	stdout := &bytes.Buffer{}
+	cmd := exec.Command("du", "-s", path)
+	cmd.Stdout = stdout
+
+	err := cmd.Run()
 	if err != nil {
 		return 0, err
 	}
 
-	qgroupsLines := strings.Split(strings.TrimSpace(output), "\n")
-	qgroupFields := strings.Fields(qgroupsLines[len(qgroupsLines)-1])
-
-	if len(qgroupFields) != 3 {
-		return 0, errors.New("unable-to-parse-btrfs-qgroup-show")
-	}
-
-	var exclusiveSize int64
-	_, err = fmt.Sscanf(qgroupFields[2], "%d", &exclusiveSize)
-
+	var size int64
+	_, err = fmt.Sscanf(stdout.String(), "%d", &size)
 	if err != nil {
 		return 0, err
 	}
 
-	return exclusiveSize, nil
+	return size * 512, nil
 }
 
 func (driver *BtrFSDriver) run(command string, args ...string) (string, string, error) {
