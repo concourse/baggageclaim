@@ -79,7 +79,7 @@ func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) er
 
 func (driver *BtrFSDriver) GetVolumeSizeInBytes(path string) (int64, error) {
 	stdout := &bytes.Buffer{}
-	cmd := exec.Command("du", "-s", path)
+	cmd := exec.Command("du", "-sk", path)
 	cmd.Stdout = stdout
 
 	err := cmd.Run()
