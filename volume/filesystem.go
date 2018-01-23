@@ -53,8 +53,6 @@ type FilesystemInitVolume interface {
 type FilesystemLiveVolume interface {
 	FilesystemVolume
 
-	SizeInBytes() (int64, error)
-
 	NewSubvolume(handle string) (FilesystemInitVolume, error)
 }
 
@@ -340,10 +338,6 @@ func (vol *liveVolume) NewSubvolume(handle string) (FilesystemInitVolume, error)
 	}
 
 	return child, nil
-}
-
-func (vol *liveVolume) SizeInBytes() (int64, error) {
-	return vol.fs.driver.GetVolumeSizeInBytes(vol.DataPath())
 }
 
 type deadVolume struct {

@@ -17,7 +17,6 @@ const httpUnprocessableEntity = 422
 
 var ErrListVolumesFailed = errors.New("failed to list volumes")
 var ErrGetVolumeFailed = errors.New("failed to get volume")
-var ErrGetVolumeStatsFailed = errors.New("failed to get volume stats")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
@@ -266,35 +265,6 @@ func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
 	if !found {
 		hLog.Info("volume-not-found")
 		RespondWithError(w, ErrGetVolumeFailed, http.StatusNotFound)
-		return
-	}
-
-	if err := json.NewEncoder(w).Encode(vol); err != nil {
-		hLog.Error("failed-to-encode", err)
-	}
-}
-
-func (vs *VolumeServer) GetVolumeStats(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	handle := rata.Param(req, "handle")
-
-	hLog := vs.logger.Session("get-volume-stats", lager.Data{
-		"volume": handle,
-	})
-
-	hLog.Debug("start")
-	defer hLog.Debug("done")
-
-	vol, found, err := vs.volumeRepo.GetVolumeStats(handle)
-	if err != nil {
-		hLog.Error("failed-to-get-volume-stats", err)
-		RespondWithError(w, ErrGetVolumeStatsFailed, http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		RespondWithError(w, ErrGetVolumeStatsFailed, http.StatusNotFound)
 		return
 	}
 

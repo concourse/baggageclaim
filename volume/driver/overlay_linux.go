@@ -1,10 +1,8 @@
 package driver
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -81,25 +79,6 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 	)
 
 	return syscall.Mount("overlay", path, "overlay", 0, opts)
-}
-
-func (driver *OverlayDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	stdout := &bytes.Buffer{}
-	cmd := exec.Command("du", "-s", driver.layerDir(path))
-	cmd.Stdout = stdout
-
-	err := cmd.Run()
-	if err != nil {
-		return 0, err
-	}
-
-	var size int64
-	_, err = fmt.Sscanf(stdout.String(), "%d", &size)
-	if err != nil {
-		return 0, err
-	}
-
-	return size, nil
 }
 
 func (driver *OverlayDriver) layerDir(path string) string {

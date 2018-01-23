@@ -116,17 +116,6 @@ type FakeVolume struct {
 	releaseArgsForCall []struct {
 		arg1 *time.Duration
 	}
-	SizeInBytesStub        func() (int64, error)
-	sizeInBytesMutex       sync.RWMutex
-	sizeInBytesArgsForCall []struct{}
-	sizeInBytesReturns     struct {
-		result1 int64
-		result2 error
-	}
-	sizeInBytesReturnsOnCall map[int]struct {
-		result1 int64
-		result2 error
-	}
 	DestroyStub        func() error
 	destroyMutex       sync.RWMutex
 	destroyArgsForCall []struct{}
@@ -578,49 +567,6 @@ func (fake *FakeVolume) ReleaseArgsForCall(i int) *time.Duration {
 	return fake.releaseArgsForCall[i].arg1
 }
 
-func (fake *FakeVolume) SizeInBytes() (int64, error) {
-	fake.sizeInBytesMutex.Lock()
-	ret, specificReturn := fake.sizeInBytesReturnsOnCall[len(fake.sizeInBytesArgsForCall)]
-	fake.sizeInBytesArgsForCall = append(fake.sizeInBytesArgsForCall, struct{}{})
-	fake.recordInvocation("SizeInBytes", []interface{}{})
-	fake.sizeInBytesMutex.Unlock()
-	if fake.SizeInBytesStub != nil {
-		return fake.SizeInBytesStub()
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.sizeInBytesReturns.result1, fake.sizeInBytesReturns.result2
-}
-
-func (fake *FakeVolume) SizeInBytesCallCount() int {
-	fake.sizeInBytesMutex.RLock()
-	defer fake.sizeInBytesMutex.RUnlock()
-	return len(fake.sizeInBytesArgsForCall)
-}
-
-func (fake *FakeVolume) SizeInBytesReturns(result1 int64, result2 error) {
-	fake.SizeInBytesStub = nil
-	fake.sizeInBytesReturns = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeVolume) SizeInBytesReturnsOnCall(i int, result1 int64, result2 error) {
-	fake.SizeInBytesStub = nil
-	if fake.sizeInBytesReturnsOnCall == nil {
-		fake.sizeInBytesReturnsOnCall = make(map[int]struct {
-			result1 int64
-			result2 error
-		})
-	}
-	fake.sizeInBytesReturnsOnCall[i] = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeVolume) Destroy() error {
 	fake.destroyMutex.Lock()
 	ret, specificReturn := fake.destroyReturnsOnCall[len(fake.destroyArgsForCall)]
@@ -684,8 +630,6 @@ func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	defer fake.propertiesMutex.RUnlock()
 	fake.releaseMutex.RLock()
 	defer fake.releaseMutex.RUnlock()
-	fake.sizeInBytesMutex.RLock()
-	defer fake.sizeInBytesMutex.RUnlock()
 	fake.destroyMutex.RLock()
 	defer fake.destroyMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

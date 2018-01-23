@@ -2,36 +2,13 @@ package driver
 
 import (
 	"bytes"
-	"errors"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"syscall"
 )
 
 func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
 	_, err := robocopy("/e", "/nfl", "/ndl", parent, path)
 	return err
-}
-
-func (driver *NaiveDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	re := regexp.MustCompile("Bytes :\\s*(\\d*)")
-	stdout, err := robocopy("/l", "/nfl", "/ndl", path, "\\\\localhost\\C$\\nul", "/e", "/bytes")
-
-	if err != nil {
-		return 0, err
-	}
-
-	matches := re.FindStringSubmatch(stdout)
-
-	if matches != nil {
-		size, err := strconv.ParseInt(matches[1], 10, 64)
-		if err != nil {
-			return 0, err
-		}
-		return size, nil
-	}
-	return 0, errors.New("Unable to extract size from robocopy output")
 }
 
 func robocopy(args ...string) (string, error) {

@@ -85,9 +85,6 @@ type Volume interface {
 	// be specified.
 	Release(*time.Duration)
 
-	// Size returns the exclusive size of the volume on disk in bytes
-	SizeInBytes() (int64, error)
-
 	// Destroy removes the volume and its contents. Note that it does not
 	// safeguard against child volumes being present. To safely remove a volume
 	// that may have children, set a TTL instead.

@@ -119,17 +119,6 @@ type FakeFilesystemLiveVolume struct {
 	destroyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SizeInBytesStub        func() (int64, error)
-	sizeInBytesMutex       sync.RWMutex
-	sizeInBytesArgsForCall []struct{}
-	sizeInBytesReturns     struct {
-		result1 int64
-		result2 error
-	}
-	sizeInBytesReturnsOnCall map[int]struct {
-		result1 int64
-		result2 error
-	}
 	NewSubvolumeStub        func(handle string) (volume.FilesystemInitVolume, error)
 	newSubvolumeMutex       sync.RWMutex
 	newSubvolumeArgsForCall []struct {
@@ -592,49 +581,6 @@ func (fake *FakeFilesystemLiveVolume) DestroyReturnsOnCall(i int, result1 error)
 	}{result1}
 }
 
-func (fake *FakeFilesystemLiveVolume) SizeInBytes() (int64, error) {
-	fake.sizeInBytesMutex.Lock()
-	ret, specificReturn := fake.sizeInBytesReturnsOnCall[len(fake.sizeInBytesArgsForCall)]
-	fake.sizeInBytesArgsForCall = append(fake.sizeInBytesArgsForCall, struct{}{})
-	fake.recordInvocation("SizeInBytes", []interface{}{})
-	fake.sizeInBytesMutex.Unlock()
-	if fake.SizeInBytesStub != nil {
-		return fake.SizeInBytesStub()
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.sizeInBytesReturns.result1, fake.sizeInBytesReturns.result2
-}
-
-func (fake *FakeFilesystemLiveVolume) SizeInBytesCallCount() int {
-	fake.sizeInBytesMutex.RLock()
-	defer fake.sizeInBytesMutex.RUnlock()
-	return len(fake.sizeInBytesArgsForCall)
-}
-
-func (fake *FakeFilesystemLiveVolume) SizeInBytesReturns(result1 int64, result2 error) {
-	fake.SizeInBytesStub = nil
-	fake.sizeInBytesReturns = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeFilesystemLiveVolume) SizeInBytesReturnsOnCall(i int, result1 int64, result2 error) {
-	fake.SizeInBytesStub = nil
-	if fake.sizeInBytesReturnsOnCall == nil {
-		fake.sizeInBytesReturnsOnCall = make(map[int]struct {
-			result1 int64
-			result2 error
-		})
-	}
-	fake.sizeInBytesReturnsOnCall[i] = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeFilesystemLiveVolume) NewSubvolume(handle string) (volume.FilesystemInitVolume, error) {
 	fake.newSubvolumeMutex.Lock()
 	ret, specificReturn := fake.newSubvolumeReturnsOnCall[len(fake.newSubvolumeArgsForCall)]
@@ -709,8 +655,6 @@ func (fake *FakeFilesystemLiveVolume) Invocations() map[string][][]interface{} {
 	defer fake.parentMutex.RUnlock()
 	fake.destroyMutex.RLock()
 	defer fake.destroyMutex.RUnlock()
-	fake.sizeInBytesMutex.RLock()
-	defer fake.sizeInBytesMutex.RUnlock()
 	fake.newSubvolumeMutex.RLock()
 	defer fake.newSubvolumeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

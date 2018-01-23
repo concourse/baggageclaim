@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -117,58 +116,6 @@ var _ = Describe("BtrFS", func() {
 
 			Expect(parentVolumePath).NotTo(BeADirectory())
 			Expect(siblingVolumePath).To(BeADirectory())
-		})
-	})
-
-	Describe("GetVolumeSize", func() {
-		var parentVolumePath string
-		var childVolumePath string
-
-		BeforeEach(func() {
-			parentVolumePath = filepath.Join(volumeDir, "parent-volume")
-			err := fsDriver.CreateVolume(parentVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			bs := make([]byte, 4096)
-			for i := 0; i < 4096; i++ {
-				bs[i] = 'i'
-			}
-			err = ioutil.WriteFile(filepath.Join(parentVolumePath, "parent-stuff"), bs, os.ModePerm)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			err := fsDriver.DestroyVolume(childVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = fsDriver.DestroyVolume(parentVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("returns the size of the volume at the given path", func() {
-			childVolumePath = filepath.Join(volumeDir, "parent-volume", "child-volume")
-			err := fsDriver.CreateVolume(childVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			originalSize, err := fsDriver.GetVolumeSizeInBytes(childVolumePath)
-			Expect(err).NotTo(HaveOccurred())
-
-			size := 1024 * 1024 * 2
-			bs := make([]byte, size) // 2 MiB
-			for i := 0; i < size; i++ {
-				bs[i] = 'i'
-			}
-			err = ioutil.WriteFile(filepath.Join(childVolumePath, "child-stuff"), bs, os.ModePerm)
-			Expect(err).NotTo(HaveOccurred())
-
-			timeout := 2 * time.Minute // btrfs periodic commit happens every 30 seconds
-			Eventually(func() int64 {
-				GinkgoRecover()
-				newSize, err := fsDriver.GetVolumeSizeInBytes(childVolumePath)
-
-				Expect(err).NotTo(HaveOccurred())
-				return newSize
-			}, timeout, 1*time.Second).Should(Equal(int64(size) + originalSize))
 		})
 	})
 })

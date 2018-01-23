@@ -30,19 +30,6 @@ type FakeDriver struct {
 	destroyVolumeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetVolumeSizeInBytesStub        func(path string) (int64, error)
-	getVolumeSizeInBytesMutex       sync.RWMutex
-	getVolumeSizeInBytesArgsForCall []struct {
-		path string
-	}
-	getVolumeSizeInBytesReturns struct {
-		result1 int64
-		result2 error
-	}
-	getVolumeSizeInBytesReturnsOnCall map[int]struct {
-		result1 int64
-		result2 error
-	}
 	CreateCopyOnWriteLayerStub        func(path string, parent string) error
 	createCopyOnWriteLayerMutex       sync.RWMutex
 	createCopyOnWriteLayerArgsForCall []struct {
@@ -155,57 +142,6 @@ func (fake *FakeDriver) DestroyVolumeReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDriver) GetVolumeSizeInBytes(path string) (int64, error) {
-	fake.getVolumeSizeInBytesMutex.Lock()
-	ret, specificReturn := fake.getVolumeSizeInBytesReturnsOnCall[len(fake.getVolumeSizeInBytesArgsForCall)]
-	fake.getVolumeSizeInBytesArgsForCall = append(fake.getVolumeSizeInBytesArgsForCall, struct {
-		path string
-	}{path})
-	fake.recordInvocation("GetVolumeSizeInBytes", []interface{}{path})
-	fake.getVolumeSizeInBytesMutex.Unlock()
-	if fake.GetVolumeSizeInBytesStub != nil {
-		return fake.GetVolumeSizeInBytesStub(path)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.getVolumeSizeInBytesReturns.result1, fake.getVolumeSizeInBytesReturns.result2
-}
-
-func (fake *FakeDriver) GetVolumeSizeInBytesCallCount() int {
-	fake.getVolumeSizeInBytesMutex.RLock()
-	defer fake.getVolumeSizeInBytesMutex.RUnlock()
-	return len(fake.getVolumeSizeInBytesArgsForCall)
-}
-
-func (fake *FakeDriver) GetVolumeSizeInBytesArgsForCall(i int) string {
-	fake.getVolumeSizeInBytesMutex.RLock()
-	defer fake.getVolumeSizeInBytesMutex.RUnlock()
-	return fake.getVolumeSizeInBytesArgsForCall[i].path
-}
-
-func (fake *FakeDriver) GetVolumeSizeInBytesReturns(result1 int64, result2 error) {
-	fake.GetVolumeSizeInBytesStub = nil
-	fake.getVolumeSizeInBytesReturns = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeDriver) GetVolumeSizeInBytesReturnsOnCall(i int, result1 int64, result2 error) {
-	fake.GetVolumeSizeInBytesStub = nil
-	if fake.getVolumeSizeInBytesReturnsOnCall == nil {
-		fake.getVolumeSizeInBytesReturnsOnCall = make(map[int]struct {
-			result1 int64
-			result2 error
-		})
-	}
-	fake.getVolumeSizeInBytesReturnsOnCall[i] = struct {
-		result1 int64
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeDriver) CreateCopyOnWriteLayer(path string, parent string) error {
 	fake.createCopyOnWriteLayerMutex.Lock()
 	ret, specificReturn := fake.createCopyOnWriteLayerReturnsOnCall[len(fake.createCopyOnWriteLayerArgsForCall)]
@@ -262,8 +198,6 @@ func (fake *FakeDriver) Invocations() map[string][][]interface{} {
 	defer fake.createVolumeMutex.RUnlock()
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
-	fake.getVolumeSizeInBytesMutex.RLock()
-	defer fake.getVolumeSizeInBytesMutex.RUnlock()
 	fake.createCopyOnWriteLayerMutex.RLock()
 	defer fake.createCopyOnWriteLayerMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

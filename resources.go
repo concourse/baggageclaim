@@ -21,10 +21,6 @@ type VolumeResponse struct {
 	ExpiresAt    time.Time        `json:"expires_at"`
 }
 
-type VolumeStatsResponse struct {
-	SizeInBytes int64 `json:"size_in_bytes"`
-}
-
 type VolumeFutureResponse struct {
 	Handle string `json:"handle"`
 }

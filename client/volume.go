@@ -32,15 +32,6 @@ func (cv *clientVolume) Path() string {
 	return cv.path
 }
 
-func (cv *clientVolume) SizeInBytes() (int64, error) {
-	stats, err := cv.bcClient.getVolumeStatsResponse(cv.logger, cv.handle)
-	if err != nil {
-		return 0, err
-	}
-
-	return stats.SizeInBytes, nil
-}
-
 func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	vr, found, err := cv.bcClient.getVolumeResponse(cv.logger, cv.handle)
 	if err != nil {
