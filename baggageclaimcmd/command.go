@@ -11,6 +11,7 @@ import (
 	"github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/flag"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
@@ -19,12 +20,12 @@ import (
 )
 
 type BaggageclaimCommand struct {
-	Logger LagerFlag
+	Logger flag.Lager
 
-	BindIP   IPFlag `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
-	BindPort uint16 `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
+	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
 
-	VolumesDir DirFlag `long:"volumes" required:"true" description:"Directory in which to place volume data."`
+	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
 	Driver string `long:"driver" default:"detect" choice:"detect" choice:"naive" choice:"btrfs" choice:"overlay" description:"Driver to use for managing volumes."`
 
@@ -53,7 +54,7 @@ func (cmd *BaggageclaimCommand) Execute(args []string) error {
 func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	logger, _ := cmd.constructLogger()
 
-	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP(), cmd.BindPort)
+	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP, cmd.BindPort)
 
 	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 
