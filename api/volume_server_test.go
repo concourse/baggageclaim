@@ -3,6 +3,7 @@ package api_test
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -168,7 +169,7 @@ var _ = Describe("Volume Server", func() {
 	Describe("streaming tar files into volumes", func() {
 		var (
 			myVolume     volume.Volume
-			tarBuffer    *(bytes.Buffer)
+			tgzBuffer    *bytes.Buffer
 			isPrivileged bool
 		)
 
@@ -197,8 +198,12 @@ var _ = Describe("Volume Server", func() {
 
 		Context("when tar file is valid", func() {
 			BeforeEach(func() {
-				tarBuffer = new(bytes.Buffer)
-				tarWriter := tar.NewWriter(tarBuffer)
+				tgzBuffer = new(bytes.Buffer)
+				gzWriter := gzip.NewWriter(tgzBuffer)
+				defer gzWriter.Close()
+
+				tarWriter := tar.NewWriter(gzWriter)
+				defer tarWriter.Close()
 
 				err := tarWriter.WriteHeader(&tar.Header{
 					Name: "some-file",
@@ -208,13 +213,10 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				_, err = tarWriter.Write([]byte("file-content"))
 				Expect(err).NotTo(HaveOccurred())
-
-				err = tarWriter.Close()
-				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("extracts the tar stream into the volume's DataPath", func() {
-				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				Expect(recorder.Code).To(Equal(204))
@@ -236,7 +238,7 @@ var _ = Describe("Volume Server", func() {
 						return
 					}
 
-					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
 					recorder := httptest.NewRecorder()
 					handler.ServeHTTP(recorder, request)
 					Expect(recorder.Code).To(Equal(204))
@@ -267,7 +269,7 @@ var _ = Describe("Volume Server", func() {
 						return
 					}
 
-					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
 					recorder := httptest.NewRecorder()
 					handler.ServeHTTP(recorder, request)
 					Expect(recorder.Code).To(Equal(204))
@@ -287,12 +289,12 @@ var _ = Describe("Volume Server", func() {
 
 		Context("when the tar stream is invalid", func() {
 			BeforeEach(func() {
-				tarBuffer = new(bytes.Buffer)
-				tarBuffer.Write([]byte("This is an invalid tar file!"))
+				tgzBuffer = new(bytes.Buffer)
+				tgzBuffer.Write([]byte("This is an invalid tar file!"))
 			})
 
 			It("returns 400 when err is exitError", func() {
-				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", myVolume.Handle), tarBuffer)
+				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", myVolume.Handle), tgzBuffer)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				Expect(recorder.Code).To(Equal(400))
@@ -300,8 +302,8 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		It("returns 404 when volume is not found", func() {
-			tarBuffer = new(bytes.Buffer)
-			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", "invalid-handle"), tarBuffer)
+			tgzBuffer = new(bytes.Buffer)
+			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", "invalid-handle"), tgzBuffer)
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
 			Expect(recorder.Code).To(Equal(404))
@@ -311,11 +313,11 @@ var _ = Describe("Volume Server", func() {
 	Describe("streaming tar out of a volume", func() {
 		var (
 			myVolume  volume.Volume
-			tarBuffer *(bytes.Buffer)
+			tgzBuffer *bytes.Buffer
 		)
 
 		BeforeEach(func() {
-			tarBuffer = new(bytes.Buffer)
+			tgzBuffer = new(bytes.Buffer)
 		})
 
 		JustBeforeEach(func() {
@@ -354,7 +356,11 @@ var _ = Describe("Volume Server", func() {
 
 		Context("when streaming a file", func() {
 			BeforeEach(func() {
-				tarWriter := tar.NewWriter(tarBuffer)
+				gzWriter := gzip.NewWriter(tgzBuffer)
+				defer gzWriter.Close()
+
+				tarWriter := tar.NewWriter(gzWriter)
+				defer tarWriter.Close()
 
 				err := tarWriter.WriteHeader(&tar.Header{
 					Name: "some-file",
@@ -364,13 +370,10 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				_, err = tarWriter.Write([]byte("file-content"))
 				Expect(err).NotTo(HaveOccurred())
-
-				err = tarWriter.Close()
-				Expect(err).NotTo(HaveOccurred())
 			})
 
 			JustBeforeEach(func() {
-				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -392,7 +395,7 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				defer os.RemoveAll(unpackedDir)
 
-				cmd := exec.Command("tar", "-x", "-C", unpackedDir)
+				cmd := exec.Command("tar", "-xz", "-C", unpackedDir)
 				cmd.Stdin = recorder.Body
 				err = cmd.Run()
 				Expect(err).NotTo(HaveOccurred())
@@ -423,16 +426,16 @@ var _ = Describe("Volume Server", func() {
 				err = ioutil.WriteFile(filepath.Join(tarDir, "other-file"), []byte("other-file-content"), os.ModePerm)
 				Expect(err).NotTo(HaveOccurred())
 
-				cmd := exec.Command("tar", "-c", ".")
+				cmd := exec.Command("tar", "-cz", ".")
 				cmd.Dir = tarDir
 				tarBytes, err := cmd.Output()
 				Expect(err).NotTo(HaveOccurred())
 
-				tarBuffer = bytes.NewBuffer(tarBytes)
+				tgzBuffer = bytes.NewBuffer(tarBytes)
 			})
 
 			JustBeforeEach(func() {
-				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -452,7 +455,7 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				defer os.RemoveAll(unpackedDir)
 
-				cmd := exec.Command("tar", "-x", "-C", unpackedDir)
+				cmd := exec.Command("tar", "-xz", "-C", unpackedDir)
 				cmd.Stdin = recorder.Body
 				err = cmd.Run()
 				Expect(err).NotTo(HaveOccurred())

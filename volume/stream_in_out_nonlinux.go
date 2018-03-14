@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/concourse/go-archive/tarfs"
+	"github.com/concourse/go-archive/tgzfs"
 )
 
 func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
-	err := tarfs.Extract(stream, dest)
+	err := tgzfs.Extract(stream, dest)
 	if err != nil {
 		return true, err
 	}
@@ -35,5 +35,5 @@ func (repo *repository) streamOut(w io.Writer, src string, privileged bool) erro
 		tarPath = filepath.Base(src)
 	}
 
-	return tarfs.Compress(w, tarDir, tarPath)
+	return tgzfs.Compress(w, tarDir, tarPath)
 }

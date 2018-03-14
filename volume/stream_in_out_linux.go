@@ -8,7 +8,7 @@ import (
 )
 
 func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
-	tarCommand, dirFd, err := repo.tarIn(privileged, dest, "-x")
+	tarCommand, dirFd, err := repo.tarIn(privileged, dest, "-xz")
 	if err != nil {
 		return false, err
 	}
@@ -47,7 +47,7 @@ func (repo *repository) streamOut(w io.Writer, src string, privileged bool) erro
 		tarCommandDir = filepath.Dir(src)
 	}
 
-	tarCommand, dirFd, err := repo.tarIn(privileged, tarCommandDir, "-c", tarCommandPath)
+	tarCommand, dirFd, err := repo.tarIn(privileged, tarCommandDir, "-cz", tarCommandPath)
 	if err != nil {
 		return err
 	}

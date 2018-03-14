@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,8 +30,7 @@ var _ = Describe("Privileges", func() {
 		sentinelMode os.FileMode
 	)
 
-	maxUID := uidgid.MustGetMaxValidUID()
-	maxGID := uidgid.MustGetMaxValidGID()
+	var maxUID, maxGID int
 	mode := 0755 | os.ModeSetuid | os.ModeSetgid
 	sentinelMode = 0000
 
@@ -73,6 +73,9 @@ var _ = Describe("Privileges", func() {
 			Skip("must be run as root")
 			return
 		}
+
+		maxUID = uidgid.MustGetMaxValidUID()
+		maxGID = uidgid.MustGetMaxValidGID()
 
 		runner = NewRunner(baggageClaimPath)
 		runner.Start()
@@ -125,19 +128,22 @@ var _ = Describe("Privileges", func() {
 		})
 
 		Describe("streaming out of the volume", func() {
-			var tarStream io.ReadCloser
+			var tgzStream io.ReadCloser
 
 			BeforeEach(func() {
 				var err error
-				tarStream, err = childVolume.StreamOut(dataFilename)
+				tgzStream, err = childVolume.StreamOut(dataFilename)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				tarStream.Close()
+				tgzStream.Close()
 			})
 
 			It("maps uid 0 to uid 0", func() {
+				tarStream, err := gzip.NewReader(tgzStream)
+				Expect(err).ToNot(HaveOccurred())
+
 				tarReader := tar.NewReader(tarStream)
 
 				header, err := tarReader.Next()
@@ -161,7 +167,7 @@ var _ = Describe("Privileges", func() {
 				})
 
 				It("maps uid 0 to uid 0", func() {
-					err := privilegedVolume.StreamIn(".", tarStream)
+					err := privilegedVolume.StreamIn(".", tgzStream)
 					Expect(err).ToNot(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(privilegedVolume.Path(), dataFilename))
@@ -192,7 +198,10 @@ var _ = Describe("Privileges", func() {
 
 			Describe("streaming out of the volume", func() {
 				It("re-maps uid 0 to uid 0", func() {
-					tarStream, err := childVolume.StreamOut(dataFilename)
+					tgzStream, err := childVolume.StreamOut(dataFilename)
+					Expect(err).ToNot(HaveOccurred())
+
+					tarStream, err := gzip.NewReader(tgzStream)
 					Expect(err).ToNot(HaveOccurred())
 
 					defer tarStream.Close()
@@ -280,19 +289,22 @@ var _ = Describe("Privileges", func() {
 		})
 
 		Describe("streaming out of the volume", func() {
-			var tarStream io.ReadCloser
+			var tgzStream io.ReadCloser
 
 			BeforeEach(func() {
 				var err error
-				tarStream, err = childVolume.StreamOut(dataFilename)
+				tgzStream, err = childVolume.StreamOut(dataFilename)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
-				tarStream.Close()
+				tgzStream.Close()
 			})
 
 			It("maps uid 0 to uid 0", func() {
+				tarStream, err := gzip.NewReader(tgzStream)
+				Expect(err).ToNot(HaveOccurred())
+
 				tarReader := tar.NewReader(tarStream)
 
 				header, err := tarReader.Next()
@@ -316,7 +328,7 @@ var _ = Describe("Privileges", func() {
 				})
 
 				It("maps uid 0 to (MAX_UID)", func() {
-					err := unprivilegedVolume.StreamIn(".", tarStream)
+					err := unprivilegedVolume.StreamIn(".", tgzStream)
 					Expect(err).ToNot(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(unprivilegedVolume.Path(), dataFilename))
