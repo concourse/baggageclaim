@@ -1,8 +1,13 @@
 package baggageclaimcmd
 
 import (
+	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"syscall"
 
 	"code.cloudfoundry.org/lager"
@@ -26,8 +31,16 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
 		return nil, fmt.Errorf("failed to check kernel version: %s", err)
 	}
 
+	// we don't care about the error here
+	_ = exec.Command("modprobe", "btrfs").Run()
+
+	supportsBtrfs, err := supportsFilesystem("btrfs")
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect if btrfs is supported: %s", err)
+	}
+
 	if cmd.Driver == "detect" {
-		if fsStat.Type == btrfsFSType {
+		if supportsBtrfs {
 			cmd.Driver = "btrfs"
 		} else if kernelSupportsOverlay {
 			cmd.Driver = "overlay"
@@ -75,4 +88,34 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
 	}
 
 	return d, nil
+}
+
+func supportsFilesystem(fs string) (bool, error) {
+	filesystems, err := os.Open("/proc/filesystems")
+	if err != nil {
+		return false, err
+	}
+
+	defer filesystems.Close()
+
+	fsio := bufio.NewReader(filesystems)
+
+	fsMatch := []byte(fs)
+
+	for {
+		line, _, err := fsio.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				return false, nil
+			}
+
+			return false, err
+		}
+
+		if bytes.Contains(line, fsMatch) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
