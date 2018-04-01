@@ -7,11 +7,11 @@ RUN apt-get update && \
         libblkid-dev \
         e2fslibs-dev \
         pkg-config \
-        libz-dev && \
+        libz-dev \
+        libzstd-dev && \
     cd /tmp && \
-    curl https://www.kernel.org/pub/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v4.4.tar.gz | tar zxf - && \
-    cd btrfs-progs-v4.4 && \
+    curl -L https://www.kernel.org/pub/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v4.15.tar.gz | tar zxf - && \
+    cd btrfs-progs-* && \
     ./configure --disable-documentation && \
     make && \
     make install
-
