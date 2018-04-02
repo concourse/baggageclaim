@@ -21,7 +21,7 @@ func mountAtPath(path string) string {
 		fsMounterPath,
 		"--disk-image", diskImage,
 		"--mount-path", mountPath,
-		"--size-in-megabytes", "100",
+		"--size-in-megabytes", "1024",
 	)
 
 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
