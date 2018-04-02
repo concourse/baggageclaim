@@ -70,7 +70,7 @@ var _ = Describe("BtrFS", func() {
 			session, err := gexec.Start(checkSubvolume, GinkgoWriter, GinkgoWriter)
 			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(session).Should(gbytes.Say(subvolumePath))
+			Eventually(session).Should(gbytes.Say("subvolume"))
 			Eventually(session).Should(gexec.Exit(0))
 
 			err = fsDriver.DestroyVolume(subvolumePath)
