@@ -43,7 +43,7 @@ var _ = Describe("BtrFS", func() {
 		volumeDir = filepath.Join(tempDir, "mountpoint")
 
 		filesystem = fs.New(logger, imagePath, volumeDir, "mkfs.btrfs")
-		err = filesystem.Create(100 * 1024 * 1024)
+		err = filesystem.Create(1 * 1024 * 1024 * 1024)
 		Expect(err).NotTo(HaveOccurred())
 
 		fsDriver = driver.NewBtrFSDriver(logger, "btrfs")
