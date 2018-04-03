@@ -43,6 +43,18 @@ type Client interface {
 	// LookupVolume returns a bool if the volume is found with the matching volume
 	// or an error as to why the volume could not be found.
 	LookupVolume(lager.Logger, string) (Volume, bool, error)
+
+	// Destroy volumes deletes the list of volumes that is present on the server. It takes
+	// a string of volumes
+	//
+	// You are required to pass in a logger to the call to retain context across
+	// the library boundary.
+	//
+	// DestroyVolumes returns an error if any of the volume deletion fails. It does not
+	// return an error if volumes were not found on the server.
+	// DestroyVolumes returns an error as to why one or more volumes could not be deleted.
+	// DestroyVolumes return list of volumes that are destroyed successfully.
+	DestroyVolumes(lager.Logger, []string) error
 }
 
 //go:generate counterfeiter . Volume
@@ -107,6 +119,14 @@ type VolumeFuture interface {
 
 // Volumes represents a list of Volume object.
 type Volumes []Volume
+
+func (v Volumes) Handles() []string {
+	var handles []string
+	for _, vol := range v {
+		handles = append(handles, vol.Handle())
+	}
+	return handles
+}
 
 // VolumeProperties represents the properties for a particular volume.
 type VolumeProperties map[string]string

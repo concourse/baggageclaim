@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"sync"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim"
@@ -215,6 +216,56 @@ func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) 
 	hLog.Info("destroyed")
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) DestroyVolumes(w http.ResponseWriter, req *http.Request) {
+	hLog := vs.logger.Session("destroy-volumes")
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	w.Header().Set("Content-Type", "application/json")
+	var volumes []string
+	err := json.NewDecoder(req.Body).Decode(&volumes)
+
+	if err != nil {
+		hLog.Error("failed-to-destroy-volumes", err)
+		RespondWithError(w, ErrDestroyVolumeFailed, http.StatusBadRequest)
+		return
+	}
+
+	var handleWg sync.WaitGroup
+	var errChan = make(chan error, len(volumes))
+
+	for _, handle := range volumes {
+		handlerLog := hLog.Session("destroying-volume", lager.Data{"handle": handle})
+
+		handleWg.Add(1)
+
+		go func(errChan chan error, wg *sync.WaitGroup, handle string, hLog lager.Logger) {
+			err := vs.volumeRepo.DestroyVolume(handle)
+			if err != nil {
+				if err == volume.ErrVolumeDoesNotExist {
+					hLog.Info("volume-does-not-exist")
+				} else {
+					hLog.Error("failed-to-destroy-volume", err)
+					errChan <- err
+				}
+			}
+			handleWg.Done()
+		}(errChan, &handleWg, handle, handlerLog)
+	}
+
+	hLog.Info("waiting-for-volumes-to-be-destroyed")
+	handleWg.Wait()
+	close(errChan)
+
+	if len(errChan) > 0 {
+		RespondWithError(w, ErrDestroyVolumeFailed, http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	hLog.Info("destroyed")
 }
 
 func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {

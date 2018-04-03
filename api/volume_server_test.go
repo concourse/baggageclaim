@@ -637,6 +637,57 @@ var _ = Describe("Volume Server", func() {
 		})
 	})
 
+	Describe("destroying volumes", func() {
+		It("can be destroyed", func() {
+			for i := 1; i < 3; i++ {
+				body := &bytes.Buffer{}
+				err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					Handle: fmt.Sprintf("some-handle-%d", i),
+					Strategy: encStrategy(map[string]string{
+						"type": "empty",
+					}),
+					TTLInSeconds: 0,
+				})
+				Expect(err).NotTo(HaveOccurred())
+
+				recorder := httptest.NewRecorder()
+				request, err := http.NewRequest("POST", "/volumes", body)
+				Expect(err).NotTo(HaveOccurred())
+				handler.ServeHTTP(recorder, request)
+				Expect(recorder.Code).To(Equal(201))
+			}
+
+			recorder := httptest.NewRecorder()
+			request, _ := http.NewRequest("GET", "/volumes", nil)
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(200))
+
+			var volumes volume.Volumes
+			err := json.NewDecoder(recorder.Body).Decode(&volumes)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(volumes).To(HaveLen(2))
+
+			body := &bytes.Buffer{}
+			err = json.NewEncoder(body).Encode([]string{"some-handle-1", "some-handle-2", "some-handle-3"})
+			Expect(err).NotTo(HaveOccurred())
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("DELETE", "/volumes/destroy", body)
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(204))
+
+			recorder = httptest.NewRecorder()
+			request, _ = http.NewRequest("GET", "/volumes", nil)
+			handler.ServeHTTP(recorder, request)
+			Expect(recorder.Code).To(Equal(200))
+
+			var volumes1 volume.Volumes
+			err = json.NewDecoder(recorder.Body).Decode(&volumes1)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(volumes1).To(HaveLen(0))
+		})
+	})
+
 	Describe("creating a volume", func() {
 		var (
 			recorder *httptest.ResponseRecorder

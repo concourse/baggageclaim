@@ -20,6 +20,8 @@ import (
 	"github.com/concourse/retryhttp"
 )
 
+var ErrVolumeDeletion = errors.New("failed-to-delete-volume")
+
 type Client interface {
 	baggageclaim.Client
 }
@@ -179,6 +181,32 @@ func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.
 		return nil, false, nil
 	}
 	return v, true, nil
+}
+
+func (c *client) DestroyVolumes(logger lager.Logger, handles []string) error {
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(handles)
+	if err != nil {
+		return err
+	}
+
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.DestroyVolumes, rata.Params{}, &buf)
+	if err != nil {
+		return err
+	}
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusNoContent {
+		logger.Info("failed-volumes-deletion", lager.Data{"status": response.StatusCode})
+		return ErrVolumeDeletion
+	}
+	return nil
 }
 
 func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {

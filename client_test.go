@@ -1,6 +1,8 @@
 package baggageclaim_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -233,6 +235,44 @@ var _ = Describe("Baggage Claim Client", func() {
 					Expect(volumes).To(BeNil())
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
+				})
+			})
+		})
+
+		Describe("Destroying volumes", func() {
+			Context("when all volumes are destroyed as requested", func() {
+				var handles = []string{"some-handle"}
+				var buf bytes.Buffer
+				json.NewEncoder(&buf).Encode(handles)
+
+				It("it returns all handles in response", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", "/volumes/destroy"),
+							ghttp.VerifyBody(buf.Bytes()),
+							ghttp.RespondWithJSONEncoded(204, nil),
+						))
+
+					err := bcClient.DestroyVolumes(logger, handles)
+					Expect(err).NotTo(HaveOccurred())
+				})
+			})
+
+			Context("when no volumes are destroyes", func() {
+				var handles = []string{"some-handle"}
+				var buf bytes.Buffer
+				json.NewEncoder(&buf).Encode(handles)
+
+				It("it returns no handles", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", "/volumes/destroy"),
+							ghttp.VerifyBody(buf.Bytes()),
+							ghttp.RespondWithJSONEncoded(500, handles),
+						))
+
+					err := bcClient.DestroyVolumes(logger, handles)
+					Expect(err).To(HaveOccurred())
 				})
 			})
 		})
