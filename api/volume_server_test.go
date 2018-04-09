@@ -88,7 +88,7 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	AfterEach(func() {
-		err := os.RemoveAll(tempDir)
+		err := os.RemoveAll(tempDir + "/*")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
