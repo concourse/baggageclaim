@@ -2,6 +2,7 @@ package baggageclaimcmd
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -22,8 +23,9 @@ import (
 type BaggageclaimCommand struct {
 	Logger flag.Lager
 
-	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
-	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+	BindIP        flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
+	BindPort      uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+	DebugBindPort uint16  `long:"bind-debug-port" default:"8099"    description:"Port on which to listen for TSA pprof server."`
 
 	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
@@ -40,6 +42,10 @@ type BaggageclaimCommand struct {
 		YellerAPIKey      string `long:"yeller-api-key"     description:"Yeller API key. If specified, all errors logged will be emitted."`
 		YellerEnvironment string `long:"yeller-environment" description:"Environment to tag on all Yeller events emitted."`
 	} `group:"Metrics & Diagnostics"`
+}
+
+func (cmd *BaggageclaimCommand) debugBindAddr() string {
+	return fmt.Sprintf("127.0.0.1:%d", cmd.DebugBindPort)
 }
 
 func (cmd *BaggageclaimCommand) Execute(args []string) error {
@@ -111,6 +117,10 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	members := []grouper.Member{
 		{Name: "api", Runner: http_server.New(listenAddr, apiHandler)},
 		{Name: "reaper", Runner: reaper.NewRunner(logger, clock, cmd.ReapInterval, morbidReality.Reap)},
+		{Name: "debug-server", Runner: http_server.New(
+			cmd.debugBindAddr(),
+			http.DefaultServeMux,
+		)},
 	}
 
 	return onReady(grouper.NewParallel(os.Interrupt, members), func() {
