@@ -25,7 +25,7 @@ type BaggageclaimCommand struct {
 
 	BindIP        flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
 	BindPort      uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
-	DebugBindPort uint16  `long:"bind-debug-port" default:"8099"    description:"Port on which to listen for TSA pprof server."`
+	DebugBindPort uint16  `long:"bind-debug-port" default:"8099"    description:"Port on which to listen for baggageclaim pprof server."`
 
 	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
