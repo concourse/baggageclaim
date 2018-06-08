@@ -195,6 +195,8 @@ func (c *client) DestroyVolumes(logger lager.Logger, handles []string) error {
 		return err
 	}
 
+	request.Header.Add("Content-type", "application/json")
+
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return err
