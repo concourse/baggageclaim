@@ -17,7 +17,6 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"github.com/xoebus/zest"
 )
 
 type BaggageclaimCommand struct {
@@ -37,11 +36,6 @@ type BaggageclaimCommand struct {
 	OverlaysDir string `long:"overlays-dir" description:"Path to directory in which to store overlay data"`
 
 	ReapInterval time.Duration `long:"reap-interval" default:"10s" description:"Interval on which to reap expired volumes."`
-
-	Metrics struct {
-		YellerAPIKey      string `long:"yeller-api-key"     description:"Yeller API key. If specified, all errors logged will be emitted."`
-		YellerEnvironment string `long:"yeller-environment" description:"Environment to tag on all Yeller events emitted."`
-	} `group:"Metrics & Diagnostics"`
 }
 
 func (cmd *BaggageclaimCommand) debugBindAddr() string {
@@ -132,11 +126,6 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 func (cmd *BaggageclaimCommand) constructLogger() (lager.Logger, *lager.ReconfigurableSink) {
 	logger, reconfigurableSink := cmd.Logger.Logger("baggageclaim")
-
-	if cmd.Metrics.YellerAPIKey != "" {
-		yellerSink := zest.NewYellerSink(cmd.Metrics.YellerAPIKey, cmd.Metrics.YellerEnvironment)
-		logger.RegisterSink(yellerSink)
-	}
 
 	return logger, reconfigurableSink
 }
