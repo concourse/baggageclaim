@@ -51,7 +51,7 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
 
 	volumesDir := cmd.VolumesDir.Path()
 
-	if cmd.Driver == "btrfs" && fsStat.Type != btrfsFSType {
+	if cmd.Driver == "btrfs" && uint32(fsStat.Type) != btrfsFSType {
 		volumesImage := volumesDir + ".img"
 		filesystem := fs.New(logger.Session("fs"), volumesImage, volumesDir, cmd.MkfsBin)
 
