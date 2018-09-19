@@ -32,7 +32,7 @@ var _ = Describe("Startup", func() {
 		process, err = gexec.Start(command, GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
 
-		Eventually(process.Err).Should(gbytes.Say("the required flag `--volumes' was not specified"))
+		Eventually(process.Err).Should(gbytes.Say("the required flag `(--|/)volumes' was not specified"))
 		Eventually(process).Should(gexec.Exit(1))
 	})
 })

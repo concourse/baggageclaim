@@ -11,16 +11,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"syscall"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"code.cloudfoundry.org/lager/lagertest"
+	"github.com/concourse/go-archive/tgzfs"
 
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
@@ -88,8 +87,11 @@ var _ = Describe("Volume Server", func() {
 	})
 
 	AfterEach(func() {
-		err := os.RemoveAll(tempDir + "/*")
-		Expect(err).NotTo(HaveOccurred())
+		// keep trying; async volume creation tests can cause failures on windows
+		// while multiple processes have a file open
+		Eventually(func() error {
+			return os.RemoveAll(tempDir)
+		}, time.Minute).ShouldNot(HaveOccurred())
 	})
 
 	Describe("listing the volumes", func() {
@@ -226,65 +228,6 @@ var _ = Describe("Volume Server", func() {
 
 				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
 			})
-
-			Context("when volume is not privileged", func() {
-				BeforeEach(func() {
-					isPrivileged = false
-				})
-
-				It("namespaces volume path", func() {
-					if runtime.GOOS != "linux" {
-						Skip("only runs somewhere we can run privileged")
-						return
-					}
-
-					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
-					recorder := httptest.NewRecorder()
-					handler.ServeHTTP(recorder, request)
-					Expect(recorder.Code).To(Equal(204))
-
-					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
-					Expect(tarInfoPath).To(BeAnExistingFile())
-
-					stat, err := os.Stat(tarInfoPath)
-					Expect(err).ToNot(HaveOccurred())
-
-					maxUID := uidgid.MustGetMaxValidUID()
-					maxGID := uidgid.MustGetMaxValidGID()
-
-					sysStat := stat.Sys().(*syscall.Stat_t)
-					Expect(sysStat.Uid).To(Equal(uint32(maxUID)))
-					Expect(sysStat.Gid).To(Equal(uint32(maxGID)))
-				})
-			})
-
-			Context("when volume privileged", func() {
-				BeforeEach(func() {
-					isPrivileged = true
-				})
-
-				It("namespaces volume path", func() {
-					if runtime.GOOS != "linux" {
-						Skip("only runs somewhere we can run privileged")
-						return
-					}
-
-					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
-					recorder := httptest.NewRecorder()
-					handler.ServeHTTP(recorder, request)
-					Expect(recorder.Code).To(Equal(204))
-
-					tarInfoPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
-					Expect(tarInfoPath).To(BeAnExistingFile())
-
-					stat, err := os.Stat(tarInfoPath)
-					Expect(err).ToNot(HaveOccurred())
-
-					sysStat := stat.Sys().(*syscall.Stat_t)
-					Expect(sysStat.Uid).To(Equal(uint32(0)))
-					Expect(sysStat.Gid).To(Equal(uint32(0)))
-				})
-			})
 		})
 
 		Context("when the tar stream is invalid", func() {
@@ -395,9 +338,7 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				defer os.RemoveAll(unpackedDir)
 
-				cmd := exec.Command("tar", "-xz", "-C", unpackedDir)
-				cmd.Stdin = recorder.Body
-				err = cmd.Run()
+				err = tgzfs.Extract(recorder.Body, unpackedDir)
 				Expect(err).NotTo(HaveOccurred())
 
 				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
@@ -426,12 +367,10 @@ var _ = Describe("Volume Server", func() {
 				err = ioutil.WriteFile(filepath.Join(tarDir, "other-file"), []byte("other-file-content"), os.ModePerm)
 				Expect(err).NotTo(HaveOccurred())
 
-				cmd := exec.Command("tar", "-cz", ".")
-				cmd.Dir = tarDir
-				tarBytes, err := cmd.Output()
-				Expect(err).NotTo(HaveOccurred())
+				tgzBuffer = new(bytes.Buffer)
 
-				tgzBuffer = bytes.NewBuffer(tarBytes)
+				err = tgzfs.Compress(tgzBuffer, tarDir, ".")
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			JustBeforeEach(func() {
@@ -455,9 +394,7 @@ var _ = Describe("Volume Server", func() {
 				Expect(err).NotTo(HaveOccurred())
 				defer os.RemoveAll(unpackedDir)
 
-				cmd := exec.Command("tar", "-xz", "-C", unpackedDir)
-				cmd.Stdin = recorder.Body
-				err = cmd.Run()
+				err = tgzfs.Extract(recorder.Body, unpackedDir)
 				Expect(err).NotTo(HaveOccurred())
 
 				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
@@ -976,7 +913,7 @@ var _ = Describe("Volume Server", func() {
 						return volumeResponse
 					}, Equal(baggageclaim.VolumeResponse{
 						Handle:     "some-handle-2",
-						Path:       volumeDir + "/live/some-handle-2/volume",
+						Path:       filepath.Join(volumeDir, "live", "some-handle-2", "volume"),
 						Properties: nil,
 					})),
 				))
