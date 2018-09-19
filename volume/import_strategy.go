@@ -1,7 +1,6 @@
 package volume
 
 import (
-	"os/exec"
 	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
@@ -20,13 +19,7 @@ func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, f
 
 	destination := initVolume.DataPath()
 
-	cpFlags := "-a"
-	if strategy.FollowSymlinks {
-		cpFlags = "-Lr"
-	}
-
-	cmd := exec.Command("cp", cpFlags, filepath.Clean(strategy.Path)+"/.", destination)
-	err = cmd.Run()
+	err = cp(strategy.FollowSymlinks, filepath.Clean(strategy.Path), destination)
 	if err != nil {
 		return nil, err
 	}
