@@ -5,4 +5,4 @@ inputs:
 - name: baggageclaim
 
 run:
-  path: baggageclaim/ci/scripts/unit.bat
+  path: baggageclaim/ci/scripts/unit-windows.bat

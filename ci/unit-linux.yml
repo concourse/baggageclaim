@@ -13,4 +13,4 @@ caches:
 - path: gopath/
 
 run:
-  path: baggageclaim/ci/scripts/unit
+  path: baggageclaim/ci/scripts/unit-linux
