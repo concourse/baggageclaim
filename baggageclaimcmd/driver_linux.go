@@ -39,6 +39,16 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
 		return nil, fmt.Errorf("failed to detect if btrfs is supported: %s", err)
 	}
 
+	_, err = exec.LookPath(cmd.BtrfsBin)
+	if err != nil {
+		supportsBtrfs = false
+	}
+
+	_, err = exec.LookPath(cmd.MkfsBin)
+	if err != nil {
+		supportsBtrfs = false
+	}
+
 	if cmd.Driver == "detect" {
 		if supportsBtrfs {
 			cmd.Driver = "btrfs"
