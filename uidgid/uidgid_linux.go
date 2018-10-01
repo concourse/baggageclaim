@@ -6,8 +6,9 @@ import (
 	"syscall"
 )
 
-func (t *translator) getuidgid(info os.FileInfo) (int, int, error) {
-	return int(info.Sys().(*syscall.Stat_t).Uid), int(info.Sys().(*syscall.Stat_t).Gid), nil
+func (t *translator) getuidgid(info os.FileInfo) (int, int) {
+	stat := info.Sys().(*syscall.Stat_t)
+	return int(stat.Uid), int(stat.Gid)
 }
 
 func (t *translator) setuidgid(cmd *exec.Cmd) {

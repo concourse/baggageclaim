@@ -32,7 +32,11 @@ func NewTranslator(mapper Mapper) *translator {
 }
 
 func (t *translator) TranslatePath(path string, info os.FileInfo, err error) error {
-	uid, gid, _ := t.getuidgid(info)
+	if err != nil {
+		return err
+	}
+
+	uid, gid := t.getuidgid(info)
 
 	touid, togid := t.mapper.Map(uid, gid)
 

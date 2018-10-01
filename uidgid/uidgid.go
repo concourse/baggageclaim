@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-func (t *translator) getuidgid(info os.FileInfo) (int, int, error) {
+func (t *translator) getuidgid(info os.FileInfo) (int, int) {
 	panic("not supported")
 }
 
