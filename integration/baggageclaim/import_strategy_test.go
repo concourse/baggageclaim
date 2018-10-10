@@ -3,9 +3,9 @@ package integration_test
 import (
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 
+	"github.com/concourse/go-archive/tgzfs"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -130,12 +130,10 @@ var _ = Describe("Import Strategy", func() {
 					tgz, err = ioutil.TempFile("", "host_path_archive")
 					Expect(err).ToNot(HaveOccurred())
 
-					Expect(tgz.Close()).To(Succeed())
+					err = tgzfs.Compress(tgz, strategy.Path, ".")
+					Expect(err).ToNot(HaveOccurred())
 
-					tar := exec.Command("tar", "-czvf", tgz.Name(), "-C", strategy.Path, ".")
-					tar.Stdout = GinkgoWriter
-					tar.Stderr = GinkgoWriter
-					Expect(tar.Run()).To(Succeed())
+					Expect(tgz.Close()).To(Succeed())
 
 					strategy.Path = tgz.Name()
 				})
