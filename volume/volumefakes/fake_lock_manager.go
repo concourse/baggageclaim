@@ -2,35 +2,35 @@
 package volumefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/concourse/baggageclaim/volume"
+	volume "github.com/concourse/baggageclaim/volume"
 )
 
 type FakeLockManager struct {
-	LockStub        func(key string)
+	LockStub        func(string)
 	lockMutex       sync.RWMutex
 	lockArgsForCall []struct {
-		key string
+		arg1 string
 	}
-	UnlockStub        func(key string)
+	UnlockStub        func(string)
 	unlockMutex       sync.RWMutex
 	unlockArgsForCall []struct {
-		key string
+		arg1 string
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeLockManager) Lock(key string) {
+func (fake *FakeLockManager) Lock(arg1 string) {
 	fake.lockMutex.Lock()
 	fake.lockArgsForCall = append(fake.lockArgsForCall, struct {
-		key string
-	}{key})
-	fake.recordInvocation("Lock", []interface{}{key})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("Lock", []interface{}{arg1})
 	fake.lockMutex.Unlock()
 	if fake.LockStub != nil {
-		fake.LockStub(key)
+		fake.LockStub(arg1)
 	}
 }
 
@@ -43,18 +43,19 @@ func (fake *FakeLockManager) LockCallCount() int {
 func (fake *FakeLockManager) LockArgsForCall(i int) string {
 	fake.lockMutex.RLock()
 	defer fake.lockMutex.RUnlock()
-	return fake.lockArgsForCall[i].key
+	argsForCall := fake.lockArgsForCall[i]
+	return argsForCall.arg1
 }
 
-func (fake *FakeLockManager) Unlock(key string) {
+func (fake *FakeLockManager) Unlock(arg1 string) {
 	fake.unlockMutex.Lock()
 	fake.unlockArgsForCall = append(fake.unlockArgsForCall, struct {
-		key string
-	}{key})
-	fake.recordInvocation("Unlock", []interface{}{key})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("Unlock", []interface{}{arg1})
 	fake.unlockMutex.Unlock()
 	if fake.UnlockStub != nil {
-		fake.UnlockStub(key)
+		fake.UnlockStub(arg1)
 	}
 }
 
@@ -67,7 +68,8 @@ func (fake *FakeLockManager) UnlockCallCount() int {
 func (fake *FakeLockManager) UnlockArgsForCall(i int) string {
 	fake.unlockMutex.RLock()
 	defer fake.unlockMutex.RUnlock()
-	return fake.unlockArgsForCall[i].key
+	argsForCall := fake.unlockArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeLockManager) Invocations() map[string][][]interface{} {

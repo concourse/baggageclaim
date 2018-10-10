@@ -2,16 +2,27 @@
 package baggageclaimfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/concourse/baggageclaim"
+	baggageclaim "github.com/concourse/baggageclaim"
 )
 
 type FakeVolumeFuture struct {
+	DestroyStub        func() error
+	destroyMutex       sync.RWMutex
+	destroyArgsForCall []struct {
+	}
+	destroyReturns struct {
+		result1 error
+	}
+	destroyReturnsOnCall map[int]struct {
+		result1 error
+	}
 	WaitStub        func() (baggageclaim.Volume, error)
 	waitMutex       sync.RWMutex
-	waitArgsForCall []struct{}
-	waitReturns     struct {
+	waitArgsForCall []struct {
+	}
+	waitReturns struct {
 		result1 baggageclaim.Volume
 		result2 error
 	}
@@ -19,23 +30,57 @@ type FakeVolumeFuture struct {
 		result1 baggageclaim.Volume
 		result2 error
 	}
-	DestroyStub        func() error
-	destroyMutex       sync.RWMutex
-	destroyArgsForCall []struct{}
-	destroyReturns     struct {
-		result1 error
-	}
-	destroyReturnsOnCall map[int]struct {
-		result1 error
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *FakeVolumeFuture) Destroy() error {
+	fake.destroyMutex.Lock()
+	ret, specificReturn := fake.destroyReturnsOnCall[len(fake.destroyArgsForCall)]
+	fake.destroyArgsForCall = append(fake.destroyArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Destroy", []interface{}{})
+	fake.destroyMutex.Unlock()
+	if fake.DestroyStub != nil {
+		return fake.DestroyStub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.destroyReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeVolumeFuture) DestroyCallCount() int {
+	fake.destroyMutex.RLock()
+	defer fake.destroyMutex.RUnlock()
+	return len(fake.destroyArgsForCall)
+}
+
+func (fake *FakeVolumeFuture) DestroyReturns(result1 error) {
+	fake.DestroyStub = nil
+	fake.destroyReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeVolumeFuture) DestroyReturnsOnCall(i int, result1 error) {
+	fake.DestroyStub = nil
+	if fake.destroyReturnsOnCall == nil {
+		fake.destroyReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.destroyReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeVolumeFuture) Wait() (baggageclaim.Volume, error) {
 	fake.waitMutex.Lock()
 	ret, specificReturn := fake.waitReturnsOnCall[len(fake.waitArgsForCall)]
-	fake.waitArgsForCall = append(fake.waitArgsForCall, struct{}{})
+	fake.waitArgsForCall = append(fake.waitArgsForCall, struct {
+	}{})
 	fake.recordInvocation("Wait", []interface{}{})
 	fake.waitMutex.Unlock()
 	if fake.WaitStub != nil {
@@ -44,7 +89,8 @@ func (fake *FakeVolumeFuture) Wait() (baggageclaim.Volume, error) {
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.waitReturns.result1, fake.waitReturns.result2
+	fakeReturns := fake.waitReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeVolumeFuture) WaitCallCount() int {
@@ -75,53 +121,13 @@ func (fake *FakeVolumeFuture) WaitReturnsOnCall(i int, result1 baggageclaim.Volu
 	}{result1, result2}
 }
 
-func (fake *FakeVolumeFuture) Destroy() error {
-	fake.destroyMutex.Lock()
-	ret, specificReturn := fake.destroyReturnsOnCall[len(fake.destroyArgsForCall)]
-	fake.destroyArgsForCall = append(fake.destroyArgsForCall, struct{}{})
-	fake.recordInvocation("Destroy", []interface{}{})
-	fake.destroyMutex.Unlock()
-	if fake.DestroyStub != nil {
-		return fake.DestroyStub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.destroyReturns.result1
-}
-
-func (fake *FakeVolumeFuture) DestroyCallCount() int {
-	fake.destroyMutex.RLock()
-	defer fake.destroyMutex.RUnlock()
-	return len(fake.destroyArgsForCall)
-}
-
-func (fake *FakeVolumeFuture) DestroyReturns(result1 error) {
-	fake.DestroyStub = nil
-	fake.destroyReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeVolumeFuture) DestroyReturnsOnCall(i int, result1 error) {
-	fake.DestroyStub = nil
-	if fake.destroyReturnsOnCall == nil {
-		fake.destroyReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.destroyReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeVolumeFuture) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.waitMutex.RLock()
-	defer fake.waitMutex.RUnlock()
 	fake.destroyMutex.RLock()
 	defer fake.destroyMutex.RUnlock()
+	fake.waitMutex.RLock()
+	defer fake.waitMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

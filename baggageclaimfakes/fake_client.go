@@ -2,10 +2,10 @@
 package baggageclaimfakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim"
+	lager "code.cloudfoundry.org/lager"
+	baggageclaim "github.com/concourse/baggageclaim"
 )
 
 type FakeClient struct {
@@ -23,6 +23,18 @@ type FakeClient struct {
 	createVolumeReturnsOnCall map[int]struct {
 		result1 baggageclaim.Volume
 		result2 error
+	}
+	DestroyVolumesStub        func(lager.Logger, []string) error
+	destroyVolumesMutex       sync.RWMutex
+	destroyVolumesArgsForCall []struct {
+		arg1 lager.Logger
+		arg2 []string
+	}
+	destroyVolumesReturns struct {
+		result1 error
+	}
+	destroyVolumesReturnsOnCall map[int]struct {
+		result1 error
 	}
 	ListVolumesStub        func(lager.Logger, baggageclaim.VolumeProperties) (baggageclaim.Volumes, error)
 	listVolumesMutex       sync.RWMutex
@@ -54,18 +66,6 @@ type FakeClient struct {
 		result2 bool
 		result3 error
 	}
-	DestroyVolumesStub        func(lager.Logger, []string) error
-	destroyVolumesMutex       sync.RWMutex
-	destroyVolumesArgsForCall []struct {
-		arg1 lager.Logger
-		arg2 []string
-	}
-	destroyVolumesReturns struct {
-		result1 error
-	}
-	destroyVolumesReturnsOnCall map[int]struct {
-		result1 error
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -86,7 +86,8 @@ func (fake *FakeClient) CreateVolume(arg1 lager.Logger, arg2 string, arg3 baggag
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
+	fakeReturns := fake.createVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeClient) CreateVolumeCallCount() int {
@@ -98,7 +99,8 @@ func (fake *FakeClient) CreateVolumeCallCount() int {
 func (fake *FakeClient) CreateVolumeArgsForCall(i int) (lager.Logger, string, baggageclaim.VolumeSpec) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
-	return fake.createVolumeArgsForCall[i].arg1, fake.createVolumeArgsForCall[i].arg2, fake.createVolumeArgsForCall[i].arg3
+	argsForCall := fake.createVolumeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeClient) CreateVolumeReturns(result1 baggageclaim.Volume, result2 error) {
@@ -123,6 +125,62 @@ func (fake *FakeClient) CreateVolumeReturnsOnCall(i int, result1 baggageclaim.Vo
 	}{result1, result2}
 }
 
+func (fake *FakeClient) DestroyVolumes(arg1 lager.Logger, arg2 []string) error {
+	var arg2Copy []string
+	if arg2 != nil {
+		arg2Copy = make([]string, len(arg2))
+		copy(arg2Copy, arg2)
+	}
+	fake.destroyVolumesMutex.Lock()
+	ret, specificReturn := fake.destroyVolumesReturnsOnCall[len(fake.destroyVolumesArgsForCall)]
+	fake.destroyVolumesArgsForCall = append(fake.destroyVolumesArgsForCall, struct {
+		arg1 lager.Logger
+		arg2 []string
+	}{arg1, arg2Copy})
+	fake.recordInvocation("DestroyVolumes", []interface{}{arg1, arg2Copy})
+	fake.destroyVolumesMutex.Unlock()
+	if fake.DestroyVolumesStub != nil {
+		return fake.DestroyVolumesStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.destroyVolumesReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeClient) DestroyVolumesCallCount() int {
+	fake.destroyVolumesMutex.RLock()
+	defer fake.destroyVolumesMutex.RUnlock()
+	return len(fake.destroyVolumesArgsForCall)
+}
+
+func (fake *FakeClient) DestroyVolumesArgsForCall(i int) (lager.Logger, []string) {
+	fake.destroyVolumesMutex.RLock()
+	defer fake.destroyVolumesMutex.RUnlock()
+	argsForCall := fake.destroyVolumesArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeClient) DestroyVolumesReturns(result1 error) {
+	fake.DestroyVolumesStub = nil
+	fake.destroyVolumesReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeClient) DestroyVolumesReturnsOnCall(i int, result1 error) {
+	fake.DestroyVolumesStub = nil
+	if fake.destroyVolumesReturnsOnCall == nil {
+		fake.destroyVolumesReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.destroyVolumesReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeClient) ListVolumes(arg1 lager.Logger, arg2 baggageclaim.VolumeProperties) (baggageclaim.Volumes, error) {
 	fake.listVolumesMutex.Lock()
 	ret, specificReturn := fake.listVolumesReturnsOnCall[len(fake.listVolumesArgsForCall)]
@@ -138,7 +196,8 @@ func (fake *FakeClient) ListVolumes(arg1 lager.Logger, arg2 baggageclaim.VolumeP
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
+	fakeReturns := fake.listVolumesReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeClient) ListVolumesCallCount() int {
@@ -150,7 +209,8 @@ func (fake *FakeClient) ListVolumesCallCount() int {
 func (fake *FakeClient) ListVolumesArgsForCall(i int) (lager.Logger, baggageclaim.VolumeProperties) {
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
-	return fake.listVolumesArgsForCall[i].arg1, fake.listVolumesArgsForCall[i].arg2
+	argsForCall := fake.listVolumesArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) ListVolumesReturns(result1 baggageclaim.Volumes, result2 error) {
@@ -190,7 +250,8 @@ func (fake *FakeClient) LookupVolume(arg1 lager.Logger, arg2 string) (baggagecla
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
+	fakeReturns := fake.lookupVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeClient) LookupVolumeCallCount() int {
@@ -202,7 +263,8 @@ func (fake *FakeClient) LookupVolumeCallCount() int {
 func (fake *FakeClient) LookupVolumeArgsForCall(i int) (lager.Logger, string) {
 	fake.lookupVolumeMutex.RLock()
 	defer fake.lookupVolumeMutex.RUnlock()
-	return fake.lookupVolumeArgsForCall[i].arg1, fake.lookupVolumeArgsForCall[i].arg2
+	argsForCall := fake.lookupVolumeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2 bool, result3 error) {
@@ -230,71 +292,17 @@ func (fake *FakeClient) LookupVolumeReturnsOnCall(i int, result1 baggageclaim.Vo
 	}{result1, result2, result3}
 }
 
-func (fake *FakeClient) DestroyVolumes(arg1 lager.Logger, arg2 []string) error {
-	var arg2Copy []string
-	if arg2 != nil {
-		arg2Copy = make([]string, len(arg2))
-		copy(arg2Copy, arg2)
-	}
-	fake.destroyVolumesMutex.Lock()
-	ret, specificReturn := fake.destroyVolumesReturnsOnCall[len(fake.destroyVolumesArgsForCall)]
-	fake.destroyVolumesArgsForCall = append(fake.destroyVolumesArgsForCall, struct {
-		arg1 lager.Logger
-		arg2 []string
-	}{arg1, arg2Copy})
-	fake.recordInvocation("DestroyVolumes", []interface{}{arg1, arg2Copy})
-	fake.destroyVolumesMutex.Unlock()
-	if fake.DestroyVolumesStub != nil {
-		return fake.DestroyVolumesStub(arg1, arg2)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.destroyVolumesReturns.result1
-}
-
-func (fake *FakeClient) DestroyVolumesCallCount() int {
-	fake.destroyVolumesMutex.RLock()
-	defer fake.destroyVolumesMutex.RUnlock()
-	return len(fake.destroyVolumesArgsForCall)
-}
-
-func (fake *FakeClient) DestroyVolumesArgsForCall(i int) (lager.Logger, []string) {
-	fake.destroyVolumesMutex.RLock()
-	defer fake.destroyVolumesMutex.RUnlock()
-	return fake.destroyVolumesArgsForCall[i].arg1, fake.destroyVolumesArgsForCall[i].arg2
-}
-
-func (fake *FakeClient) DestroyVolumesReturns(result1 error) {
-	fake.DestroyVolumesStub = nil
-	fake.destroyVolumesReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeClient) DestroyVolumesReturnsOnCall(i int, result1 error) {
-	fake.DestroyVolumesStub = nil
-	if fake.destroyVolumesReturnsOnCall == nil {
-		fake.destroyVolumesReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.destroyVolumesReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
+	fake.destroyVolumesMutex.RLock()
+	defer fake.destroyVolumesMutex.RUnlock()
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
 	fake.lookupVolumeMutex.RLock()
 	defer fake.lookupVolumeMutex.RUnlock()
-	fake.destroyVolumesMutex.RLock()
-	defer fake.destroyVolumesMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

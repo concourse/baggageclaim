@@ -7,15 +7,15 @@ import (
 	"path/filepath"
 )
 
-func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
-	tarCommand, dirFd, err := repo.tarIn(privileged, dest, "-xz")
+func (streamer *streamer) In(tgzStream io.Reader, dest string, privileged bool) (bool, error) {
+	tarCommand, dirFd, err := streamer.tarIn(privileged, dest, "-xz")
 	if err != nil {
 		return false, err
 	}
 
 	defer dirFd.Close()
 
-	tarCommand.Stdin = stream
+	tarCommand.Stdin = tgzStream
 	tarCommand.Stdout = os.Stderr
 	tarCommand.Stderr = os.Stderr
 
@@ -31,7 +31,7 @@ func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool)
 	return false, nil
 }
 
-func (repo *repository) streamOut(w io.Writer, src string, privileged bool) error {
+func (streamer *streamer) Out(w io.Writer, src string, privileged bool) error {
 	fileInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (repo *repository) streamOut(w io.Writer, src string, privileged bool) erro
 		tarCommandDir = filepath.Dir(src)
 	}
 
-	tarCommand, dirFd, err := repo.tarIn(privileged, tarCommandDir, "-cz", tarCommandPath)
+	tarCommand, dirFd, err := streamer.tarIn(privileged, tarCommandDir, "-cz", tarCommandPath)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (repo *repository) streamOut(w io.Writer, src string, privileged bool) erro
 	return nil
 }
 
-func (repo *repository) tarIn(privileged bool, dir string, args ...string) (*exec.Cmd, *os.File, error) {
+func (streamer *streamer) tarIn(privileged bool, dir string, args ...string) (*exec.Cmd, *os.File, error) {
 	// 'tar' may run as MAX_UID in order to remap UIDs when streaming into an
 	// unprivileged volume. this may cause permission issues when exec'ing as it
 	// may not be able to even see the destination directory as non-root.
@@ -81,7 +81,7 @@ func (repo *repository) tarIn(privileged bool, dir string, args ...string) (*exe
 	tarCommand.ExtraFiles = []*os.File{dirFd}
 
 	if !privileged {
-		repo.namespacer(false).NamespaceCommand(tarCommand)
+		streamer.namespacer.NamespaceCommand(tarCommand)
 	}
 
 	return tarCommand, dirFd, nil

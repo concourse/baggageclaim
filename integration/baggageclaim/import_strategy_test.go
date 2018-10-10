@@ -3,6 +3,7 @@ package integration_test
 import (
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
@@ -31,58 +32,53 @@ var _ = Describe("Import Strategy", func() {
 	Describe("API", func() {
 		Describe("POST /volumes", func() {
 			var (
+				dir string
+
+				strategy baggageclaim.ImportStrategy
+
 				volume baggageclaim.Volume
-				tmpdir string
 			)
 
 			BeforeEach(func() {
 				var err error
-				tmpdir, err = ioutil.TempDir("", "host_path")
+				dir, err = ioutil.TempDir("", "host_path")
 				Expect(err).NotTo(HaveOccurred())
 
-				err = ioutil.WriteFile(filepath.Join(tmpdir, "file-with-perms"), []byte("file-with-perms-contents"), 0600)
+				err = ioutil.WriteFile(filepath.Join(dir, "file-with-perms"), []byte("file-with-perms-contents"), 0600)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = ioutil.WriteFile(filepath.Join(tmpdir, "some-file"), []byte("some-file-contents"), 0644)
+				err = ioutil.WriteFile(filepath.Join(dir, "some-file"), []byte("some-file-contents"), 0644)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = os.MkdirAll(filepath.Join(tmpdir, "some-dir"), 0755)
+				err = os.MkdirAll(filepath.Join(dir, "some-dir"), 0755)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = ioutil.WriteFile(filepath.Join(tmpdir, "some-dir", "file-in-dir"), []byte("file-in-dir-contents"), 0644)
+				err = ioutil.WriteFile(filepath.Join(dir, "some-dir", "file-in-dir"), []byte("file-in-dir-contents"), 0644)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = os.MkdirAll(filepath.Join(tmpdir, "empty-dir"), 0755)
+				err = os.MkdirAll(filepath.Join(dir, "empty-dir"), 0755)
 				Expect(err).NotTo(HaveOccurred())
 
-				err = os.MkdirAll(filepath.Join(tmpdir, "dir-with-perms"), 0700)
+				err = os.MkdirAll(filepath.Join(dir, "dir-with-perms"), 0700)
 				Expect(err).NotTo(HaveOccurred())
+
+				strategy = baggageclaim.ImportStrategy{
+					Path: dir,
+				}
 			})
 
-			JustBeforeEach(func() {
-				var err error
-				volume, err = client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{
-					Strategy: baggageclaim.ImportStrategy{
-						Path: tmpdir,
-					},
-				})
-				Expect(err).NotTo(HaveOccurred())
+			AfterEach(func() {
+				Expect(os.RemoveAll(dir)).To(Succeed())
 			})
 
-			Describe("created directory", func() {
-				var (
-					createdDir string
-				)
-
-				JustBeforeEach(func() {
-					createdDir = volume.Path()
-				})
-
+			assert := func() {
 				It("is in the volume dir", func() {
-					Expect(createdDir).To(HavePrefix(runner.VolumeDir()))
+					Expect(volume.Path()).To(HavePrefix(runner.VolumeDir()))
 				})
 
-				It("creates the directory with the correct contents", func() {
+				It("has the correct contents", func() {
+					createdDir := volume.Path()
+
 					Expect(createdDir).To(BeADirectory())
 
 					Expect(filepath.Join(createdDir, "some-file")).To(BeARegularFile())
@@ -92,7 +88,7 @@ var _ = Describe("Import Strategy", func() {
 					Expect(ioutil.ReadFile(filepath.Join(createdDir, "file-with-perms"))).To(Equal([]byte("file-with-perms-contents")))
 					fi, err := os.Lstat(filepath.Join(createdDir, "file-with-perms"))
 					Expect(err).NotTo(HaveOccurred())
-					expectedFI, err := os.Lstat(filepath.Join(tmpdir, "file-with-perms"))
+					expectedFI, err := os.Lstat(filepath.Join(dir, "file-with-perms"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(fi.Mode()).To(Equal(expectedFI.Mode()))
 
@@ -102,7 +98,7 @@ var _ = Describe("Import Strategy", func() {
 					Expect(ioutil.ReadFile(filepath.Join(createdDir, "some-dir", "file-in-dir"))).To(Equal([]byte("file-in-dir-contents")))
 					fi, err = os.Lstat(filepath.Join(createdDir, "some-dir", "file-in-dir"))
 					Expect(err).NotTo(HaveOccurred())
-					expectedFI, err = os.Lstat(filepath.Join(tmpdir, "some-dir", "file-in-dir"))
+					expectedFI, err = os.Lstat(filepath.Join(dir, "some-dir", "file-in-dir"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(fi.Mode()).To(Equal(expectedFI.Mode()))
 					Expect(filepath.Join(createdDir, "empty-dir")).To(BeADirectory())
@@ -110,10 +106,45 @@ var _ = Describe("Import Strategy", func() {
 					Expect(filepath.Join(createdDir, "dir-with-perms")).To(BeADirectory())
 					fi, err = os.Lstat(filepath.Join(createdDir, "dir-with-perms"))
 					Expect(err).NotTo(HaveOccurred())
-					expectedFI, err = os.Lstat(filepath.Join(tmpdir, "dir-with-perms"))
+					expectedFI, err = os.Lstat(filepath.Join(dir, "dir-with-perms"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(fi.Mode()).To(Equal(expectedFI.Mode()))
 				})
+			}
+
+			JustBeforeEach(func() {
+				var err error
+				volume, err = client.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{
+					Strategy: strategy,
+				})
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			assert()
+
+			Context("when the path is a .tgz", func() {
+				var tgz *os.File
+
+				BeforeEach(func() {
+					var err error
+					tgz, err = ioutil.TempFile("", "host_path_archive")
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(tgz.Close()).To(Succeed())
+
+					tar := exec.Command("tar", "-czvf", tgz.Name(), "-C", strategy.Path, ".")
+					tar.Stdout = GinkgoWriter
+					tar.Stderr = GinkgoWriter
+					Expect(tar.Run()).To(Succeed())
+
+					strategy.Path = tgz.Name()
+				})
+
+				AfterEach(func() {
+					Expect(os.RemoveAll(tgz.Name())).To(Succeed())
+				})
+
+				assert()
 			})
 		})
 	})

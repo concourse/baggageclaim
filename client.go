@@ -156,8 +156,11 @@ type Strategy interface {
 
 // ImportStrategy creates a volume by copying a directory from the host.
 type ImportStrategy struct {
-	// The location of the directory on the host to import.
+	// The location on the host to import. If the path is a directory, its
+	// contents will be copied in. If the path is a file, it is assumed to be a
+	// .tar.gz file, and its contents will be unpacked in to the volume.
 	Path string
+
 	// Follow symlinks and import them as files instead of links.
 	FollowSymlinks bool
 }

@@ -2,23 +2,22 @@
 package volumefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"github.com/concourse/baggageclaim/volume"
+	volume "github.com/concourse/baggageclaim/volume"
 )
 
 type FakeFilesystem struct {
-	NewVolumeStub        func(string) (volume.FilesystemInitVolume, error)
-	newVolumeMutex       sync.RWMutex
-	newVolumeArgsForCall []struct {
-		arg1 string
+	ListVolumesStub        func() ([]volume.FilesystemLiveVolume, error)
+	listVolumesMutex       sync.RWMutex
+	listVolumesArgsForCall []struct {
 	}
-	newVolumeReturns struct {
-		result1 volume.FilesystemInitVolume
+	listVolumesReturns struct {
+		result1 []volume.FilesystemLiveVolume
 		result2 error
 	}
-	newVolumeReturnsOnCall map[int]struct {
-		result1 volume.FilesystemInitVolume
+	listVolumesReturnsOnCall map[int]struct {
+		result1 []volume.FilesystemLiveVolume
 		result2 error
 	}
 	LookupVolumeStub        func(string) (volume.FilesystemLiveVolume, bool, error)
@@ -36,130 +35,28 @@ type FakeFilesystem struct {
 		result2 bool
 		result3 error
 	}
-	ListVolumesStub        func() ([]volume.FilesystemLiveVolume, error)
-	listVolumesMutex       sync.RWMutex
-	listVolumesArgsForCall []struct{}
-	listVolumesReturns     struct {
-		result1 []volume.FilesystemLiveVolume
+	NewVolumeStub        func(string) (volume.FilesystemInitVolume, error)
+	newVolumeMutex       sync.RWMutex
+	newVolumeArgsForCall []struct {
+		arg1 string
+	}
+	newVolumeReturns struct {
+		result1 volume.FilesystemInitVolume
 		result2 error
 	}
-	listVolumesReturnsOnCall map[int]struct {
-		result1 []volume.FilesystemLiveVolume
+	newVolumeReturnsOnCall map[int]struct {
+		result1 volume.FilesystemInitVolume
 		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeFilesystem) NewVolume(arg1 string) (volume.FilesystemInitVolume, error) {
-	fake.newVolumeMutex.Lock()
-	ret, specificReturn := fake.newVolumeReturnsOnCall[len(fake.newVolumeArgsForCall)]
-	fake.newVolumeArgsForCall = append(fake.newVolumeArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("NewVolume", []interface{}{arg1})
-	fake.newVolumeMutex.Unlock()
-	if fake.NewVolumeStub != nil {
-		return fake.NewVolumeStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fake.newVolumeReturns.result1, fake.newVolumeReturns.result2
-}
-
-func (fake *FakeFilesystem) NewVolumeCallCount() int {
-	fake.newVolumeMutex.RLock()
-	defer fake.newVolumeMutex.RUnlock()
-	return len(fake.newVolumeArgsForCall)
-}
-
-func (fake *FakeFilesystem) NewVolumeArgsForCall(i int) string {
-	fake.newVolumeMutex.RLock()
-	defer fake.newVolumeMutex.RUnlock()
-	return fake.newVolumeArgsForCall[i].arg1
-}
-
-func (fake *FakeFilesystem) NewVolumeReturns(result1 volume.FilesystemInitVolume, result2 error) {
-	fake.NewVolumeStub = nil
-	fake.newVolumeReturns = struct {
-		result1 volume.FilesystemInitVolume
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeFilesystem) NewVolumeReturnsOnCall(i int, result1 volume.FilesystemInitVolume, result2 error) {
-	fake.NewVolumeStub = nil
-	if fake.newVolumeReturnsOnCall == nil {
-		fake.newVolumeReturnsOnCall = make(map[int]struct {
-			result1 volume.FilesystemInitVolume
-			result2 error
-		})
-	}
-	fake.newVolumeReturnsOnCall[i] = struct {
-		result1 volume.FilesystemInitVolume
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeFilesystem) LookupVolume(arg1 string) (volume.FilesystemLiveVolume, bool, error) {
-	fake.lookupVolumeMutex.Lock()
-	ret, specificReturn := fake.lookupVolumeReturnsOnCall[len(fake.lookupVolumeArgsForCall)]
-	fake.lookupVolumeArgsForCall = append(fake.lookupVolumeArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("LookupVolume", []interface{}{arg1})
-	fake.lookupVolumeMutex.Unlock()
-	if fake.LookupVolumeStub != nil {
-		return fake.LookupVolumeStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	return fake.lookupVolumeReturns.result1, fake.lookupVolumeReturns.result2, fake.lookupVolumeReturns.result3
-}
-
-func (fake *FakeFilesystem) LookupVolumeCallCount() int {
-	fake.lookupVolumeMutex.RLock()
-	defer fake.lookupVolumeMutex.RUnlock()
-	return len(fake.lookupVolumeArgsForCall)
-}
-
-func (fake *FakeFilesystem) LookupVolumeArgsForCall(i int) string {
-	fake.lookupVolumeMutex.RLock()
-	defer fake.lookupVolumeMutex.RUnlock()
-	return fake.lookupVolumeArgsForCall[i].arg1
-}
-
-func (fake *FakeFilesystem) LookupVolumeReturns(result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
-	fake.LookupVolumeStub = nil
-	fake.lookupVolumeReturns = struct {
-		result1 volume.FilesystemLiveVolume
-		result2 bool
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeFilesystem) LookupVolumeReturnsOnCall(i int, result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
-	fake.LookupVolumeStub = nil
-	if fake.lookupVolumeReturnsOnCall == nil {
-		fake.lookupVolumeReturnsOnCall = make(map[int]struct {
-			result1 volume.FilesystemLiveVolume
-			result2 bool
-			result3 error
-		})
-	}
-	fake.lookupVolumeReturnsOnCall[i] = struct {
-		result1 volume.FilesystemLiveVolume
-		result2 bool
-		result3 error
-	}{result1, result2, result3}
-}
-
 func (fake *FakeFilesystem) ListVolumes() ([]volume.FilesystemLiveVolume, error) {
 	fake.listVolumesMutex.Lock()
 	ret, specificReturn := fake.listVolumesReturnsOnCall[len(fake.listVolumesArgsForCall)]
-	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct{}{})
+	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct {
+	}{})
 	fake.recordInvocation("ListVolumes", []interface{}{})
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
@@ -168,7 +65,8 @@ func (fake *FakeFilesystem) ListVolumes() ([]volume.FilesystemLiveVolume, error)
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2
+	fakeReturns := fake.listVolumesReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeFilesystem) ListVolumesCallCount() int {
@@ -199,15 +97,124 @@ func (fake *FakeFilesystem) ListVolumesReturnsOnCall(i int, result1 []volume.Fil
 	}{result1, result2}
 }
 
+func (fake *FakeFilesystem) LookupVolume(arg1 string) (volume.FilesystemLiveVolume, bool, error) {
+	fake.lookupVolumeMutex.Lock()
+	ret, specificReturn := fake.lookupVolumeReturnsOnCall[len(fake.lookupVolumeArgsForCall)]
+	fake.lookupVolumeArgsForCall = append(fake.lookupVolumeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("LookupVolume", []interface{}{arg1})
+	fake.lookupVolumeMutex.Unlock()
+	if fake.LookupVolumeStub != nil {
+		return fake.LookupVolumeStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2, ret.result3
+	}
+	fakeReturns := fake.lookupVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
+}
+
+func (fake *FakeFilesystem) LookupVolumeCallCount() int {
+	fake.lookupVolumeMutex.RLock()
+	defer fake.lookupVolumeMutex.RUnlock()
+	return len(fake.lookupVolumeArgsForCall)
+}
+
+func (fake *FakeFilesystem) LookupVolumeArgsForCall(i int) string {
+	fake.lookupVolumeMutex.RLock()
+	defer fake.lookupVolumeMutex.RUnlock()
+	argsForCall := fake.lookupVolumeArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeFilesystem) LookupVolumeReturns(result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.LookupVolumeStub = nil
+	fake.lookupVolumeReturns = struct {
+		result1 volume.FilesystemLiveVolume
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeFilesystem) LookupVolumeReturnsOnCall(i int, result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.LookupVolumeStub = nil
+	if fake.lookupVolumeReturnsOnCall == nil {
+		fake.lookupVolumeReturnsOnCall = make(map[int]struct {
+			result1 volume.FilesystemLiveVolume
+			result2 bool
+			result3 error
+		})
+	}
+	fake.lookupVolumeReturnsOnCall[i] = struct {
+		result1 volume.FilesystemLiveVolume
+		result2 bool
+		result3 error
+	}{result1, result2, result3}
+}
+
+func (fake *FakeFilesystem) NewVolume(arg1 string) (volume.FilesystemInitVolume, error) {
+	fake.newVolumeMutex.Lock()
+	ret, specificReturn := fake.newVolumeReturnsOnCall[len(fake.newVolumeArgsForCall)]
+	fake.newVolumeArgsForCall = append(fake.newVolumeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("NewVolume", []interface{}{arg1})
+	fake.newVolumeMutex.Unlock()
+	if fake.NewVolumeStub != nil {
+		return fake.NewVolumeStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.newVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeFilesystem) NewVolumeCallCount() int {
+	fake.newVolumeMutex.RLock()
+	defer fake.newVolumeMutex.RUnlock()
+	return len(fake.newVolumeArgsForCall)
+}
+
+func (fake *FakeFilesystem) NewVolumeArgsForCall(i int) string {
+	fake.newVolumeMutex.RLock()
+	defer fake.newVolumeMutex.RUnlock()
+	argsForCall := fake.newVolumeArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeFilesystem) NewVolumeReturns(result1 volume.FilesystemInitVolume, result2 error) {
+	fake.NewVolumeStub = nil
+	fake.newVolumeReturns = struct {
+		result1 volume.FilesystemInitVolume
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeFilesystem) NewVolumeReturnsOnCall(i int, result1 volume.FilesystemInitVolume, result2 error) {
+	fake.NewVolumeStub = nil
+	if fake.newVolumeReturnsOnCall == nil {
+		fake.newVolumeReturnsOnCall = make(map[int]struct {
+			result1 volume.FilesystemInitVolume
+			result2 error
+		})
+	}
+	fake.newVolumeReturnsOnCall[i] = struct {
+		result1 volume.FilesystemInitVolume
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeFilesystem) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.newVolumeMutex.RLock()
-	defer fake.newVolumeMutex.RUnlock()
-	fake.lookupVolumeMutex.RLock()
-	defer fake.lookupVolumeMutex.RUnlock()
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
+	fake.lookupVolumeMutex.RLock()
+	defer fake.lookupVolumeMutex.RUnlock()
+	fake.newVolumeMutex.RLock()
+	defer fake.newVolumeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

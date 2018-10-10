@@ -13,7 +13,7 @@ type COWStrategy struct {
 	ParentHandle string
 }
 
-func (strategy COWStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
+func (strategy COWStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem, streamer Streamer) (FilesystemInitVolume, error) {
 	if strategy.ParentHandle == "" {
 		logger.Info("parent-not-specified")
 		return nil, ErrNoParentVolumeProvided

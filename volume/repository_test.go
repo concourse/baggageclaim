@@ -111,7 +111,7 @@ var _ = Describe("Repository", func() {
 					})
 
 					It("materialized with the correct volume, fs, and driver", func() {
-						_, handle, fs := fakeStrategy.MaterializeArgsForCall(0)
+						_, handle, fs, _ := fakeStrategy.MaterializeArgsForCall(0)
 						Expect(handle).ToNot(BeEmpty())
 						Expect(fs).To(Equal(fakeFilesystem))
 					})

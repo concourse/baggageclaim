@@ -2,20 +2,25 @@
 package uidgidfakes
 
 import (
-	"os"
-	"os/exec"
-	"sync"
+	os "os"
+	exec "os/exec"
+	sync "sync"
 
-	"github.com/concourse/baggageclaim/uidgid"
+	uidgid "github.com/concourse/baggageclaim/uidgid"
 )
 
 type FakeTranslator struct {
-	TranslatePathStub        func(path string, info os.FileInfo, err error) error
+	TranslateCommandStub        func(*exec.Cmd)
+	translateCommandMutex       sync.RWMutex
+	translateCommandArgsForCall []struct {
+		arg1 *exec.Cmd
+	}
+	TranslatePathStub        func(string, os.FileInfo, error) error
 	translatePathMutex       sync.RWMutex
 	translatePathArgsForCall []struct {
-		path string
-		info os.FileInfo
-		err  error
+		arg1 string
+		arg2 os.FileInfo
+		arg3 error
 	}
 	translatePathReturns struct {
 		result1 error
@@ -23,63 +28,8 @@ type FakeTranslator struct {
 	translatePathReturnsOnCall map[int]struct {
 		result1 error
 	}
-	TranslateCommandStub        func(*exec.Cmd)
-	translateCommandMutex       sync.RWMutex
-	translateCommandArgsForCall []struct {
-		arg1 *exec.Cmd
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
-}
-
-func (fake *FakeTranslator) TranslatePath(path string, info os.FileInfo, err error) error {
-	fake.translatePathMutex.Lock()
-	ret, specificReturn := fake.translatePathReturnsOnCall[len(fake.translatePathArgsForCall)]
-	fake.translatePathArgsForCall = append(fake.translatePathArgsForCall, struct {
-		path string
-		info os.FileInfo
-		err  error
-	}{path, info, err})
-	fake.recordInvocation("TranslatePath", []interface{}{path, info, err})
-	fake.translatePathMutex.Unlock()
-	if fake.TranslatePathStub != nil {
-		return fake.TranslatePathStub(path, info, err)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.translatePathReturns.result1
-}
-
-func (fake *FakeTranslator) TranslatePathCallCount() int {
-	fake.translatePathMutex.RLock()
-	defer fake.translatePathMutex.RUnlock()
-	return len(fake.translatePathArgsForCall)
-}
-
-func (fake *FakeTranslator) TranslatePathArgsForCall(i int) (string, os.FileInfo, error) {
-	fake.translatePathMutex.RLock()
-	defer fake.translatePathMutex.RUnlock()
-	return fake.translatePathArgsForCall[i].path, fake.translatePathArgsForCall[i].info, fake.translatePathArgsForCall[i].err
-}
-
-func (fake *FakeTranslator) TranslatePathReturns(result1 error) {
-	fake.TranslatePathStub = nil
-	fake.translatePathReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeTranslator) TranslatePathReturnsOnCall(i int, result1 error) {
-	fake.TranslatePathStub = nil
-	if fake.translatePathReturnsOnCall == nil {
-		fake.translatePathReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.translatePathReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
 }
 
 func (fake *FakeTranslator) TranslateCommand(arg1 *exec.Cmd) {
@@ -103,16 +53,69 @@ func (fake *FakeTranslator) TranslateCommandCallCount() int {
 func (fake *FakeTranslator) TranslateCommandArgsForCall(i int) *exec.Cmd {
 	fake.translateCommandMutex.RLock()
 	defer fake.translateCommandMutex.RUnlock()
-	return fake.translateCommandArgsForCall[i].arg1
+	argsForCall := fake.translateCommandArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeTranslator) TranslatePath(arg1 string, arg2 os.FileInfo, arg3 error) error {
+	fake.translatePathMutex.Lock()
+	ret, specificReturn := fake.translatePathReturnsOnCall[len(fake.translatePathArgsForCall)]
+	fake.translatePathArgsForCall = append(fake.translatePathArgsForCall, struct {
+		arg1 string
+		arg2 os.FileInfo
+		arg3 error
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("TranslatePath", []interface{}{arg1, arg2, arg3})
+	fake.translatePathMutex.Unlock()
+	if fake.TranslatePathStub != nil {
+		return fake.TranslatePathStub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.translatePathReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeTranslator) TranslatePathCallCount() int {
+	fake.translatePathMutex.RLock()
+	defer fake.translatePathMutex.RUnlock()
+	return len(fake.translatePathArgsForCall)
+}
+
+func (fake *FakeTranslator) TranslatePathArgsForCall(i int) (string, os.FileInfo, error) {
+	fake.translatePathMutex.RLock()
+	defer fake.translatePathMutex.RUnlock()
+	argsForCall := fake.translatePathArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeTranslator) TranslatePathReturns(result1 error) {
+	fake.TranslatePathStub = nil
+	fake.translatePathReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeTranslator) TranslatePathReturnsOnCall(i int, result1 error) {
+	fake.TranslatePathStub = nil
+	if fake.translatePathReturnsOnCall == nil {
+		fake.translatePathReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.translatePathReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeTranslator) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.translatePathMutex.RLock()
-	defer fake.translatePathMutex.RUnlock()
 	fake.translateCommandMutex.RLock()
 	defer fake.translateCommandMutex.RUnlock()
+	fake.translatePathMutex.RLock()
+	defer fake.translatePathMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

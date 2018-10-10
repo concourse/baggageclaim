@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"os"
 	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
@@ -11,7 +12,7 @@ type ImportStrategy struct {
 	FollowSymlinks bool
 }
 
-func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem) (FilesystemInitVolume, error) {
+func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, fs Filesystem, streamer Streamer) (FilesystemInitVolume, error) {
 	initVolume, err := fs.NewVolume(handle)
 	if err != nil {
 		return nil, err
@@ -19,9 +20,36 @@ func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, f
 
 	destination := initVolume.DataPath()
 
-	err = cp(strategy.FollowSymlinks, filepath.Clean(strategy.Path), destination)
+	info, err := os.Stat(strategy.Path)
 	if err != nil {
 		return nil, err
+	}
+
+	if info.IsDir() {
+		err = cp(strategy.FollowSymlinks, filepath.Clean(strategy.Path), destination)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		tgzFile, err := os.Open(strategy.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		defer tgzFile.Close()
+
+		invalid, err := streamer.In(tgzFile, destination, true)
+		if err != nil {
+			if invalid {
+				logger.Info("malformed-archive", lager.Data{
+					"error": err.Error(),
+				})
+			} else {
+				logger.Error("failed-to-stream-in", err)
+			}
+
+			return nil, err
+		}
 	}
 
 	return initVolume, nil

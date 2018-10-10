@@ -37,6 +37,7 @@ var _ = Describe("EmptyStrategy", func() {
 				lagertest.NewTestLogger("test"),
 				"some-volume",
 				fakeFilesystem,
+				new(volumefakes.FakeStreamer),
 			)
 		})
 

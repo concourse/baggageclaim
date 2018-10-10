@@ -2,19 +2,24 @@
 package uidgidfakes
 
 import (
-	"os/exec"
-	"sync"
+	exec "os/exec"
+	sync "sync"
 
-	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim/uidgid"
+	lager "code.cloudfoundry.org/lager"
+	uidgid "github.com/concourse/baggageclaim/uidgid"
 )
 
 type FakeNamespacer struct {
-	NamespacePathStub        func(logger lager.Logger, path string) error
+	NamespaceCommandStub        func(*exec.Cmd)
+	namespaceCommandMutex       sync.RWMutex
+	namespaceCommandArgsForCall []struct {
+		arg1 *exec.Cmd
+	}
+	NamespacePathStub        func(lager.Logger, string) error
 	namespacePathMutex       sync.RWMutex
 	namespacePathArgsForCall []struct {
-		logger lager.Logger
-		path   string
+		arg1 lager.Logger
+		arg2 string
 	}
 	namespacePathReturns struct {
 		result1 error
@@ -22,31 +27,52 @@ type FakeNamespacer struct {
 	namespacePathReturnsOnCall map[int]struct {
 		result1 error
 	}
-	NamespaceCommandStub        func(cmd *exec.Cmd)
-	namespaceCommandMutex       sync.RWMutex
-	namespaceCommandArgsForCall []struct {
-		cmd *exec.Cmd
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeNamespacer) NamespacePath(logger lager.Logger, path string) error {
+func (fake *FakeNamespacer) NamespaceCommand(arg1 *exec.Cmd) {
+	fake.namespaceCommandMutex.Lock()
+	fake.namespaceCommandArgsForCall = append(fake.namespaceCommandArgsForCall, struct {
+		arg1 *exec.Cmd
+	}{arg1})
+	fake.recordInvocation("NamespaceCommand", []interface{}{arg1})
+	fake.namespaceCommandMutex.Unlock()
+	if fake.NamespaceCommandStub != nil {
+		fake.NamespaceCommandStub(arg1)
+	}
+}
+
+func (fake *FakeNamespacer) NamespaceCommandCallCount() int {
+	fake.namespaceCommandMutex.RLock()
+	defer fake.namespaceCommandMutex.RUnlock()
+	return len(fake.namespaceCommandArgsForCall)
+}
+
+func (fake *FakeNamespacer) NamespaceCommandArgsForCall(i int) *exec.Cmd {
+	fake.namespaceCommandMutex.RLock()
+	defer fake.namespaceCommandMutex.RUnlock()
+	argsForCall := fake.namespaceCommandArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeNamespacer) NamespacePath(arg1 lager.Logger, arg2 string) error {
 	fake.namespacePathMutex.Lock()
 	ret, specificReturn := fake.namespacePathReturnsOnCall[len(fake.namespacePathArgsForCall)]
 	fake.namespacePathArgsForCall = append(fake.namespacePathArgsForCall, struct {
-		logger lager.Logger
-		path   string
-	}{logger, path})
-	fake.recordInvocation("NamespacePath", []interface{}{logger, path})
+		arg1 lager.Logger
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("NamespacePath", []interface{}{arg1, arg2})
 	fake.namespacePathMutex.Unlock()
 	if fake.NamespacePathStub != nil {
-		return fake.NamespacePathStub(logger, path)
+		return fake.NamespacePathStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.namespacePathReturns.result1
+	fakeReturns := fake.namespacePathReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeNamespacer) NamespacePathCallCount() int {
@@ -58,7 +84,8 @@ func (fake *FakeNamespacer) NamespacePathCallCount() int {
 func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) (lager.Logger, string) {
 	fake.namespacePathMutex.RLock()
 	defer fake.namespacePathMutex.RUnlock()
-	return fake.namespacePathArgsForCall[i].logger, fake.namespacePathArgsForCall[i].path
+	argsForCall := fake.namespacePathArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {
@@ -80,37 +107,13 @@ func (fake *FakeNamespacer) NamespacePathReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeNamespacer) NamespaceCommand(cmd *exec.Cmd) {
-	fake.namespaceCommandMutex.Lock()
-	fake.namespaceCommandArgsForCall = append(fake.namespaceCommandArgsForCall, struct {
-		cmd *exec.Cmd
-	}{cmd})
-	fake.recordInvocation("NamespaceCommand", []interface{}{cmd})
-	fake.namespaceCommandMutex.Unlock()
-	if fake.NamespaceCommandStub != nil {
-		fake.NamespaceCommandStub(cmd)
-	}
-}
-
-func (fake *FakeNamespacer) NamespaceCommandCallCount() int {
-	fake.namespaceCommandMutex.RLock()
-	defer fake.namespaceCommandMutex.RUnlock()
-	return len(fake.namespaceCommandArgsForCall)
-}
-
-func (fake *FakeNamespacer) NamespaceCommandArgsForCall(i int) *exec.Cmd {
-	fake.namespaceCommandMutex.RLock()
-	defer fake.namespaceCommandMutex.RUnlock()
-	return fake.namespaceCommandArgsForCall[i].cmd
-}
-
 func (fake *FakeNamespacer) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.namespacePathMutex.RLock()
-	defer fake.namespacePathMutex.RUnlock()
 	fake.namespaceCommandMutex.RLock()
 	defer fake.namespaceCommandMutex.RUnlock()
+	fake.namespacePathMutex.RLock()
+	defer fake.namespacePathMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

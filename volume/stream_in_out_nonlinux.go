@@ -10,7 +10,7 @@ import (
 	"github.com/concourse/go-archive/tgzfs"
 )
 
-func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool) (bool, error) {
+func (streamer *streamer) In(stream io.Reader, dest string, privileged bool) (bool, error) {
 	err := tgzfs.Extract(stream, dest)
 	if err != nil {
 		return true, err
@@ -19,7 +19,7 @@ func (repo *repository) streamIn(stream io.Reader, dest string, privileged bool)
 	return false, nil
 }
 
-func (repo *repository) streamOut(w io.Writer, src string, privileged bool) error {
+func (streamer *streamer) Out(w io.Writer, src string, privileged bool) error {
 	fileInfo, err := os.Stat(src)
 	if err != nil {
 		return err

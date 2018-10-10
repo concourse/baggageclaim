@@ -2,19 +2,20 @@
 package volumefakes
 
 import (
-	"sync"
+	sync "sync"
 
-	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim/volume"
+	lager "code.cloudfoundry.org/lager"
+	volume "github.com/concourse/baggageclaim/volume"
 )
 
 type FakeStrategy struct {
-	MaterializeStub        func(lager.Logger, string, volume.Filesystem) (volume.FilesystemInitVolume, error)
+	MaterializeStub        func(lager.Logger, string, volume.Filesystem, volume.Streamer) (volume.FilesystemInitVolume, error)
 	materializeMutex       sync.RWMutex
 	materializeArgsForCall []struct {
 		arg1 lager.Logger
 		arg2 string
 		arg3 volume.Filesystem
+		arg4 volume.Streamer
 	}
 	materializeReturns struct {
 		result1 volume.FilesystemInitVolume
@@ -28,23 +29,25 @@ type FakeStrategy struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volume.Filesystem) (volume.FilesystemInitVolume, error) {
+func (fake *FakeStrategy) Materialize(arg1 lager.Logger, arg2 string, arg3 volume.Filesystem, arg4 volume.Streamer) (volume.FilesystemInitVolume, error) {
 	fake.materializeMutex.Lock()
 	ret, specificReturn := fake.materializeReturnsOnCall[len(fake.materializeArgsForCall)]
 	fake.materializeArgsForCall = append(fake.materializeArgsForCall, struct {
 		arg1 lager.Logger
 		arg2 string
 		arg3 volume.Filesystem
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("Materialize", []interface{}{arg1, arg2, arg3})
+		arg4 volume.Streamer
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("Materialize", []interface{}{arg1, arg2, arg3, arg4})
 	fake.materializeMutex.Unlock()
 	if fake.MaterializeStub != nil {
-		return fake.MaterializeStub(arg1, arg2, arg3)
+		return fake.MaterializeStub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.materializeReturns.result1, fake.materializeReturns.result2
+	fakeReturns := fake.materializeReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeStrategy) MaterializeCallCount() int {
@@ -53,10 +56,11 @@ func (fake *FakeStrategy) MaterializeCallCount() int {
 	return len(fake.materializeArgsForCall)
 }
 
-func (fake *FakeStrategy) MaterializeArgsForCall(i int) (lager.Logger, string, volume.Filesystem) {
+func (fake *FakeStrategy) MaterializeArgsForCall(i int) (lager.Logger, string, volume.Filesystem, volume.Streamer) {
 	fake.materializeMutex.RLock()
 	defer fake.materializeMutex.RUnlock()
-	return fake.materializeArgsForCall[i].arg1, fake.materializeArgsForCall[i].arg2, fake.materializeArgsForCall[i].arg3
+	argsForCall := fake.materializeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeStrategy) MaterializeReturns(result1 volume.FilesystemInitVolume, result2 error) {

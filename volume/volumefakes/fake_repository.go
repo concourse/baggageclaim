@@ -2,32 +2,56 @@
 package volumefakes
 
 import (
-	"io"
-	"sync"
+	io "io"
+	sync "sync"
 
-	"github.com/concourse/baggageclaim/volume"
+	volume "github.com/concourse/baggageclaim/volume"
 )
 
 type FakeRepository struct {
-	ListVolumesStub        func(queryProperties volume.Properties) (volume.Volumes, []string, error)
-	listVolumesMutex       sync.RWMutex
-	listVolumesArgsForCall []struct {
-		queryProperties volume.Properties
+	CreateVolumeStub        func(string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)
+	createVolumeMutex       sync.RWMutex
+	createVolumeArgsForCall []struct {
+		arg1 string
+		arg2 volume.Strategy
+		arg3 volume.Properties
+		arg4 uint
+		arg5 bool
 	}
-	listVolumesReturns struct {
-		result1 volume.Volumes
-		result2 []string
-		result3 error
+	createVolumeReturns struct {
+		result1 volume.Volume
+		result2 error
 	}
-	listVolumesReturnsOnCall map[int]struct {
-		result1 volume.Volumes
-		result2 []string
-		result3 error
+	createVolumeReturnsOnCall map[int]struct {
+		result1 volume.Volume
+		result2 error
 	}
-	GetVolumeStub        func(handle string) (volume.Volume, bool, error)
+	DestroyVolumeStub        func(string) error
+	destroyVolumeMutex       sync.RWMutex
+	destroyVolumeArgsForCall []struct {
+		arg1 string
+	}
+	destroyVolumeReturns struct {
+		result1 error
+	}
+	destroyVolumeReturnsOnCall map[int]struct {
+		result1 error
+	}
+	DestroyVolumeAndDescendantsStub        func(string) error
+	destroyVolumeAndDescendantsMutex       sync.RWMutex
+	destroyVolumeAndDescendantsArgsForCall []struct {
+		arg1 string
+	}
+	destroyVolumeAndDescendantsReturns struct {
+		result1 error
+	}
+	destroyVolumeAndDescendantsReturnsOnCall map[int]struct {
+		result1 error
+	}
+	GetVolumeStub        func(string) (volume.Volume, bool, error)
 	getVolumeMutex       sync.RWMutex
 	getVolumeArgsForCall []struct {
-		handle string
+		arg1 string
 	}
 	getVolumeReturns struct {
 		result1 volume.Volume
@@ -39,75 +63,26 @@ type FakeRepository struct {
 		result2 bool
 		result3 error
 	}
-	CreateVolumeStub        func(handle string, strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, isPrivileged bool) (volume.Volume, error)
-	createVolumeMutex       sync.RWMutex
-	createVolumeArgsForCall []struct {
-		handle       string
-		strategy     volume.Strategy
-		properties   volume.Properties
-		ttlInSeconds uint
-		isPrivileged bool
+	ListVolumesStub        func(volume.Properties) (volume.Volumes, []string, error)
+	listVolumesMutex       sync.RWMutex
+	listVolumesArgsForCall []struct {
+		arg1 volume.Properties
 	}
-	createVolumeReturns struct {
-		result1 volume.Volume
-		result2 error
+	listVolumesReturns struct {
+		result1 volume.Volumes
+		result2 []string
+		result3 error
 	}
-	createVolumeReturnsOnCall map[int]struct {
-		result1 volume.Volume
-		result2 error
+	listVolumesReturnsOnCall map[int]struct {
+		result1 volume.Volumes
+		result2 []string
+		result3 error
 	}
-	DestroyVolumeStub        func(handle string) error
-	destroyVolumeMutex       sync.RWMutex
-	destroyVolumeArgsForCall []struct {
-		handle string
-	}
-	destroyVolumeReturns struct {
-		result1 error
-	}
-	destroyVolumeReturnsOnCall map[int]struct {
-		result1 error
-	}
-	DestroyVolumeAndDescendantsStub        func(handle string) error
-	destroyVolumeAndDescendantsMutex       sync.RWMutex
-	destroyVolumeAndDescendantsArgsForCall []struct {
-		handle string
-	}
-	destroyVolumeAndDescendantsReturns struct {
-		result1 error
-	}
-	destroyVolumeAndDescendantsReturnsOnCall map[int]struct {
-		result1 error
-	}
-	SetPropertyStub        func(handle string, propertyName string, propertyValue string) error
-	setPropertyMutex       sync.RWMutex
-	setPropertyArgsForCall []struct {
-		handle        string
-		propertyName  string
-		propertyValue string
-	}
-	setPropertyReturns struct {
-		result1 error
-	}
-	setPropertyReturnsOnCall map[int]struct {
-		result1 error
-	}
-	SetTTLStub        func(handle string, ttl uint) error
-	setTTLMutex       sync.RWMutex
-	setTTLArgsForCall []struct {
-		handle string
-		ttl    uint
-	}
-	setTTLReturns struct {
-		result1 error
-	}
-	setTTLReturnsOnCall map[int]struct {
-		result1 error
-	}
-	SetPrivilegedStub        func(handle string, privileged bool) error
+	SetPrivilegedStub        func(string, bool) error
 	setPrivilegedMutex       sync.RWMutex
 	setPrivilegedArgsForCall []struct {
-		handle     string
-		privileged bool
+		arg1 string
+		arg2 bool
 	}
 	setPrivilegedReturns struct {
 		result1 error
@@ -115,12 +90,37 @@ type FakeRepository struct {
 	setPrivilegedReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StreamInStub        func(handle string, path string, stream io.Reader) (bool, error)
+	SetPropertyStub        func(string, string, string) error
+	setPropertyMutex       sync.RWMutex
+	setPropertyArgsForCall []struct {
+		arg1 string
+		arg2 string
+		arg3 string
+	}
+	setPropertyReturns struct {
+		result1 error
+	}
+	setPropertyReturnsOnCall map[int]struct {
+		result1 error
+	}
+	SetTTLStub        func(string, uint) error
+	setTTLMutex       sync.RWMutex
+	setTTLArgsForCall []struct {
+		arg1 string
+		arg2 uint
+	}
+	setTTLReturns struct {
+		result1 error
+	}
+	setTTLReturnsOnCall map[int]struct {
+		result1 error
+	}
+	StreamInStub        func(string, string, io.Reader) (bool, error)
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
-		handle string
-		path   string
-		stream io.Reader
+		arg1 string
+		arg2 string
+		arg3 io.Reader
 	}
 	streamInReturns struct {
 		result1 bool
@@ -130,12 +130,12 @@ type FakeRepository struct {
 		result1 bool
 		result2 error
 	}
-	StreamOutStub        func(handle string, path string, dest io.Writer) error
+	StreamOutStub        func(string, string, io.Writer) error
 	streamOutMutex       sync.RWMutex
 	streamOutArgsForCall []struct {
-		handle string
-		path   string
-		dest   io.Writer
+		arg1 string
+		arg2 string
+		arg3 io.Writer
 	}
 	streamOutReturns struct {
 		result1 error
@@ -143,10 +143,10 @@ type FakeRepository struct {
 	streamOutReturnsOnCall map[int]struct {
 		result1 error
 	}
-	VolumeParentStub        func(handle string) (volume.Volume, bool, error)
+	VolumeParentStub        func(string) (volume.Volume, bool, error)
 	volumeParentMutex       sync.RWMutex
 	volumeParentArgsForCall []struct {
-		handle string
+		arg1 string
 	}
 	volumeParentReturns struct {
 		result1 volume.Volume
@@ -162,75 +162,179 @@ type FakeRepository struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeRepository) ListVolumes(queryProperties volume.Properties) (volume.Volumes, []string, error) {
-	fake.listVolumesMutex.Lock()
-	ret, specificReturn := fake.listVolumesReturnsOnCall[len(fake.listVolumesArgsForCall)]
-	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct {
-		queryProperties volume.Properties
-	}{queryProperties})
-	fake.recordInvocation("ListVolumes", []interface{}{queryProperties})
-	fake.listVolumesMutex.Unlock()
-	if fake.ListVolumesStub != nil {
-		return fake.ListVolumesStub(queryProperties)
+func (fake *FakeRepository) CreateVolume(arg1 string, arg2 volume.Strategy, arg3 volume.Properties, arg4 uint, arg5 bool) (volume.Volume, error) {
+	fake.createVolumeMutex.Lock()
+	ret, specificReturn := fake.createVolumeReturnsOnCall[len(fake.createVolumeArgsForCall)]
+	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
+		arg1 string
+		arg2 volume.Strategy
+		arg3 volume.Properties
+		arg4 uint
+		arg5 bool
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3, arg4, arg5})
+	fake.createVolumeMutex.Unlock()
+	if fake.CreateVolumeStub != nil {
+		return fake.CreateVolumeStub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
+		return ret.result1, ret.result2
 	}
-	return fake.listVolumesReturns.result1, fake.listVolumesReturns.result2, fake.listVolumesReturns.result3
+	fakeReturns := fake.createVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
-func (fake *FakeRepository) ListVolumesCallCount() int {
-	fake.listVolumesMutex.RLock()
-	defer fake.listVolumesMutex.RUnlock()
-	return len(fake.listVolumesArgsForCall)
+func (fake *FakeRepository) CreateVolumeCallCount() int {
+	fake.createVolumeMutex.RLock()
+	defer fake.createVolumeMutex.RUnlock()
+	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) ListVolumesArgsForCall(i int) volume.Properties {
-	fake.listVolumesMutex.RLock()
-	defer fake.listVolumesMutex.RUnlock()
-	return fake.listVolumesArgsForCall[i].queryProperties
+func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (string, volume.Strategy, volume.Properties, uint, bool) {
+	fake.createVolumeMutex.RLock()
+	defer fake.createVolumeMutex.RUnlock()
+	argsForCall := fake.createVolumeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
-func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 []string, result3 error) {
-	fake.ListVolumesStub = nil
-	fake.listVolumesReturns = struct {
-		result1 volume.Volumes
-		result2 []string
-		result3 error
-	}{result1, result2, result3}
+func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {
+	fake.CreateVolumeStub = nil
+	fake.createVolumeReturns = struct {
+		result1 volume.Volume
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeRepository) ListVolumesReturnsOnCall(i int, result1 volume.Volumes, result2 []string, result3 error) {
-	fake.ListVolumesStub = nil
-	if fake.listVolumesReturnsOnCall == nil {
-		fake.listVolumesReturnsOnCall = make(map[int]struct {
-			result1 volume.Volumes
-			result2 []string
-			result3 error
+func (fake *FakeRepository) CreateVolumeReturnsOnCall(i int, result1 volume.Volume, result2 error) {
+	fake.CreateVolumeStub = nil
+	if fake.createVolumeReturnsOnCall == nil {
+		fake.createVolumeReturnsOnCall = make(map[int]struct {
+			result1 volume.Volume
+			result2 error
 		})
 	}
-	fake.listVolumesReturnsOnCall[i] = struct {
-		result1 volume.Volumes
-		result2 []string
-		result3 error
-	}{result1, result2, result3}
+	fake.createVolumeReturnsOnCall[i] = struct {
+		result1 volume.Volume
+		result2 error
+	}{result1, result2}
 }
 
-func (fake *FakeRepository) GetVolume(handle string) (volume.Volume, bool, error) {
+func (fake *FakeRepository) DestroyVolume(arg1 string) error {
+	fake.destroyVolumeMutex.Lock()
+	ret, specificReturn := fake.destroyVolumeReturnsOnCall[len(fake.destroyVolumeArgsForCall)]
+	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("DestroyVolume", []interface{}{arg1})
+	fake.destroyVolumeMutex.Unlock()
+	if fake.DestroyVolumeStub != nil {
+		return fake.DestroyVolumeStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.destroyVolumeReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeRepository) DestroyVolumeCallCount() int {
+	fake.destroyVolumeMutex.RLock()
+	defer fake.destroyVolumeMutex.RUnlock()
+	return len(fake.destroyVolumeArgsForCall)
+}
+
+func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) string {
+	fake.destroyVolumeMutex.RLock()
+	defer fake.destroyVolumeMutex.RUnlock()
+	argsForCall := fake.destroyVolumeArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {
+	fake.DestroyVolumeStub = nil
+	fake.destroyVolumeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) DestroyVolumeReturnsOnCall(i int, result1 error) {
+	fake.DestroyVolumeStub = nil
+	if fake.destroyVolumeReturnsOnCall == nil {
+		fake.destroyVolumeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.destroyVolumeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendants(arg1 string) error {
+	fake.destroyVolumeAndDescendantsMutex.Lock()
+	ret, specificReturn := fake.destroyVolumeAndDescendantsReturnsOnCall[len(fake.destroyVolumeAndDescendantsArgsForCall)]
+	fake.destroyVolumeAndDescendantsArgsForCall = append(fake.destroyVolumeAndDescendantsArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("DestroyVolumeAndDescendants", []interface{}{arg1})
+	fake.destroyVolumeAndDescendantsMutex.Unlock()
+	if fake.DestroyVolumeAndDescendantsStub != nil {
+		return fake.DestroyVolumeAndDescendantsStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.destroyVolumeAndDescendantsReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendantsCallCount() int {
+	fake.destroyVolumeAndDescendantsMutex.RLock()
+	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
+	return len(fake.destroyVolumeAndDescendantsArgsForCall)
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendantsArgsForCall(i int) string {
+	fake.destroyVolumeAndDescendantsMutex.RLock()
+	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
+	argsForCall := fake.destroyVolumeAndDescendantsArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendantsReturns(result1 error) {
+	fake.DestroyVolumeAndDescendantsStub = nil
+	fake.destroyVolumeAndDescendantsReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendantsReturnsOnCall(i int, result1 error) {
+	fake.DestroyVolumeAndDescendantsStub = nil
+	if fake.destroyVolumeAndDescendantsReturnsOnCall == nil {
+		fake.destroyVolumeAndDescendantsReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.destroyVolumeAndDescendantsReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) GetVolume(arg1 string) (volume.Volume, bool, error) {
 	fake.getVolumeMutex.Lock()
 	ret, specificReturn := fake.getVolumeReturnsOnCall[len(fake.getVolumeArgsForCall)]
 	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
-		handle string
-	}{handle})
-	fake.recordInvocation("GetVolume", []interface{}{handle})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("GetVolume", []interface{}{arg1})
 	fake.getVolumeMutex.Unlock()
 	if fake.GetVolumeStub != nil {
-		return fake.GetVolumeStub(handle)
+		return fake.GetVolumeStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.getVolumeReturns.result1, fake.getVolumeReturns.result2, fake.getVolumeReturns.result3
+	fakeReturns := fake.getVolumeReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeRepository) GetVolumeCallCount() int {
@@ -242,7 +346,8 @@ func (fake *FakeRepository) GetVolumeCallCount() int {
 func (fake *FakeRepository) GetVolumeArgsForCall(i int) string {
 	fake.getVolumeMutex.RLock()
 	defer fake.getVolumeMutex.RUnlock()
-	return fake.getVolumeArgsForCall[i].handle
+	argsForCall := fake.getVolumeArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 bool, result3 error) {
@@ -270,272 +375,79 @@ func (fake *FakeRepository) GetVolumeReturnsOnCall(i int, result1 volume.Volume,
 	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) CreateVolume(handle string, strategy volume.Strategy, properties volume.Properties, ttlInSeconds uint, isPrivileged bool) (volume.Volume, error) {
-	fake.createVolumeMutex.Lock()
-	ret, specificReturn := fake.createVolumeReturnsOnCall[len(fake.createVolumeArgsForCall)]
-	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
-		handle       string
-		strategy     volume.Strategy
-		properties   volume.Properties
-		ttlInSeconds uint
-		isPrivileged bool
-	}{handle, strategy, properties, ttlInSeconds, isPrivileged})
-	fake.recordInvocation("CreateVolume", []interface{}{handle, strategy, properties, ttlInSeconds, isPrivileged})
-	fake.createVolumeMutex.Unlock()
-	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(handle, strategy, properties, ttlInSeconds, isPrivileged)
+func (fake *FakeRepository) ListVolumes(arg1 volume.Properties) (volume.Volumes, []string, error) {
+	fake.listVolumesMutex.Lock()
+	ret, specificReturn := fake.listVolumesReturnsOnCall[len(fake.listVolumesArgsForCall)]
+	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct {
+		arg1 volume.Properties
+	}{arg1})
+	fake.recordInvocation("ListVolumes", []interface{}{arg1})
+	fake.listVolumesMutex.Unlock()
+	if fake.ListVolumesStub != nil {
+		return fake.ListVolumesStub(arg1)
 	}
 	if specificReturn {
-		return ret.result1, ret.result2
+		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.createVolumeReturns.result1, fake.createVolumeReturns.result2
+	fakeReturns := fake.listVolumesReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
-func (fake *FakeRepository) CreateVolumeCallCount() int {
-	fake.createVolumeMutex.RLock()
-	defer fake.createVolumeMutex.RUnlock()
-	return len(fake.createVolumeArgsForCall)
+func (fake *FakeRepository) ListVolumesCallCount() int {
+	fake.listVolumesMutex.RLock()
+	defer fake.listVolumesMutex.RUnlock()
+	return len(fake.listVolumesArgsForCall)
 }
 
-func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (string, volume.Strategy, volume.Properties, uint, bool) {
-	fake.createVolumeMutex.RLock()
-	defer fake.createVolumeMutex.RUnlock()
-	return fake.createVolumeArgsForCall[i].handle, fake.createVolumeArgsForCall[i].strategy, fake.createVolumeArgsForCall[i].properties, fake.createVolumeArgsForCall[i].ttlInSeconds, fake.createVolumeArgsForCall[i].isPrivileged
+func (fake *FakeRepository) ListVolumesArgsForCall(i int) volume.Properties {
+	fake.listVolumesMutex.RLock()
+	defer fake.listVolumesMutex.RUnlock()
+	argsForCall := fake.listVolumesArgsForCall[i]
+	return argsForCall.arg1
 }
 
-func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {
-	fake.CreateVolumeStub = nil
-	fake.createVolumeReturns = struct {
-		result1 volume.Volume
-		result2 error
-	}{result1, result2}
+func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 []string, result3 error) {
+	fake.ListVolumesStub = nil
+	fake.listVolumesReturns = struct {
+		result1 volume.Volumes
+		result2 []string
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) CreateVolumeReturnsOnCall(i int, result1 volume.Volume, result2 error) {
-	fake.CreateVolumeStub = nil
-	if fake.createVolumeReturnsOnCall == nil {
-		fake.createVolumeReturnsOnCall = make(map[int]struct {
-			result1 volume.Volume
-			result2 error
+func (fake *FakeRepository) ListVolumesReturnsOnCall(i int, result1 volume.Volumes, result2 []string, result3 error) {
+	fake.ListVolumesStub = nil
+	if fake.listVolumesReturnsOnCall == nil {
+		fake.listVolumesReturnsOnCall = make(map[int]struct {
+			result1 volume.Volumes
+			result2 []string
+			result3 error
 		})
 	}
-	fake.createVolumeReturnsOnCall[i] = struct {
-		result1 volume.Volume
-		result2 error
-	}{result1, result2}
+	fake.listVolumesReturnsOnCall[i] = struct {
+		result1 volume.Volumes
+		result2 []string
+		result3 error
+	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) DestroyVolume(handle string) error {
-	fake.destroyVolumeMutex.Lock()
-	ret, specificReturn := fake.destroyVolumeReturnsOnCall[len(fake.destroyVolumeArgsForCall)]
-	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
-		handle string
-	}{handle})
-	fake.recordInvocation("DestroyVolume", []interface{}{handle})
-	fake.destroyVolumeMutex.Unlock()
-	if fake.DestroyVolumeStub != nil {
-		return fake.DestroyVolumeStub(handle)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.destroyVolumeReturns.result1
-}
-
-func (fake *FakeRepository) DestroyVolumeCallCount() int {
-	fake.destroyVolumeMutex.RLock()
-	defer fake.destroyVolumeMutex.RUnlock()
-	return len(fake.destroyVolumeArgsForCall)
-}
-
-func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) string {
-	fake.destroyVolumeMutex.RLock()
-	defer fake.destroyVolumeMutex.RUnlock()
-	return fake.destroyVolumeArgsForCall[i].handle
-}
-
-func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {
-	fake.DestroyVolumeStub = nil
-	fake.destroyVolumeReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) DestroyVolumeReturnsOnCall(i int, result1 error) {
-	fake.DestroyVolumeStub = nil
-	if fake.destroyVolumeReturnsOnCall == nil {
-		fake.destroyVolumeReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.destroyVolumeReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) DestroyVolumeAndDescendants(handle string) error {
-	fake.destroyVolumeAndDescendantsMutex.Lock()
-	ret, specificReturn := fake.destroyVolumeAndDescendantsReturnsOnCall[len(fake.destroyVolumeAndDescendantsArgsForCall)]
-	fake.destroyVolumeAndDescendantsArgsForCall = append(fake.destroyVolumeAndDescendantsArgsForCall, struct {
-		handle string
-	}{handle})
-	fake.recordInvocation("DestroyVolumeAndDescendants", []interface{}{handle})
-	fake.destroyVolumeAndDescendantsMutex.Unlock()
-	if fake.DestroyVolumeAndDescendantsStub != nil {
-		return fake.DestroyVolumeAndDescendantsStub(handle)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.destroyVolumeAndDescendantsReturns.result1
-}
-
-func (fake *FakeRepository) DestroyVolumeAndDescendantsCallCount() int {
-	fake.destroyVolumeAndDescendantsMutex.RLock()
-	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
-	return len(fake.destroyVolumeAndDescendantsArgsForCall)
-}
-
-func (fake *FakeRepository) DestroyVolumeAndDescendantsArgsForCall(i int) string {
-	fake.destroyVolumeAndDescendantsMutex.RLock()
-	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
-	return fake.destroyVolumeAndDescendantsArgsForCall[i].handle
-}
-
-func (fake *FakeRepository) DestroyVolumeAndDescendantsReturns(result1 error) {
-	fake.DestroyVolumeAndDescendantsStub = nil
-	fake.destroyVolumeAndDescendantsReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) DestroyVolumeAndDescendantsReturnsOnCall(i int, result1 error) {
-	fake.DestroyVolumeAndDescendantsStub = nil
-	if fake.destroyVolumeAndDescendantsReturnsOnCall == nil {
-		fake.destroyVolumeAndDescendantsReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.destroyVolumeAndDescendantsReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetProperty(handle string, propertyName string, propertyValue string) error {
-	fake.setPropertyMutex.Lock()
-	ret, specificReturn := fake.setPropertyReturnsOnCall[len(fake.setPropertyArgsForCall)]
-	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
-		handle        string
-		propertyName  string
-		propertyValue string
-	}{handle, propertyName, propertyValue})
-	fake.recordInvocation("SetProperty", []interface{}{handle, propertyName, propertyValue})
-	fake.setPropertyMutex.Unlock()
-	if fake.SetPropertyStub != nil {
-		return fake.SetPropertyStub(handle, propertyName, propertyValue)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.setPropertyReturns.result1
-}
-
-func (fake *FakeRepository) SetPropertyCallCount() int {
-	fake.setPropertyMutex.RLock()
-	defer fake.setPropertyMutex.RUnlock()
-	return len(fake.setPropertyArgsForCall)
-}
-
-func (fake *FakeRepository) SetPropertyArgsForCall(i int) (string, string, string) {
-	fake.setPropertyMutex.RLock()
-	defer fake.setPropertyMutex.RUnlock()
-	return fake.setPropertyArgsForCall[i].handle, fake.setPropertyArgsForCall[i].propertyName, fake.setPropertyArgsForCall[i].propertyValue
-}
-
-func (fake *FakeRepository) SetPropertyReturns(result1 error) {
-	fake.SetPropertyStub = nil
-	fake.setPropertyReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
-	fake.SetPropertyStub = nil
-	if fake.setPropertyReturnsOnCall == nil {
-		fake.setPropertyReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.setPropertyReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetTTL(handle string, ttl uint) error {
-	fake.setTTLMutex.Lock()
-	ret, specificReturn := fake.setTTLReturnsOnCall[len(fake.setTTLArgsForCall)]
-	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
-		handle string
-		ttl    uint
-	}{handle, ttl})
-	fake.recordInvocation("SetTTL", []interface{}{handle, ttl})
-	fake.setTTLMutex.Unlock()
-	if fake.SetTTLStub != nil {
-		return fake.SetTTLStub(handle, ttl)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fake.setTTLReturns.result1
-}
-
-func (fake *FakeRepository) SetTTLCallCount() int {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	return len(fake.setTTLArgsForCall)
-}
-
-func (fake *FakeRepository) SetTTLArgsForCall(i int) (string, uint) {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	return fake.setTTLArgsForCall[i].handle, fake.setTTLArgsForCall[i].ttl
-}
-
-func (fake *FakeRepository) SetTTLReturns(result1 error) {
-	fake.SetTTLStub = nil
-	fake.setTTLReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
-	fake.SetTTLStub = nil
-	if fake.setTTLReturnsOnCall == nil {
-		fake.setTTLReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.setTTLReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetPrivileged(handle string, privileged bool) error {
+func (fake *FakeRepository) SetPrivileged(arg1 string, arg2 bool) error {
 	fake.setPrivilegedMutex.Lock()
 	ret, specificReturn := fake.setPrivilegedReturnsOnCall[len(fake.setPrivilegedArgsForCall)]
 	fake.setPrivilegedArgsForCall = append(fake.setPrivilegedArgsForCall, struct {
-		handle     string
-		privileged bool
-	}{handle, privileged})
-	fake.recordInvocation("SetPrivileged", []interface{}{handle, privileged})
+		arg1 string
+		arg2 bool
+	}{arg1, arg2})
+	fake.recordInvocation("SetPrivileged", []interface{}{arg1, arg2})
 	fake.setPrivilegedMutex.Unlock()
 	if fake.SetPrivilegedStub != nil {
-		return fake.SetPrivilegedStub(handle, privileged)
+		return fake.SetPrivilegedStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.setPrivilegedReturns.result1
+	fakeReturns := fake.setPrivilegedReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeRepository) SetPrivilegedCallCount() int {
@@ -547,7 +459,8 @@ func (fake *FakeRepository) SetPrivilegedCallCount() int {
 func (fake *FakeRepository) SetPrivilegedArgsForCall(i int) (string, bool) {
 	fake.setPrivilegedMutex.RLock()
 	defer fake.setPrivilegedMutex.RUnlock()
-	return fake.setPrivilegedArgsForCall[i].handle, fake.setPrivilegedArgsForCall[i].privileged
+	argsForCall := fake.setPrivilegedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) SetPrivilegedReturns(result1 error) {
@@ -569,23 +482,127 @@ func (fake *FakeRepository) SetPrivilegedReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) StreamIn(handle string, path string, stream io.Reader) (bool, error) {
+func (fake *FakeRepository) SetProperty(arg1 string, arg2 string, arg3 string) error {
+	fake.setPropertyMutex.Lock()
+	ret, specificReturn := fake.setPropertyReturnsOnCall[len(fake.setPropertyArgsForCall)]
+	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
+		arg1 string
+		arg2 string
+		arg3 string
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("SetProperty", []interface{}{arg1, arg2, arg3})
+	fake.setPropertyMutex.Unlock()
+	if fake.SetPropertyStub != nil {
+		return fake.SetPropertyStub(arg1, arg2, arg3)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.setPropertyReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeRepository) SetPropertyCallCount() int {
+	fake.setPropertyMutex.RLock()
+	defer fake.setPropertyMutex.RUnlock()
+	return len(fake.setPropertyArgsForCall)
+}
+
+func (fake *FakeRepository) SetPropertyArgsForCall(i int) (string, string, string) {
+	fake.setPropertyMutex.RLock()
+	defer fake.setPropertyMutex.RUnlock()
+	argsForCall := fake.setPropertyArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeRepository) SetPropertyReturns(result1 error) {
+	fake.SetPropertyStub = nil
+	fake.setPropertyReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
+	fake.SetPropertyStub = nil
+	if fake.setPropertyReturnsOnCall == nil {
+		fake.setPropertyReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.setPropertyReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) SetTTL(arg1 string, arg2 uint) error {
+	fake.setTTLMutex.Lock()
+	ret, specificReturn := fake.setTTLReturnsOnCall[len(fake.setTTLArgsForCall)]
+	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
+		arg1 string
+		arg2 uint
+	}{arg1, arg2})
+	fake.recordInvocation("SetTTL", []interface{}{arg1, arg2})
+	fake.setTTLMutex.Unlock()
+	if fake.SetTTLStub != nil {
+		return fake.SetTTLStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.setTTLReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeRepository) SetTTLCallCount() int {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	return len(fake.setTTLArgsForCall)
+}
+
+func (fake *FakeRepository) SetTTLArgsForCall(i int) (string, uint) {
+	fake.setTTLMutex.RLock()
+	defer fake.setTTLMutex.RUnlock()
+	argsForCall := fake.setTTLArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeRepository) SetTTLReturns(result1 error) {
+	fake.SetTTLStub = nil
+	fake.setTTLReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
+	fake.SetTTLStub = nil
+	if fake.setTTLReturnsOnCall == nil {
+		fake.setTTLReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.setTTLReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) StreamIn(arg1 string, arg2 string, arg3 io.Reader) (bool, error) {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
 	fake.streamInArgsForCall = append(fake.streamInArgsForCall, struct {
-		handle string
-		path   string
-		stream io.Reader
-	}{handle, path, stream})
-	fake.recordInvocation("StreamIn", []interface{}{handle, path, stream})
+		arg1 string
+		arg2 string
+		arg3 io.Reader
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3})
 	fake.streamInMutex.Unlock()
 	if fake.StreamInStub != nil {
-		return fake.StreamInStub(handle, path, stream)
+		return fake.StreamInStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	return fake.streamInReturns.result1, fake.streamInReturns.result2
+	fakeReturns := fake.streamInReturns
+	return fakeReturns.result1, fakeReturns.result2
 }
 
 func (fake *FakeRepository) StreamInCallCount() int {
@@ -597,7 +614,8 @@ func (fake *FakeRepository) StreamInCallCount() int {
 func (fake *FakeRepository) StreamInArgsForCall(i int) (string, string, io.Reader) {
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
-	return fake.streamInArgsForCall[i].handle, fake.streamInArgsForCall[i].path, fake.streamInArgsForCall[i].stream
+	argsForCall := fake.streamInArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeRepository) StreamInReturns(result1 bool, result2 error) {
@@ -622,23 +640,24 @@ func (fake *FakeRepository) StreamInReturnsOnCall(i int, result1 bool, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) StreamOut(handle string, path string, dest io.Writer) error {
+func (fake *FakeRepository) StreamOut(arg1 string, arg2 string, arg3 io.Writer) error {
 	fake.streamOutMutex.Lock()
 	ret, specificReturn := fake.streamOutReturnsOnCall[len(fake.streamOutArgsForCall)]
 	fake.streamOutArgsForCall = append(fake.streamOutArgsForCall, struct {
-		handle string
-		path   string
-		dest   io.Writer
-	}{handle, path, dest})
-	fake.recordInvocation("StreamOut", []interface{}{handle, path, dest})
+		arg1 string
+		arg2 string
+		arg3 io.Writer
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2, arg3})
 	fake.streamOutMutex.Unlock()
 	if fake.StreamOutStub != nil {
-		return fake.StreamOutStub(handle, path, dest)
+		return fake.StreamOutStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.streamOutReturns.result1
+	fakeReturns := fake.streamOutReturns
+	return fakeReturns.result1
 }
 
 func (fake *FakeRepository) StreamOutCallCount() int {
@@ -650,7 +669,8 @@ func (fake *FakeRepository) StreamOutCallCount() int {
 func (fake *FakeRepository) StreamOutArgsForCall(i int) (string, string, io.Writer) {
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
-	return fake.streamOutArgsForCall[i].handle, fake.streamOutArgsForCall[i].path, fake.streamOutArgsForCall[i].dest
+	argsForCall := fake.streamOutArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeRepository) StreamOutReturns(result1 error) {
@@ -672,21 +692,22 @@ func (fake *FakeRepository) StreamOutReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) VolumeParent(handle string) (volume.Volume, bool, error) {
+func (fake *FakeRepository) VolumeParent(arg1 string) (volume.Volume, bool, error) {
 	fake.volumeParentMutex.Lock()
 	ret, specificReturn := fake.volumeParentReturnsOnCall[len(fake.volumeParentArgsForCall)]
 	fake.volumeParentArgsForCall = append(fake.volumeParentArgsForCall, struct {
-		handle string
-	}{handle})
-	fake.recordInvocation("VolumeParent", []interface{}{handle})
+		arg1 string
+	}{arg1})
+	fake.recordInvocation("VolumeParent", []interface{}{arg1})
 	fake.volumeParentMutex.Unlock()
 	if fake.VolumeParentStub != nil {
-		return fake.VolumeParentStub(handle)
+		return fake.VolumeParentStub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.volumeParentReturns.result1, fake.volumeParentReturns.result2, fake.volumeParentReturns.result3
+	fakeReturns := fake.volumeParentReturns
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *FakeRepository) VolumeParentCallCount() int {
@@ -698,7 +719,8 @@ func (fake *FakeRepository) VolumeParentCallCount() int {
 func (fake *FakeRepository) VolumeParentArgsForCall(i int) string {
 	fake.volumeParentMutex.RLock()
 	defer fake.volumeParentMutex.RUnlock()
-	return fake.volumeParentArgsForCall[i].handle
+	argsForCall := fake.volumeParentArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *FakeRepository) VolumeParentReturns(result1 volume.Volume, result2 bool, result3 error) {
@@ -729,22 +751,22 @@ func (fake *FakeRepository) VolumeParentReturnsOnCall(i int, result1 volume.Volu
 func (fake *FakeRepository) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.listVolumesMutex.RLock()
-	defer fake.listVolumesMutex.RUnlock()
-	fake.getVolumeMutex.RLock()
-	defer fake.getVolumeMutex.RUnlock()
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
 	fake.destroyVolumeAndDescendantsMutex.RLock()
 	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
+	fake.getVolumeMutex.RLock()
+	defer fake.getVolumeMutex.RUnlock()
+	fake.listVolumesMutex.RLock()
+	defer fake.listVolumesMutex.RUnlock()
+	fake.setPrivilegedMutex.RLock()
+	defer fake.setPrivilegedMutex.RUnlock()
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
 	fake.setTTLMutex.RLock()
 	defer fake.setTTLMutex.RUnlock()
-	fake.setPrivilegedMutex.RLock()
-	defer fake.setPrivilegedMutex.RUnlock()
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()

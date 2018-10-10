@@ -40,6 +40,7 @@ type repository struct {
 
 	locker LockManager
 
+	streamer   *streamer
 	namespacer func(bool) uidgid.Namespacer
 }
 
@@ -54,6 +55,10 @@ func NewRepository(
 		logger:     logger,
 		filesystem: filesystem,
 		locker:     locker,
+
+		streamer: &streamer{
+			namespacer: unprivilegedNamespacer,
+		},
 
 		namespacer: func(privileged bool) uidgid.Namespacer {
 			if privileged {
@@ -134,7 +139,7 @@ func (repo *repository) DestroyVolumeAndDescendants(handle string) error {
 func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
 	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
 
-	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem)
+	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem, repo.streamer)
 	if err != nil {
 		logger.Error("failed-to-materialize-strategy", err)
 		return Volume{}, err
@@ -393,7 +398,7 @@ func (repo *repository) StreamIn(handle string, path string, stream io.Reader) (
 		return false, err
 	}
 
-	return repo.streamIn(stream, destinationPath, privileged)
+	return repo.streamer.In(stream, destinationPath, privileged)
 }
 
 func (repo *repository) StreamOut(handle string, path string, dest io.Writer) error {
@@ -425,7 +430,7 @@ func (repo *repository) StreamOut(handle string, path string, dest io.Writer) er
 		return err
 	}
 
-	return repo.streamOut(dest, srcPath, isPrivileged)
+	return repo.streamer.Out(dest, srcPath, isPrivileged)
 }
 
 func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
