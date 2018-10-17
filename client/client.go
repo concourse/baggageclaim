@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,6 +83,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolumeAsync, nil, buffer)
+
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
 		return nil, err
@@ -232,11 +234,12 @@ func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeRes
 	return volume, initialHeartbeatSuccess
 }
 
-func (c *client) streamIn(logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {
+func (c *client) streamIn(ctx context.Context, logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
 		"handle": destHandle,
 	}, tarContent)
 
+	request = request.WithContext(ctx)
 	request.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
 	if err != nil {
 		return err
@@ -254,10 +257,12 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, t
 	return getError(response)
 }
 
-func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (io.ReadCloser, error) {
+func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle string, path string) (io.ReadCloser, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamOut, rata.Params{
 		"handle": srcHandle,
 	}, nil)
+
+	request = request.WithContext(ctx)
 
 	request.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
 	if err != nil {

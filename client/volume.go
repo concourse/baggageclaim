@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"io"
 	"sync"
 	"time"
@@ -56,12 +57,12 @@ func (cv *clientVolume) Expiration() (time.Duration, time.Time, error) {
 	return time.Duration(vr.TTLInSeconds) * time.Second, vr.ExpiresAt, nil
 }
 
-func (cv *clientVolume) StreamIn(path string, tarStream io.Reader) error {
-	return cv.bcClient.streamIn(cv.logger, cv.handle, path, tarStream)
+func (cv *clientVolume) StreamIn(ctx context.Context, path string, tarStream io.Reader) error {
+	return cv.bcClient.streamIn(ctx, cv.logger, cv.handle, path, tarStream)
 }
 
-func (cv *clientVolume) StreamOut(path string) (io.ReadCloser, error) {
-	return cv.bcClient.streamOut(cv.logger, cv.handle, path)
+func (cv *clientVolume) StreamOut(ctx context.Context, path string) (io.ReadCloser, error) {
+	return cv.bcClient.streamOut(ctx, cv.logger, cv.handle, path)
 }
 
 func (cv *clientVolume) SetTTL(ttl time.Duration) error {
