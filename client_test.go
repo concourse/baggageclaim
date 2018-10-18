@@ -2,6 +2,7 @@ package baggageclaim_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -419,7 +420,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						ghttp.RespondWith(http.StatusNoContent, ""),
 					),
 				)
-				err := vol.StreamIn(".", strings.NewReader("some tar content"))
+				err := vol.StreamIn(context.TODO(), ".", strings.NewReader("some tar content"))
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(bodyChan).To(Receive(Equal([]byte("some tar content"))))
@@ -428,7 +429,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			Context("when unexpected error occurs", func() {
 				It("returns error code and useful message", func() {
 					mockErrorResponse("PUT", "/volumes/some-handle/stream-in", "lost baggage", http.StatusInternalServerError)
-					err := vol.StreamIn("./some/path/", strings.NewReader("even more tar"))
+					err := vol.StreamIn(context.TODO(), "./some/path/", strings.NewReader("even more tar"))
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
 				})
@@ -478,7 +479,7 @@ var _ = Describe("Baggage Claim Client", func() {
 						},
 					),
 				)
-				out, err := vol.StreamOut(".")
+				out, err := vol.StreamOut(context.TODO(), ".")
 				Expect(err).NotTo(HaveOccurred())
 
 				b, err := ioutil.ReadAll(out)
@@ -490,21 +491,21 @@ var _ = Describe("Baggage Claim Client", func() {
 			Context("when error occurs", func() {
 				It("returns API error message", func() {
 					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", "lost baggage", http.StatusInternalServerError)
-					_, err := vol.StreamOut("./some/path/")
+					_, err := vol.StreamOut(context.TODO(), "./some/path/")
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(Equal("lost baggage"))
 				})
 
 				It("returns ErrVolumeNotFound", func() {
 					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", "lost baggage", http.StatusNotFound)
-					_, err := vol.StreamOut("./some/path/")
+					_, err := vol.StreamOut(context.TODO(), "./some/path/")
 					Expect(err).To(HaveOccurred())
 					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
 				})
 
 				It("returns ErrFileNotFound", func() {
 					mockErrorResponse("PUT", "/volumes/some-handle/stream-out", api.ErrStreamOutNotFound.Error(), http.StatusNotFound)
-					_, err := vol.StreamOut("./some/path/")
+					_, err := vol.StreamOut(context.TODO(), "./some/path/")
 					Expect(err).To(HaveOccurred())
 					Expect(err).To(Equal(baggageclaim.ErrFileNotFound))
 				})
