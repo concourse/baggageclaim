@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -451,6 +452,10 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
+
+	fmt.Println("=======subpath: ", subPath)
+	fmt.Println("======= handle: ", handle)
+	// fmt.Println("========= req body: ", req.Body)
 
 	badStream, err := vs.volumeRepo.StreamIn(handle, subPath, req.Body)
 	if err != nil {

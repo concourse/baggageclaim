@@ -15,7 +15,7 @@ import (
 	"github.com/concourse/flag"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
-	"github.com/tedsuo/ifrit/http_server"
+	//"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
 )
 
@@ -109,9 +109,9 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	morbidReality := reaper.NewReaper(clock, volumeRepo)
 
 	members := []grouper.Member{
-		{Name: "api", Runner: http_server.New(listenAddr, apiHandler)},
+		{Name: "api", Runner: NewHTTPServer(listenAddr, apiHandler)},
 		{Name: "reaper", Runner: reaper.NewRunner(logger, clock, cmd.ReapInterval, morbidReality.Reap)},
-		{Name: "debug-server", Runner: http_server.New(
+		{Name: "debug-server", Runner: NewHTTPServer(
 			cmd.debugBindAddr(),
 			http.DefaultServeMux,
 		)},
