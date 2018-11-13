@@ -71,6 +71,12 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerCallCount() int {
 	return len(fake.createCopyOnWriteLayerArgsForCall)
 }
 
+func (fake *FakeDriver) CreateCopyOnWriteLayerCalls(stub func(string, string) error) {
+	fake.createCopyOnWriteLayerMutex.Lock()
+	defer fake.createCopyOnWriteLayerMutex.Unlock()
+	fake.CreateCopyOnWriteLayerStub = stub
+}
+
 func (fake *FakeDriver) CreateCopyOnWriteLayerArgsForCall(i int) (string, string) {
 	fake.createCopyOnWriteLayerMutex.RLock()
 	defer fake.createCopyOnWriteLayerMutex.RUnlock()
@@ -79,6 +85,8 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerArgsForCall(i int) (string, string
 }
 
 func (fake *FakeDriver) CreateCopyOnWriteLayerReturns(result1 error) {
+	fake.createCopyOnWriteLayerMutex.Lock()
+	defer fake.createCopyOnWriteLayerMutex.Unlock()
 	fake.CreateCopyOnWriteLayerStub = nil
 	fake.createCopyOnWriteLayerReturns = struct {
 		result1 error
@@ -86,6 +94,8 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerReturns(result1 error) {
 }
 
 func (fake *FakeDriver) CreateCopyOnWriteLayerReturnsOnCall(i int, result1 error) {
+	fake.createCopyOnWriteLayerMutex.Lock()
+	defer fake.createCopyOnWriteLayerMutex.Unlock()
 	fake.CreateCopyOnWriteLayerStub = nil
 	if fake.createCopyOnWriteLayerReturnsOnCall == nil {
 		fake.createCopyOnWriteLayerReturnsOnCall = make(map[int]struct {
@@ -121,6 +131,12 @@ func (fake *FakeDriver) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
+func (fake *FakeDriver) CreateVolumeCalls(stub func(string) error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
+	fake.CreateVolumeStub = stub
+}
+
 func (fake *FakeDriver) CreateVolumeArgsForCall(i int) string {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
@@ -129,6 +145,8 @@ func (fake *FakeDriver) CreateVolumeArgsForCall(i int) string {
 }
 
 func (fake *FakeDriver) CreateVolumeReturns(result1 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	fake.createVolumeReturns = struct {
 		result1 error
@@ -136,6 +154,8 @@ func (fake *FakeDriver) CreateVolumeReturns(result1 error) {
 }
 
 func (fake *FakeDriver) CreateVolumeReturnsOnCall(i int, result1 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	if fake.createVolumeReturnsOnCall == nil {
 		fake.createVolumeReturnsOnCall = make(map[int]struct {
@@ -171,6 +191,12 @@ func (fake *FakeDriver) DestroyVolumeCallCount() int {
 	return len(fake.destroyVolumeArgsForCall)
 }
 
+func (fake *FakeDriver) DestroyVolumeCalls(stub func(string) error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
+	fake.DestroyVolumeStub = stub
+}
+
 func (fake *FakeDriver) DestroyVolumeArgsForCall(i int) string {
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
@@ -179,6 +205,8 @@ func (fake *FakeDriver) DestroyVolumeArgsForCall(i int) string {
 }
 
 func (fake *FakeDriver) DestroyVolumeReturns(result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
 	fake.DestroyVolumeStub = nil
 	fake.destroyVolumeReturns = struct {
 		result1 error
@@ -186,6 +214,8 @@ func (fake *FakeDriver) DestroyVolumeReturns(result1 error) {
 }
 
 func (fake *FakeDriver) DestroyVolumeReturnsOnCall(i int, result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
 	fake.DestroyVolumeStub = nil
 	if fake.destroyVolumeReturnsOnCall == nil {
 		fake.destroyVolumeReturnsOnCall = make(map[int]struct {

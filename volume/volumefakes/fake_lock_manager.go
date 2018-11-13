@@ -40,6 +40,12 @@ func (fake *FakeLockManager) LockCallCount() int {
 	return len(fake.lockArgsForCall)
 }
 
+func (fake *FakeLockManager) LockCalls(stub func(string)) {
+	fake.lockMutex.Lock()
+	defer fake.lockMutex.Unlock()
+	fake.LockStub = stub
+}
+
 func (fake *FakeLockManager) LockArgsForCall(i int) string {
 	fake.lockMutex.RLock()
 	defer fake.lockMutex.RUnlock()
@@ -63,6 +69,12 @@ func (fake *FakeLockManager) UnlockCallCount() int {
 	fake.unlockMutex.RLock()
 	defer fake.unlockMutex.RUnlock()
 	return len(fake.unlockArgsForCall)
+}
+
+func (fake *FakeLockManager) UnlockCalls(stub func(string)) {
+	fake.unlockMutex.Lock()
+	defer fake.unlockMutex.Unlock()
+	fake.UnlockStub = stub
 }
 
 func (fake *FakeLockManager) UnlockArgsForCall(i int) string {

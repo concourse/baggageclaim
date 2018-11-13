@@ -75,7 +75,15 @@ func (fake *FakeFilesystem) ListVolumesCallCount() int {
 	return len(fake.listVolumesArgsForCall)
 }
 
+func (fake *FakeFilesystem) ListVolumesCalls(stub func() ([]volume.FilesystemLiveVolume, error)) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
+	fake.ListVolumesStub = stub
+}
+
 func (fake *FakeFilesystem) ListVolumesReturns(result1 []volume.FilesystemLiveVolume, result2 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	fake.listVolumesReturns = struct {
 		result1 []volume.FilesystemLiveVolume
@@ -84,6 +92,8 @@ func (fake *FakeFilesystem) ListVolumesReturns(result1 []volume.FilesystemLiveVo
 }
 
 func (fake *FakeFilesystem) ListVolumesReturnsOnCall(i int, result1 []volume.FilesystemLiveVolume, result2 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	if fake.listVolumesReturnsOnCall == nil {
 		fake.listVolumesReturnsOnCall = make(map[int]struct {
@@ -121,6 +131,12 @@ func (fake *FakeFilesystem) LookupVolumeCallCount() int {
 	return len(fake.lookupVolumeArgsForCall)
 }
 
+func (fake *FakeFilesystem) LookupVolumeCalls(stub func(string) (volume.FilesystemLiveVolume, bool, error)) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
+	fake.LookupVolumeStub = stub
+}
+
 func (fake *FakeFilesystem) LookupVolumeArgsForCall(i int) string {
 	fake.lookupVolumeMutex.RLock()
 	defer fake.lookupVolumeMutex.RUnlock()
@@ -129,6 +145,8 @@ func (fake *FakeFilesystem) LookupVolumeArgsForCall(i int) string {
 }
 
 func (fake *FakeFilesystem) LookupVolumeReturns(result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
 	fake.LookupVolumeStub = nil
 	fake.lookupVolumeReturns = struct {
 		result1 volume.FilesystemLiveVolume
@@ -138,6 +156,8 @@ func (fake *FakeFilesystem) LookupVolumeReturns(result1 volume.FilesystemLiveVol
 }
 
 func (fake *FakeFilesystem) LookupVolumeReturnsOnCall(i int, result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
 	fake.LookupVolumeStub = nil
 	if fake.lookupVolumeReturnsOnCall == nil {
 		fake.lookupVolumeReturnsOnCall = make(map[int]struct {
@@ -177,6 +197,12 @@ func (fake *FakeFilesystem) NewVolumeCallCount() int {
 	return len(fake.newVolumeArgsForCall)
 }
 
+func (fake *FakeFilesystem) NewVolumeCalls(stub func(string) (volume.FilesystemInitVolume, error)) {
+	fake.newVolumeMutex.Lock()
+	defer fake.newVolumeMutex.Unlock()
+	fake.NewVolumeStub = stub
+}
+
 func (fake *FakeFilesystem) NewVolumeArgsForCall(i int) string {
 	fake.newVolumeMutex.RLock()
 	defer fake.newVolumeMutex.RUnlock()
@@ -185,6 +211,8 @@ func (fake *FakeFilesystem) NewVolumeArgsForCall(i int) string {
 }
 
 func (fake *FakeFilesystem) NewVolumeReturns(result1 volume.FilesystemInitVolume, result2 error) {
+	fake.newVolumeMutex.Lock()
+	defer fake.newVolumeMutex.Unlock()
 	fake.NewVolumeStub = nil
 	fake.newVolumeReturns = struct {
 		result1 volume.FilesystemInitVolume
@@ -193,6 +221,8 @@ func (fake *FakeFilesystem) NewVolumeReturns(result1 volume.FilesystemInitVolume
 }
 
 func (fake *FakeFilesystem) NewVolumeReturnsOnCall(i int, result1 volume.FilesystemInitVolume, result2 error) {
+	fake.newVolumeMutex.Lock()
+	defer fake.newVolumeMutex.Unlock()
 	fake.NewVolumeStub = nil
 	if fake.newVolumeReturnsOnCall == nil {
 		fake.newVolumeReturnsOnCall = make(map[int]struct {

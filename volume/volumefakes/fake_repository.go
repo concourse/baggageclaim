@@ -2,6 +2,7 @@
 package volumefakes
 
 import (
+	context "context"
 	io "io"
 	sync "sync"
 
@@ -9,14 +10,15 @@ import (
 )
 
 type FakeRepository struct {
-	CreateVolumeStub        func(string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)
+	CreateVolumeStub        func(context.Context, string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
-		arg1 string
-		arg2 volume.Strategy
-		arg3 volume.Properties
-		arg4 uint
-		arg5 bool
+		arg1 context.Context
+		arg2 string
+		arg3 volume.Strategy
+		arg4 volume.Properties
+		arg5 uint
+		arg6 bool
 	}
 	createVolumeReturns struct {
 		result1 volume.Volume
@@ -26,10 +28,11 @@ type FakeRepository struct {
 		result1 volume.Volume
 		result2 error
 	}
-	DestroyVolumeStub        func(string) error
+	DestroyVolumeStub        func(context.Context, string) error
 	destroyVolumeMutex       sync.RWMutex
 	destroyVolumeArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	destroyVolumeReturns struct {
 		result1 error
@@ -37,10 +40,11 @@ type FakeRepository struct {
 	destroyVolumeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DestroyVolumeAndDescendantsStub        func(string) error
+	DestroyVolumeAndDescendantsStub        func(context.Context, string) error
 	destroyVolumeAndDescendantsMutex       sync.RWMutex
 	destroyVolumeAndDescendantsArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	destroyVolumeAndDescendantsReturns struct {
 		result1 error
@@ -48,10 +52,11 @@ type FakeRepository struct {
 	destroyVolumeAndDescendantsReturnsOnCall map[int]struct {
 		result1 error
 	}
-	GetVolumeStub        func(string) (volume.Volume, bool, error)
+	GetVolumeStub        func(context.Context, string) (volume.Volume, bool, error)
 	getVolumeMutex       sync.RWMutex
 	getVolumeArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	getVolumeReturns struct {
 		result1 volume.Volume
@@ -63,10 +68,11 @@ type FakeRepository struct {
 		result2 bool
 		result3 error
 	}
-	ListVolumesStub        func(volume.Properties) (volume.Volumes, []string, error)
+	ListVolumesStub        func(context.Context, volume.Properties) (volume.Volumes, []string, error)
 	listVolumesMutex       sync.RWMutex
 	listVolumesArgsForCall []struct {
-		arg1 volume.Properties
+		arg1 context.Context
+		arg2 volume.Properties
 	}
 	listVolumesReturns struct {
 		result1 volume.Volumes
@@ -78,11 +84,12 @@ type FakeRepository struct {
 		result2 []string
 		result3 error
 	}
-	SetPrivilegedStub        func(string, bool) error
+	SetPrivilegedStub        func(context.Context, string, bool) error
 	setPrivilegedMutex       sync.RWMutex
 	setPrivilegedArgsForCall []struct {
-		arg1 string
-		arg2 bool
+		arg1 context.Context
+		arg2 string
+		arg3 bool
 	}
 	setPrivilegedReturns struct {
 		result1 error
@@ -90,12 +97,13 @@ type FakeRepository struct {
 	setPrivilegedReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SetPropertyStub        func(string, string, string) error
+	SetPropertyStub        func(context.Context, string, string, string) error
 	setPropertyMutex       sync.RWMutex
 	setPropertyArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
 		arg3 string
+		arg4 string
 	}
 	setPropertyReturns struct {
 		result1 error
@@ -103,11 +111,12 @@ type FakeRepository struct {
 	setPropertyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SetTTLStub        func(string, uint) error
+	SetTTLStub        func(context.Context, string, uint) error
 	setTTLMutex       sync.RWMutex
 	setTTLArgsForCall []struct {
-		arg1 string
-		arg2 uint
+		arg1 context.Context
+		arg2 string
+		arg3 uint
 	}
 	setTTLReturns struct {
 		result1 error
@@ -115,12 +124,13 @@ type FakeRepository struct {
 	setTTLReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StreamInStub        func(string, string, io.Reader) (bool, error)
+	StreamInStub        func(context.Context, string, string, io.Reader) (bool, error)
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
-		arg3 io.Reader
+		arg3 string
+		arg4 io.Reader
 	}
 	streamInReturns struct {
 		result1 bool
@@ -130,12 +140,13 @@ type FakeRepository struct {
 		result1 bool
 		result2 error
 	}
-	StreamOutStub        func(string, string, io.Writer) error
+	StreamOutStub        func(context.Context, string, string, io.Writer) error
 	streamOutMutex       sync.RWMutex
 	streamOutArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
-		arg3 io.Writer
+		arg3 string
+		arg4 io.Writer
 	}
 	streamOutReturns struct {
 		result1 error
@@ -143,10 +154,11 @@ type FakeRepository struct {
 	streamOutReturnsOnCall map[int]struct {
 		result1 error
 	}
-	VolumeParentStub        func(string) (volume.Volume, bool, error)
+	VolumeParentStub        func(context.Context, string) (volume.Volume, bool, error)
 	volumeParentMutex       sync.RWMutex
 	volumeParentArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	volumeParentReturns struct {
 		result1 volume.Volume
@@ -162,20 +174,21 @@ type FakeRepository struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeRepository) CreateVolume(arg1 string, arg2 volume.Strategy, arg3 volume.Properties, arg4 uint, arg5 bool) (volume.Volume, error) {
+func (fake *FakeRepository) CreateVolume(arg1 context.Context, arg2 string, arg3 volume.Strategy, arg4 volume.Properties, arg5 uint, arg6 bool) (volume.Volume, error) {
 	fake.createVolumeMutex.Lock()
 	ret, specificReturn := fake.createVolumeReturnsOnCall[len(fake.createVolumeArgsForCall)]
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
-		arg1 string
-		arg2 volume.Strategy
-		arg3 volume.Properties
-		arg4 uint
-		arg5 bool
-	}{arg1, arg2, arg3, arg4, arg5})
-	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3, arg4, arg5})
+		arg1 context.Context
+		arg2 string
+		arg3 volume.Strategy
+		arg4 volume.Properties
+		arg5 uint
+		arg6 bool
+	}{arg1, arg2, arg3, arg4, arg5, arg6})
+	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(arg1, arg2, arg3, arg4, arg5)
+		return fake.CreateVolumeStub(arg1, arg2, arg3, arg4, arg5, arg6)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -190,14 +203,22 @@ func (fake *FakeRepository) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (string, volume.Strategy, volume.Properties, uint, bool) {
+func (fake *FakeRepository) CreateVolumeCalls(stub func(context.Context, string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
+	fake.CreateVolumeStub = stub
+}
+
+func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (context.Context, string, volume.Strategy, volume.Properties, uint, bool) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
 	argsForCall := fake.createVolumeArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
 }
 
 func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	fake.createVolumeReturns = struct {
 		result1 volume.Volume
@@ -206,6 +227,8 @@ func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 e
 }
 
 func (fake *FakeRepository) CreateVolumeReturnsOnCall(i int, result1 volume.Volume, result2 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	if fake.createVolumeReturnsOnCall == nil {
 		fake.createVolumeReturnsOnCall = make(map[int]struct {
@@ -219,16 +242,17 @@ func (fake *FakeRepository) CreateVolumeReturnsOnCall(i int, result1 volume.Volu
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) DestroyVolume(arg1 string) error {
+func (fake *FakeRepository) DestroyVolume(arg1 context.Context, arg2 string) error {
 	fake.destroyVolumeMutex.Lock()
 	ret, specificReturn := fake.destroyVolumeReturnsOnCall[len(fake.destroyVolumeArgsForCall)]
 	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("DestroyVolume", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("DestroyVolume", []interface{}{arg1, arg2})
 	fake.destroyVolumeMutex.Unlock()
 	if fake.DestroyVolumeStub != nil {
-		return fake.DestroyVolumeStub(arg1)
+		return fake.DestroyVolumeStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -243,14 +267,22 @@ func (fake *FakeRepository) DestroyVolumeCallCount() int {
 	return len(fake.destroyVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) string {
+func (fake *FakeRepository) DestroyVolumeCalls(stub func(context.Context, string) error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
+	fake.DestroyVolumeStub = stub
+}
+
+func (fake *FakeRepository) DestroyVolumeArgsForCall(i int) (context.Context, string) {
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
 	argsForCall := fake.destroyVolumeArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
 	fake.DestroyVolumeStub = nil
 	fake.destroyVolumeReturns = struct {
 		result1 error
@@ -258,6 +290,8 @@ func (fake *FakeRepository) DestroyVolumeReturns(result1 error) {
 }
 
 func (fake *FakeRepository) DestroyVolumeReturnsOnCall(i int, result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
 	fake.DestroyVolumeStub = nil
 	if fake.destroyVolumeReturnsOnCall == nil {
 		fake.destroyVolumeReturnsOnCall = make(map[int]struct {
@@ -269,16 +303,17 @@ func (fake *FakeRepository) DestroyVolumeReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) DestroyVolumeAndDescendants(arg1 string) error {
+func (fake *FakeRepository) DestroyVolumeAndDescendants(arg1 context.Context, arg2 string) error {
 	fake.destroyVolumeAndDescendantsMutex.Lock()
 	ret, specificReturn := fake.destroyVolumeAndDescendantsReturnsOnCall[len(fake.destroyVolumeAndDescendantsArgsForCall)]
 	fake.destroyVolumeAndDescendantsArgsForCall = append(fake.destroyVolumeAndDescendantsArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("DestroyVolumeAndDescendants", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("DestroyVolumeAndDescendants", []interface{}{arg1, arg2})
 	fake.destroyVolumeAndDescendantsMutex.Unlock()
 	if fake.DestroyVolumeAndDescendantsStub != nil {
-		return fake.DestroyVolumeAndDescendantsStub(arg1)
+		return fake.DestroyVolumeAndDescendantsStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -293,14 +328,22 @@ func (fake *FakeRepository) DestroyVolumeAndDescendantsCallCount() int {
 	return len(fake.destroyVolumeAndDescendantsArgsForCall)
 }
 
-func (fake *FakeRepository) DestroyVolumeAndDescendantsArgsForCall(i int) string {
+func (fake *FakeRepository) DestroyVolumeAndDescendantsCalls(stub func(context.Context, string) error) {
+	fake.destroyVolumeAndDescendantsMutex.Lock()
+	defer fake.destroyVolumeAndDescendantsMutex.Unlock()
+	fake.DestroyVolumeAndDescendantsStub = stub
+}
+
+func (fake *FakeRepository) DestroyVolumeAndDescendantsArgsForCall(i int) (context.Context, string) {
 	fake.destroyVolumeAndDescendantsMutex.RLock()
 	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
 	argsForCall := fake.destroyVolumeAndDescendantsArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) DestroyVolumeAndDescendantsReturns(result1 error) {
+	fake.destroyVolumeAndDescendantsMutex.Lock()
+	defer fake.destroyVolumeAndDescendantsMutex.Unlock()
 	fake.DestroyVolumeAndDescendantsStub = nil
 	fake.destroyVolumeAndDescendantsReturns = struct {
 		result1 error
@@ -308,6 +351,8 @@ func (fake *FakeRepository) DestroyVolumeAndDescendantsReturns(result1 error) {
 }
 
 func (fake *FakeRepository) DestroyVolumeAndDescendantsReturnsOnCall(i int, result1 error) {
+	fake.destroyVolumeAndDescendantsMutex.Lock()
+	defer fake.destroyVolumeAndDescendantsMutex.Unlock()
 	fake.DestroyVolumeAndDescendantsStub = nil
 	if fake.destroyVolumeAndDescendantsReturnsOnCall == nil {
 		fake.destroyVolumeAndDescendantsReturnsOnCall = make(map[int]struct {
@@ -319,16 +364,17 @@ func (fake *FakeRepository) DestroyVolumeAndDescendantsReturnsOnCall(i int, resu
 	}{result1}
 }
 
-func (fake *FakeRepository) GetVolume(arg1 string) (volume.Volume, bool, error) {
+func (fake *FakeRepository) GetVolume(arg1 context.Context, arg2 string) (volume.Volume, bool, error) {
 	fake.getVolumeMutex.Lock()
 	ret, specificReturn := fake.getVolumeReturnsOnCall[len(fake.getVolumeArgsForCall)]
 	fake.getVolumeArgsForCall = append(fake.getVolumeArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("GetVolume", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("GetVolume", []interface{}{arg1, arg2})
 	fake.getVolumeMutex.Unlock()
 	if fake.GetVolumeStub != nil {
-		return fake.GetVolumeStub(arg1)
+		return fake.GetVolumeStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -343,14 +389,22 @@ func (fake *FakeRepository) GetVolumeCallCount() int {
 	return len(fake.getVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) GetVolumeArgsForCall(i int) string {
+func (fake *FakeRepository) GetVolumeCalls(stub func(context.Context, string) (volume.Volume, bool, error)) {
+	fake.getVolumeMutex.Lock()
+	defer fake.getVolumeMutex.Unlock()
+	fake.GetVolumeStub = stub
+}
+
+func (fake *FakeRepository) GetVolumeArgsForCall(i int) (context.Context, string) {
 	fake.getVolumeMutex.RLock()
 	defer fake.getVolumeMutex.RUnlock()
 	argsForCall := fake.getVolumeArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 bool, result3 error) {
+	fake.getVolumeMutex.Lock()
+	defer fake.getVolumeMutex.Unlock()
 	fake.GetVolumeStub = nil
 	fake.getVolumeReturns = struct {
 		result1 volume.Volume
@@ -360,6 +414,8 @@ func (fake *FakeRepository) GetVolumeReturns(result1 volume.Volume, result2 bool
 }
 
 func (fake *FakeRepository) GetVolumeReturnsOnCall(i int, result1 volume.Volume, result2 bool, result3 error) {
+	fake.getVolumeMutex.Lock()
+	defer fake.getVolumeMutex.Unlock()
 	fake.GetVolumeStub = nil
 	if fake.getVolumeReturnsOnCall == nil {
 		fake.getVolumeReturnsOnCall = make(map[int]struct {
@@ -375,16 +431,17 @@ func (fake *FakeRepository) GetVolumeReturnsOnCall(i int, result1 volume.Volume,
 	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) ListVolumes(arg1 volume.Properties) (volume.Volumes, []string, error) {
+func (fake *FakeRepository) ListVolumes(arg1 context.Context, arg2 volume.Properties) (volume.Volumes, []string, error) {
 	fake.listVolumesMutex.Lock()
 	ret, specificReturn := fake.listVolumesReturnsOnCall[len(fake.listVolumesArgsForCall)]
 	fake.listVolumesArgsForCall = append(fake.listVolumesArgsForCall, struct {
-		arg1 volume.Properties
-	}{arg1})
-	fake.recordInvocation("ListVolumes", []interface{}{arg1})
+		arg1 context.Context
+		arg2 volume.Properties
+	}{arg1, arg2})
+	fake.recordInvocation("ListVolumes", []interface{}{arg1, arg2})
 	fake.listVolumesMutex.Unlock()
 	if fake.ListVolumesStub != nil {
-		return fake.ListVolumesStub(arg1)
+		return fake.ListVolumesStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -399,14 +456,22 @@ func (fake *FakeRepository) ListVolumesCallCount() int {
 	return len(fake.listVolumesArgsForCall)
 }
 
-func (fake *FakeRepository) ListVolumesArgsForCall(i int) volume.Properties {
+func (fake *FakeRepository) ListVolumesCalls(stub func(context.Context, volume.Properties) (volume.Volumes, []string, error)) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
+	fake.ListVolumesStub = stub
+}
+
+func (fake *FakeRepository) ListVolumesArgsForCall(i int) (context.Context, volume.Properties) {
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
 	argsForCall := fake.listVolumesArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 []string, result3 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	fake.listVolumesReturns = struct {
 		result1 volume.Volumes
@@ -416,6 +481,8 @@ func (fake *FakeRepository) ListVolumesReturns(result1 volume.Volumes, result2 [
 }
 
 func (fake *FakeRepository) ListVolumesReturnsOnCall(i int, result1 volume.Volumes, result2 []string, result3 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	if fake.listVolumesReturnsOnCall == nil {
 		fake.listVolumesReturnsOnCall = make(map[int]struct {
@@ -431,17 +498,18 @@ func (fake *FakeRepository) ListVolumesReturnsOnCall(i int, result1 volume.Volum
 	}{result1, result2, result3}
 }
 
-func (fake *FakeRepository) SetPrivileged(arg1 string, arg2 bool) error {
+func (fake *FakeRepository) SetPrivileged(arg1 context.Context, arg2 string, arg3 bool) error {
 	fake.setPrivilegedMutex.Lock()
 	ret, specificReturn := fake.setPrivilegedReturnsOnCall[len(fake.setPrivilegedArgsForCall)]
 	fake.setPrivilegedArgsForCall = append(fake.setPrivilegedArgsForCall, struct {
-		arg1 string
-		arg2 bool
-	}{arg1, arg2})
-	fake.recordInvocation("SetPrivileged", []interface{}{arg1, arg2})
+		arg1 context.Context
+		arg2 string
+		arg3 bool
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("SetPrivileged", []interface{}{arg1, arg2, arg3})
 	fake.setPrivilegedMutex.Unlock()
 	if fake.SetPrivilegedStub != nil {
-		return fake.SetPrivilegedStub(arg1, arg2)
+		return fake.SetPrivilegedStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -456,14 +524,22 @@ func (fake *FakeRepository) SetPrivilegedCallCount() int {
 	return len(fake.setPrivilegedArgsForCall)
 }
 
-func (fake *FakeRepository) SetPrivilegedArgsForCall(i int) (string, bool) {
+func (fake *FakeRepository) SetPrivilegedCalls(stub func(context.Context, string, bool) error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
+	fake.SetPrivilegedStub = stub
+}
+
+func (fake *FakeRepository) SetPrivilegedArgsForCall(i int) (context.Context, string, bool) {
 	fake.setPrivilegedMutex.RLock()
 	defer fake.setPrivilegedMutex.RUnlock()
 	argsForCall := fake.setPrivilegedArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeRepository) SetPrivilegedReturns(result1 error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
 	fake.SetPrivilegedStub = nil
 	fake.setPrivilegedReturns = struct {
 		result1 error
@@ -471,6 +547,8 @@ func (fake *FakeRepository) SetPrivilegedReturns(result1 error) {
 }
 
 func (fake *FakeRepository) SetPrivilegedReturnsOnCall(i int, result1 error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
 	fake.SetPrivilegedStub = nil
 	if fake.setPrivilegedReturnsOnCall == nil {
 		fake.setPrivilegedReturnsOnCall = make(map[int]struct {
@@ -482,18 +560,19 @@ func (fake *FakeRepository) SetPrivilegedReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) SetProperty(arg1 string, arg2 string, arg3 string) error {
+func (fake *FakeRepository) SetProperty(arg1 context.Context, arg2 string, arg3 string, arg4 string) error {
 	fake.setPropertyMutex.Lock()
 	ret, specificReturn := fake.setPropertyReturnsOnCall[len(fake.setPropertyArgsForCall)]
 	fake.setPropertyArgsForCall = append(fake.setPropertyArgsForCall, struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
 		arg3 string
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("SetProperty", []interface{}{arg1, arg2, arg3})
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("SetProperty", []interface{}{arg1, arg2, arg3, arg4})
 	fake.setPropertyMutex.Unlock()
 	if fake.SetPropertyStub != nil {
-		return fake.SetPropertyStub(arg1, arg2, arg3)
+		return fake.SetPropertyStub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -508,14 +587,22 @@ func (fake *FakeRepository) SetPropertyCallCount() int {
 	return len(fake.setPropertyArgsForCall)
 }
 
-func (fake *FakeRepository) SetPropertyArgsForCall(i int) (string, string, string) {
+func (fake *FakeRepository) SetPropertyCalls(stub func(context.Context, string, string, string) error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
+	fake.SetPropertyStub = stub
+}
+
+func (fake *FakeRepository) SetPropertyArgsForCall(i int) (context.Context, string, string, string) {
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
 	argsForCall := fake.setPropertyArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeRepository) SetPropertyReturns(result1 error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
 	fake.SetPropertyStub = nil
 	fake.setPropertyReturns = struct {
 		result1 error
@@ -523,6 +610,8 @@ func (fake *FakeRepository) SetPropertyReturns(result1 error) {
 }
 
 func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
 	fake.SetPropertyStub = nil
 	if fake.setPropertyReturnsOnCall == nil {
 		fake.setPropertyReturnsOnCall = make(map[int]struct {
@@ -534,17 +623,18 @@ func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) SetTTL(arg1 string, arg2 uint) error {
+func (fake *FakeRepository) SetTTL(arg1 context.Context, arg2 string, arg3 uint) error {
 	fake.setTTLMutex.Lock()
 	ret, specificReturn := fake.setTTLReturnsOnCall[len(fake.setTTLArgsForCall)]
 	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
-		arg1 string
-		arg2 uint
-	}{arg1, arg2})
-	fake.recordInvocation("SetTTL", []interface{}{arg1, arg2})
+		arg1 context.Context
+		arg2 string
+		arg3 uint
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("SetTTL", []interface{}{arg1, arg2, arg3})
 	fake.setTTLMutex.Unlock()
 	if fake.SetTTLStub != nil {
-		return fake.SetTTLStub(arg1, arg2)
+		return fake.SetTTLStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -559,14 +649,22 @@ func (fake *FakeRepository) SetTTLCallCount() int {
 	return len(fake.setTTLArgsForCall)
 }
 
-func (fake *FakeRepository) SetTTLArgsForCall(i int) (string, uint) {
+func (fake *FakeRepository) SetTTLCalls(stub func(context.Context, string, uint) error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
+	fake.SetTTLStub = stub
+}
+
+func (fake *FakeRepository) SetTTLArgsForCall(i int) (context.Context, string, uint) {
 	fake.setTTLMutex.RLock()
 	defer fake.setTTLMutex.RUnlock()
 	argsForCall := fake.setTTLArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeRepository) SetTTLReturns(result1 error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
 	fake.SetTTLStub = nil
 	fake.setTTLReturns = struct {
 		result1 error
@@ -574,6 +672,8 @@ func (fake *FakeRepository) SetTTLReturns(result1 error) {
 }
 
 func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
 	fake.SetTTLStub = nil
 	if fake.setTTLReturnsOnCall == nil {
 		fake.setTTLReturnsOnCall = make(map[int]struct {
@@ -585,18 +685,19 @@ func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) StreamIn(arg1 string, arg2 string, arg3 io.Reader) (bool, error) {
+func (fake *FakeRepository) StreamIn(arg1 context.Context, arg2 string, arg3 string, arg4 io.Reader) (bool, error) {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
 	fake.streamInArgsForCall = append(fake.streamInArgsForCall, struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
-		arg3 io.Reader
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3})
+		arg3 string
+		arg4 io.Reader
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3, arg4})
 	fake.streamInMutex.Unlock()
 	if fake.StreamInStub != nil {
-		return fake.StreamInStub(arg1, arg2, arg3)
+		return fake.StreamInStub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -611,14 +712,22 @@ func (fake *FakeRepository) StreamInCallCount() int {
 	return len(fake.streamInArgsForCall)
 }
 
-func (fake *FakeRepository) StreamInArgsForCall(i int) (string, string, io.Reader) {
+func (fake *FakeRepository) StreamInCalls(stub func(context.Context, string, string, io.Reader) (bool, error)) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
+	fake.StreamInStub = stub
+}
+
+func (fake *FakeRepository) StreamInArgsForCall(i int) (context.Context, string, string, io.Reader) {
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	argsForCall := fake.streamInArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeRepository) StreamInReturns(result1 bool, result2 error) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = nil
 	fake.streamInReturns = struct {
 		result1 bool
@@ -627,6 +736,8 @@ func (fake *FakeRepository) StreamInReturns(result1 bool, result2 error) {
 }
 
 func (fake *FakeRepository) StreamInReturnsOnCall(i int, result1 bool, result2 error) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = nil
 	if fake.streamInReturnsOnCall == nil {
 		fake.streamInReturnsOnCall = make(map[int]struct {
@@ -640,18 +751,19 @@ func (fake *FakeRepository) StreamInReturnsOnCall(i int, result1 bool, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) StreamOut(arg1 string, arg2 string, arg3 io.Writer) error {
+func (fake *FakeRepository) StreamOut(arg1 context.Context, arg2 string, arg3 string, arg4 io.Writer) error {
 	fake.streamOutMutex.Lock()
 	ret, specificReturn := fake.streamOutReturnsOnCall[len(fake.streamOutArgsForCall)]
 	fake.streamOutArgsForCall = append(fake.streamOutArgsForCall, struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
-		arg3 io.Writer
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2, arg3})
+		arg3 string
+		arg4 io.Writer
+	}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2, arg3, arg4})
 	fake.streamOutMutex.Unlock()
 	if fake.StreamOutStub != nil {
-		return fake.StreamOutStub(arg1, arg2, arg3)
+		return fake.StreamOutStub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -666,14 +778,22 @@ func (fake *FakeRepository) StreamOutCallCount() int {
 	return len(fake.streamOutArgsForCall)
 }
 
-func (fake *FakeRepository) StreamOutArgsForCall(i int) (string, string, io.Writer) {
+func (fake *FakeRepository) StreamOutCalls(stub func(context.Context, string, string, io.Writer) error) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
+	fake.StreamOutStub = stub
+}
+
+func (fake *FakeRepository) StreamOutArgsForCall(i int) (context.Context, string, string, io.Writer) {
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
 	argsForCall := fake.streamOutArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeRepository) StreamOutReturns(result1 error) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = nil
 	fake.streamOutReturns = struct {
 		result1 error
@@ -681,6 +801,8 @@ func (fake *FakeRepository) StreamOutReturns(result1 error) {
 }
 
 func (fake *FakeRepository) StreamOutReturnsOnCall(i int, result1 error) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = nil
 	if fake.streamOutReturnsOnCall == nil {
 		fake.streamOutReturnsOnCall = make(map[int]struct {
@@ -692,16 +814,17 @@ func (fake *FakeRepository) StreamOutReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) VolumeParent(arg1 string) (volume.Volume, bool, error) {
+func (fake *FakeRepository) VolumeParent(arg1 context.Context, arg2 string) (volume.Volume, bool, error) {
 	fake.volumeParentMutex.Lock()
 	ret, specificReturn := fake.volumeParentReturnsOnCall[len(fake.volumeParentArgsForCall)]
 	fake.volumeParentArgsForCall = append(fake.volumeParentArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("VolumeParent", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("VolumeParent", []interface{}{arg1, arg2})
 	fake.volumeParentMutex.Unlock()
 	if fake.VolumeParentStub != nil {
-		return fake.VolumeParentStub(arg1)
+		return fake.VolumeParentStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
@@ -716,14 +839,22 @@ func (fake *FakeRepository) VolumeParentCallCount() int {
 	return len(fake.volumeParentArgsForCall)
 }
 
-func (fake *FakeRepository) VolumeParentArgsForCall(i int) string {
+func (fake *FakeRepository) VolumeParentCalls(stub func(context.Context, string) (volume.Volume, bool, error)) {
+	fake.volumeParentMutex.Lock()
+	defer fake.volumeParentMutex.Unlock()
+	fake.VolumeParentStub = stub
+}
+
+func (fake *FakeRepository) VolumeParentArgsForCall(i int) (context.Context, string) {
 	fake.volumeParentMutex.RLock()
 	defer fake.volumeParentMutex.RUnlock()
 	argsForCall := fake.volumeParentArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeRepository) VolumeParentReturns(result1 volume.Volume, result2 bool, result3 error) {
+	fake.volumeParentMutex.Lock()
+	defer fake.volumeParentMutex.Unlock()
 	fake.VolumeParentStub = nil
 	fake.volumeParentReturns = struct {
 		result1 volume.Volume
@@ -733,6 +864,8 @@ func (fake *FakeRepository) VolumeParentReturns(result1 volume.Volume, result2 b
 }
 
 func (fake *FakeRepository) VolumeParentReturnsOnCall(i int, result1 volume.Volume, result2 bool, result3 error) {
+	fake.volumeParentMutex.Lock()
+	defer fake.volumeParentMutex.Unlock()
 	fake.VolumeParentStub = nil
 	if fake.volumeParentReturnsOnCall == nil {
 		fake.volumeParentReturnsOnCall = make(map[int]struct {

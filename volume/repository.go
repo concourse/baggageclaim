@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/concourse/baggageclaim/uidgid"
 
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerctx"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
@@ -17,25 +19,23 @@ var ErrVolumeIsCorrupted = errors.New("volume is corrupted")
 //go:generate counterfeiter . Repository
 
 type Repository interface {
-	ListVolumes(queryProperties Properties) (Volumes, []string, error)
-	GetVolume(handle string) (Volume, bool, error)
-	CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error)
-	DestroyVolume(handle string) error
-	DestroyVolumeAndDescendants(handle string) error
+	ListVolumes(ctx context.Context, queryProperties Properties) (Volumes, []string, error)
+	GetVolume(ctx context.Context, handle string) (Volume, bool, error)
+	CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error)
+	DestroyVolume(ctx context.Context, handle string) error
+	DestroyVolumeAndDescendants(ctx context.Context, handle string) error
 
-	SetProperty(handle string, propertyName string, propertyValue string) error
-	SetTTL(handle string, ttl uint) error
-	SetPrivileged(handle string, privileged bool) error
+	SetProperty(ctx context.Context, handle string, propertyName string, propertyValue string) error
+	SetTTL(ctx context.Context, handle string, ttl uint) error
+	SetPrivileged(ctx context.Context, handle string, privileged bool) error
 
-	StreamIn(handle string, path string, stream io.Reader) (bool, error)
-	StreamOut(handle string, path string, dest io.Writer) error
+	StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error)
+	StreamOut(ctx context.Context, handle string, path string, dest io.Writer) error
 
-	VolumeParent(handle string) (Volume, bool, error)
+	VolumeParent(ctx context.Context, handle string) (Volume, bool, error)
 }
 
 type repository struct {
-	logger lager.Logger
-
 	filesystem Filesystem
 
 	locker LockManager
@@ -45,14 +45,12 @@ type repository struct {
 }
 
 func NewRepository(
-	logger lager.Logger,
 	filesystem Filesystem,
 	locker LockManager,
 	privilegedNamespacer uidgid.Namespacer,
 	unprivilegedNamespacer uidgid.Namespacer,
 ) Repository {
 	return &repository{
-		logger:     logger,
 		filesystem: filesystem,
 		locker:     locker,
 
@@ -70,11 +68,11 @@ func NewRepository(
 	}
 }
 
-func (repo *repository) DestroyVolume(handle string) error {
+func (repo *repository) DestroyVolume(ctx context.Context, handle string) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("destroy-volume", lager.Data{
+	logger := lagerctx.FromContext(ctx).Session("destroy-volume", lager.Data{
 		"volume": handle,
 	})
 
@@ -100,7 +98,7 @@ func (repo *repository) DestroyVolume(handle string) error {
 	return nil
 }
 
-func (repo *repository) DestroyVolumeAndDescendants(handle string) error {
+func (repo *repository) DestroyVolumeAndDescendants(ctx context.Context, handle string) error {
 	allVolumes, err := repo.filesystem.ListVolumes()
 	if err != nil {
 		return err
@@ -126,18 +124,18 @@ func (repo *repository) DestroyVolumeAndDescendants(handle string) error {
 		}
 
 		if candidateParent.Handle() == handle {
-			err = repo.DestroyVolumeAndDescendants(candidate.Handle())
+			err = repo.DestroyVolumeAndDescendants(ctx, candidate.Handle())
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	return repo.DestroyVolume(handle)
+	return repo.DestroyVolume(ctx, handle)
 }
 
-func (repo *repository) CreateVolume(handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
-	logger := repo.logger.Session("create-volume", lager.Data{"handle": handle})
+func (repo *repository) CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
+	logger := lagerctx.FromContext(ctx).Session("create-volume", lager.Data{"handle": handle})
 
 	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem, repo.streamer)
 	if err != nil {
@@ -195,8 +193,8 @@ func (repo *repository) CreateVolume(handle string, strategy Strategy, propertie
 	}, nil
 }
 
-func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, []string, error) {
-	logger := repo.logger.Session("list-volumes")
+func (repo *repository) ListVolumes(ctx context.Context, queryProperties Properties) (Volumes, []string, error) {
+	logger := lagerctx.FromContext(ctx).Session("list-volumes")
 
 	liveVolumes, err := repo.filesystem.ListVolumes()
 	if err != nil {
@@ -227,8 +225,8 @@ func (repo *repository) ListVolumes(queryProperties Properties) (Volumes, []stri
 	return healthyVolumes, corruptedVolumeHandles, nil
 }
 
-func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
-	logger := repo.logger.Session("get-volume", lager.Data{
+func (repo *repository) GetVolume(ctx context.Context, handle string) (Volume, bool, error) {
+	logger := lagerctx.FromContext(ctx).Session("get-volume", lager.Data{
 		"volume": handle,
 	})
 
@@ -256,11 +254,11 @@ func (repo *repository) GetVolume(handle string) (Volume, bool, error) {
 	return volume, true, nil
 }
 
-func (repo *repository) SetProperty(handle string, propertyName string, propertyValue string) error {
+func (repo *repository) SetProperty(ctx context.Context, handle string, propertyName string, propertyValue string) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("set-property", lager.Data{
+	logger := lagerctx.FromContext(ctx).Session("set-property", lager.Data{
 		"volume":   handle,
 		"property": propertyName,
 	})
@@ -295,11 +293,11 @@ func (repo *repository) SetProperty(handle string, propertyName string, property
 	return nil
 }
 
-func (repo *repository) SetTTL(handle string, ttl uint) error {
+func (repo *repository) SetTTL(ctx context.Context, handle string, ttl uint) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("set-ttl", lager.Data{
+	logger := lagerctx.FromContext(ctx).Session("set-ttl", lager.Data{
 		"volume": handle,
 	})
 
@@ -323,11 +321,11 @@ func (repo *repository) SetTTL(handle string, ttl uint) error {
 	return nil
 }
 
-func (repo *repository) SetPrivileged(handle string, privileged bool) error {
+func (repo *repository) SetPrivileged(ctx context.Context, handle string, privileged bool) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
-	logger := repo.logger.Session("set-privileged", lager.Data{
+	logger := lagerctx.FromContext(ctx).Session("set-privileged", lager.Data{
 		"volume": handle,
 	})
 
@@ -357,8 +355,8 @@ func (repo *repository) SetPrivileged(handle string, privileged bool) error {
 	return nil
 }
 
-func (repo *repository) StreamIn(handle string, path string, stream io.Reader) (bool, error) {
-	logger := repo.logger.Session("stream-in", lager.Data{
+func (repo *repository) StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error) {
+	logger := lagerctx.FromContext(ctx).Session("stream-in", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
 	})
@@ -401,8 +399,8 @@ func (repo *repository) StreamIn(handle string, path string, stream io.Reader) (
 	return repo.streamer.In(stream, destinationPath, privileged)
 }
 
-func (repo *repository) StreamOut(handle string, path string, dest io.Writer) error {
-	logger := repo.logger.Session("stream-in", lager.Data{
+func (repo *repository) StreamOut(ctx context.Context, handle string, path string, dest io.Writer) error {
+	logger := lagerctx.FromContext(ctx).Session("stream-in", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
 	})
@@ -433,8 +431,8 @@ func (repo *repository) StreamOut(handle string, path string, dest io.Writer) er
 	return repo.streamer.Out(dest, srcPath, isPrivileged)
 }
 
-func (repo *repository) VolumeParent(handle string) (Volume, bool, error) {
-	logger := repo.logger.Session("volume-parent")
+func (repo *repository) VolumeParent(ctx context.Context, handle string) (Volume, bool, error) {
+	logger := lagerctx.FromContext(ctx).Session("volume-parent")
 
 	liveVolume, found, err := repo.filesystem.LookupVolume(handle)
 	if err != nil {

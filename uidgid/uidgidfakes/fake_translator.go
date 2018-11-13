@@ -50,6 +50,12 @@ func (fake *FakeTranslator) TranslateCommandCallCount() int {
 	return len(fake.translateCommandArgsForCall)
 }
 
+func (fake *FakeTranslator) TranslateCommandCalls(stub func(*exec.Cmd)) {
+	fake.translateCommandMutex.Lock()
+	defer fake.translateCommandMutex.Unlock()
+	fake.TranslateCommandStub = stub
+}
+
 func (fake *FakeTranslator) TranslateCommandArgsForCall(i int) *exec.Cmd {
 	fake.translateCommandMutex.RLock()
 	defer fake.translateCommandMutex.RUnlock()
@@ -83,6 +89,12 @@ func (fake *FakeTranslator) TranslatePathCallCount() int {
 	return len(fake.translatePathArgsForCall)
 }
 
+func (fake *FakeTranslator) TranslatePathCalls(stub func(string, os.FileInfo, error) error) {
+	fake.translatePathMutex.Lock()
+	defer fake.translatePathMutex.Unlock()
+	fake.TranslatePathStub = stub
+}
+
 func (fake *FakeTranslator) TranslatePathArgsForCall(i int) (string, os.FileInfo, error) {
 	fake.translatePathMutex.RLock()
 	defer fake.translatePathMutex.RUnlock()
@@ -91,6 +103,8 @@ func (fake *FakeTranslator) TranslatePathArgsForCall(i int) (string, os.FileInfo
 }
 
 func (fake *FakeTranslator) TranslatePathReturns(result1 error) {
+	fake.translatePathMutex.Lock()
+	defer fake.translatePathMutex.Unlock()
 	fake.TranslatePathStub = nil
 	fake.translatePathReturns = struct {
 		result1 error
@@ -98,6 +112,8 @@ func (fake *FakeTranslator) TranslatePathReturns(result1 error) {
 }
 
 func (fake *FakeTranslator) TranslatePathReturnsOnCall(i int, result1 error) {
+	fake.translatePathMutex.Lock()
+	defer fake.translatePathMutex.Unlock()
 	fake.TranslatePathStub = nil
 	if fake.translatePathReturnsOnCall == nil {
 		fake.translatePathReturnsOnCall = make(map[int]struct {

@@ -1,10 +1,12 @@
 package reaper
 
 import (
+	"context"
 	"fmt"
 
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerctx"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/hashicorp/go-multierror"
 )
@@ -25,7 +27,9 @@ func NewReaper(
 }
 
 func (reaper *Reaper) Reap(logger lager.Logger) error {
-	volumes, corruptedHandles, err := reaper.repo.ListVolumes(volume.Properties{})
+	ctx := lagerctx.NewContext(context.Background(), logger)
+
+	volumes, corruptedHandles, err := reaper.repo.ListVolumes(ctx, volume.Properties{})
 	if err != nil {
 		return fmt.Errorf("failed to list volumes: %s", err)
 	}
@@ -35,7 +39,7 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 	hasChildren := map[string]bool{}
 
 	for _, maybeChildVolume := range volumes {
-		parentVolume, found, err := reaper.repo.VolumeParent(maybeChildVolume.Handle)
+		parentVolume, found, err := reaper.repo.VolumeParent(ctx, maybeChildVolume.Handle)
 		if err != nil {
 			if err == volume.ErrVolumeIsCorrupted {
 				continue
@@ -65,7 +69,7 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 				"ttl":    volume.TTL,
 			})
 
-			err = reaper.repo.DestroyVolume(volume.Handle)
+			err = reaper.repo.DestroyVolume(ctx, volume.Handle)
 			if err != nil {
 				destroyErrs = multierror.Append(
 					destroyErrs,
@@ -82,7 +86,7 @@ func (reaper *Reaper) Reap(logger lager.Logger) error {
 			"handle": handle,
 		})
 
-		err = reaper.repo.DestroyVolumeAndDescendants(handle)
+		err = reaper.repo.DestroyVolumeAndDescendants(ctx, handle)
 		if err != nil {
 			destroyErrs = multierror.Append(
 				destroyErrs,

@@ -57,7 +57,15 @@ func (fake *FakeVolumeFuture) DestroyCallCount() int {
 	return len(fake.destroyArgsForCall)
 }
 
+func (fake *FakeVolumeFuture) DestroyCalls(stub func() error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
+	fake.DestroyStub = stub
+}
+
 func (fake *FakeVolumeFuture) DestroyReturns(result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	fake.destroyReturns = struct {
 		result1 error
@@ -65,6 +73,8 @@ func (fake *FakeVolumeFuture) DestroyReturns(result1 error) {
 }
 
 func (fake *FakeVolumeFuture) DestroyReturnsOnCall(i int, result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	if fake.destroyReturnsOnCall == nil {
 		fake.destroyReturnsOnCall = make(map[int]struct {
@@ -99,7 +109,15 @@ func (fake *FakeVolumeFuture) WaitCallCount() int {
 	return len(fake.waitArgsForCall)
 }
 
+func (fake *FakeVolumeFuture) WaitCalls(stub func() (baggageclaim.Volume, error)) {
+	fake.waitMutex.Lock()
+	defer fake.waitMutex.Unlock()
+	fake.WaitStub = stub
+}
+
 func (fake *FakeVolumeFuture) WaitReturns(result1 baggageclaim.Volume, result2 error) {
+	fake.waitMutex.Lock()
+	defer fake.waitMutex.Unlock()
 	fake.WaitStub = nil
 	fake.waitReturns = struct {
 		result1 baggageclaim.Volume
@@ -108,6 +126,8 @@ func (fake *FakeVolumeFuture) WaitReturns(result1 baggageclaim.Volume, result2 e
 }
 
 func (fake *FakeVolumeFuture) WaitReturnsOnCall(i int, result1 baggageclaim.Volume, result2 error) {
+	fake.waitMutex.Lock()
+	defer fake.waitMutex.Unlock()
 	fake.WaitStub = nil
 	if fake.waitReturnsOnCall == nil {
 		fake.waitReturnsOnCall = make(map[int]struct {

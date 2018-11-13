@@ -1,6 +1,7 @@
 package reaper_test
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -65,7 +66,8 @@ var _ = Describe("Reaper", func() {
 			})
 
 			It("lists volumes with no filter", func() {
-				Expect(repository.ListVolumesArgsForCall(0)).To(BeEmpty())
+				_, filter := repository.ListVolumesArgsForCall(0)
+				Expect(filter).To(BeEmpty())
 			})
 
 			Context("when no volumes have expired", func() {
@@ -82,7 +84,7 @@ var _ = Describe("Reaper", func() {
 				It("destroys it", func() {
 					Expect(repository.DestroyVolumeCallCount()).To(Equal(1))
 
-					handle := repository.DestroyVolumeArgsForCall(0)
+					_, handle := repository.DestroyVolumeArgsForCall(0)
 					Expect(handle).To(Equal(expiringVolume10sec.Handle))
 				})
 
@@ -102,7 +104,7 @@ var _ = Describe("Reaper", func() {
 
 				Context("when the expired volume has children", func() {
 					BeforeEach(func() {
-						repository.VolumeParentStub = func(handle string) (volume.Volume, bool, error) {
+						repository.VolumeParentStub = func(ctx context.Context, handle string) (volume.Volume, bool, error) {
 							switch handle {
 							case nonExpiringVolume.Handle:
 								return expiringVolume10sec, true, nil
@@ -140,16 +142,16 @@ var _ = Describe("Reaper", func() {
 				It("destroys the expired volumes", func() {
 					Expect(repository.DestroyVolumeCallCount()).To(Equal(2))
 
-					handle1 := repository.DestroyVolumeArgsForCall(0)
+					_, handle1 := repository.DestroyVolumeArgsForCall(0)
 					Expect(handle1).To(Equal(expiringVolume10sec.Handle))
 
-					handle2 := repository.DestroyVolumeArgsForCall(1)
+					_, handle2 := repository.DestroyVolumeArgsForCall(1)
 					Expect(handle2).To(Equal(expiringVolume20sec.Handle))
 				})
 
 				Context("when destroying any volumes fails", func() {
 					BeforeEach(func() {
-						repository.DestroyVolumeStub = func(handle string) error {
+						repository.DestroyVolumeStub = func(ctx context.Context, handle string) error {
 							return errors.New("nope to " + handle)
 						}
 					})
@@ -173,7 +175,8 @@ var _ = Describe("Reaper", func() {
 
 				It("destroys the corrupted volumes and all their descendents", func() {
 					Expect(repository.DestroyVolumeAndDescendantsCallCount()).To(Equal(1))
-					Expect(repository.DestroyVolumeAndDescendantsArgsForCall(0)).To(Equal("some-terrible-volume"))
+					_, handle := repository.DestroyVolumeAndDescendantsArgsForCall(0)
+					Expect(handle).To(Equal("some-terrible-volume"))
 				})
 			})
 		})

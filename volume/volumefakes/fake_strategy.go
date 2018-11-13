@@ -56,6 +56,12 @@ func (fake *FakeStrategy) MaterializeCallCount() int {
 	return len(fake.materializeArgsForCall)
 }
 
+func (fake *FakeStrategy) MaterializeCalls(stub func(lager.Logger, string, volume.Filesystem, volume.Streamer) (volume.FilesystemInitVolume, error)) {
+	fake.materializeMutex.Lock()
+	defer fake.materializeMutex.Unlock()
+	fake.MaterializeStub = stub
+}
+
 func (fake *FakeStrategy) MaterializeArgsForCall(i int) (lager.Logger, string, volume.Filesystem, volume.Streamer) {
 	fake.materializeMutex.RLock()
 	defer fake.materializeMutex.RUnlock()
@@ -64,6 +70,8 @@ func (fake *FakeStrategy) MaterializeArgsForCall(i int) (lager.Logger, string, v
 }
 
 func (fake *FakeStrategy) MaterializeReturns(result1 volume.FilesystemInitVolume, result2 error) {
+	fake.materializeMutex.Lock()
+	defer fake.materializeMutex.Unlock()
 	fake.MaterializeStub = nil
 	fake.materializeReturns = struct {
 		result1 volume.FilesystemInitVolume
@@ -72,6 +80,8 @@ func (fake *FakeStrategy) MaterializeReturns(result1 volume.FilesystemInitVolume
 }
 
 func (fake *FakeStrategy) MaterializeReturnsOnCall(i int, result1 volume.FilesystemInitVolume, result2 error) {
+	fake.materializeMutex.Lock()
+	defer fake.materializeMutex.Unlock()
 	fake.MaterializeStub = nil
 	if fake.materializeReturnsOnCall == nil {
 		fake.materializeReturnsOnCall = make(map[int]struct {

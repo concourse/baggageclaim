@@ -66,7 +66,6 @@ var _ = Describe("Volume Server", func() {
 		}
 
 		repo := volume.NewRepository(
-			logger,
 			fs,
 			volume.NewLockManager(),
 			privilegedNamespacer,

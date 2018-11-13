@@ -88,7 +88,6 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	}
 
 	volumeRepo := volume.NewRepository(
-		logger.Session("repository"),
 		filesystem,
 		locker,
 		privilegedNamespacer,

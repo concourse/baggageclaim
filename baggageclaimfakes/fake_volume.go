@@ -157,7 +157,15 @@ func (fake *FakeVolume) DestroyCallCount() int {
 	return len(fake.destroyArgsForCall)
 }
 
+func (fake *FakeVolume) DestroyCalls(stub func() error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
+	fake.DestroyStub = stub
+}
+
 func (fake *FakeVolume) DestroyReturns(result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	fake.destroyReturns = struct {
 		result1 error
@@ -165,6 +173,8 @@ func (fake *FakeVolume) DestroyReturns(result1 error) {
 }
 
 func (fake *FakeVolume) DestroyReturnsOnCall(i int, result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	if fake.destroyReturnsOnCall == nil {
 		fake.destroyReturnsOnCall = make(map[int]struct {
@@ -199,7 +209,15 @@ func (fake *FakeVolume) ExpirationCallCount() int {
 	return len(fake.expirationArgsForCall)
 }
 
+func (fake *FakeVolume) ExpirationCalls(stub func() (time.Duration, time.Time, error)) {
+	fake.expirationMutex.Lock()
+	defer fake.expirationMutex.Unlock()
+	fake.ExpirationStub = stub
+}
+
 func (fake *FakeVolume) ExpirationReturns(result1 time.Duration, result2 time.Time, result3 error) {
+	fake.expirationMutex.Lock()
+	defer fake.expirationMutex.Unlock()
 	fake.ExpirationStub = nil
 	fake.expirationReturns = struct {
 		result1 time.Duration
@@ -209,6 +227,8 @@ func (fake *FakeVolume) ExpirationReturns(result1 time.Duration, result2 time.Ti
 }
 
 func (fake *FakeVolume) ExpirationReturnsOnCall(i int, result1 time.Duration, result2 time.Time, result3 error) {
+	fake.expirationMutex.Lock()
+	defer fake.expirationMutex.Unlock()
 	fake.ExpirationStub = nil
 	if fake.expirationReturnsOnCall == nil {
 		fake.expirationReturnsOnCall = make(map[int]struct {
@@ -247,7 +267,15 @@ func (fake *FakeVolume) HandleCallCount() int {
 	return len(fake.handleArgsForCall)
 }
 
+func (fake *FakeVolume) HandleCalls(stub func() string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
+	fake.HandleStub = stub
+}
+
 func (fake *FakeVolume) HandleReturns(result1 string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	fake.handleReturns = struct {
 		result1 string
@@ -255,6 +283,8 @@ func (fake *FakeVolume) HandleReturns(result1 string) {
 }
 
 func (fake *FakeVolume) HandleReturnsOnCall(i int, result1 string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	if fake.handleReturnsOnCall == nil {
 		fake.handleReturnsOnCall = make(map[int]struct {
@@ -289,7 +319,15 @@ func (fake *FakeVolume) PathCallCount() int {
 	return len(fake.pathArgsForCall)
 }
 
+func (fake *FakeVolume) PathCalls(stub func() string) {
+	fake.pathMutex.Lock()
+	defer fake.pathMutex.Unlock()
+	fake.PathStub = stub
+}
+
 func (fake *FakeVolume) PathReturns(result1 string) {
+	fake.pathMutex.Lock()
+	defer fake.pathMutex.Unlock()
 	fake.PathStub = nil
 	fake.pathReturns = struct {
 		result1 string
@@ -297,6 +335,8 @@ func (fake *FakeVolume) PathReturns(result1 string) {
 }
 
 func (fake *FakeVolume) PathReturnsOnCall(i int, result1 string) {
+	fake.pathMutex.Lock()
+	defer fake.pathMutex.Unlock()
 	fake.PathStub = nil
 	if fake.pathReturnsOnCall == nil {
 		fake.pathReturnsOnCall = make(map[int]struct {
@@ -331,7 +371,15 @@ func (fake *FakeVolume) PropertiesCallCount() int {
 	return len(fake.propertiesArgsForCall)
 }
 
+func (fake *FakeVolume) PropertiesCalls(stub func() (baggageclaim.VolumeProperties, error)) {
+	fake.propertiesMutex.Lock()
+	defer fake.propertiesMutex.Unlock()
+	fake.PropertiesStub = stub
+}
+
 func (fake *FakeVolume) PropertiesReturns(result1 baggageclaim.VolumeProperties, result2 error) {
+	fake.propertiesMutex.Lock()
+	defer fake.propertiesMutex.Unlock()
 	fake.PropertiesStub = nil
 	fake.propertiesReturns = struct {
 		result1 baggageclaim.VolumeProperties
@@ -340,6 +388,8 @@ func (fake *FakeVolume) PropertiesReturns(result1 baggageclaim.VolumeProperties,
 }
 
 func (fake *FakeVolume) PropertiesReturnsOnCall(i int, result1 baggageclaim.VolumeProperties, result2 error) {
+	fake.propertiesMutex.Lock()
+	defer fake.propertiesMutex.Unlock()
 	fake.PropertiesStub = nil
 	if fake.propertiesReturnsOnCall == nil {
 		fake.propertiesReturnsOnCall = make(map[int]struct {
@@ -369,6 +419,12 @@ func (fake *FakeVolume) ReleaseCallCount() int {
 	fake.releaseMutex.RLock()
 	defer fake.releaseMutex.RUnlock()
 	return len(fake.releaseArgsForCall)
+}
+
+func (fake *FakeVolume) ReleaseCalls(stub func(*time.Duration)) {
+	fake.releaseMutex.Lock()
+	defer fake.releaseMutex.Unlock()
+	fake.ReleaseStub = stub
 }
 
 func (fake *FakeVolume) ReleaseArgsForCall(i int) *time.Duration {
@@ -402,6 +458,12 @@ func (fake *FakeVolume) SetPrivilegedCallCount() int {
 	return len(fake.setPrivilegedArgsForCall)
 }
 
+func (fake *FakeVolume) SetPrivilegedCalls(stub func(bool) error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
+	fake.SetPrivilegedStub = stub
+}
+
 func (fake *FakeVolume) SetPrivilegedArgsForCall(i int) bool {
 	fake.setPrivilegedMutex.RLock()
 	defer fake.setPrivilegedMutex.RUnlock()
@@ -410,6 +472,8 @@ func (fake *FakeVolume) SetPrivilegedArgsForCall(i int) bool {
 }
 
 func (fake *FakeVolume) SetPrivilegedReturns(result1 error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
 	fake.SetPrivilegedStub = nil
 	fake.setPrivilegedReturns = struct {
 		result1 error
@@ -417,6 +481,8 @@ func (fake *FakeVolume) SetPrivilegedReturns(result1 error) {
 }
 
 func (fake *FakeVolume) SetPrivilegedReturnsOnCall(i int, result1 error) {
+	fake.setPrivilegedMutex.Lock()
+	defer fake.setPrivilegedMutex.Unlock()
 	fake.SetPrivilegedStub = nil
 	if fake.setPrivilegedReturnsOnCall == nil {
 		fake.setPrivilegedReturnsOnCall = make(map[int]struct {
@@ -453,6 +519,12 @@ func (fake *FakeVolume) SetPropertyCallCount() int {
 	return len(fake.setPropertyArgsForCall)
 }
 
+func (fake *FakeVolume) SetPropertyCalls(stub func(string, string) error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
+	fake.SetPropertyStub = stub
+}
+
 func (fake *FakeVolume) SetPropertyArgsForCall(i int) (string, string) {
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
@@ -461,6 +533,8 @@ func (fake *FakeVolume) SetPropertyArgsForCall(i int) (string, string) {
 }
 
 func (fake *FakeVolume) SetPropertyReturns(result1 error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
 	fake.SetPropertyStub = nil
 	fake.setPropertyReturns = struct {
 		result1 error
@@ -468,6 +542,8 @@ func (fake *FakeVolume) SetPropertyReturns(result1 error) {
 }
 
 func (fake *FakeVolume) SetPropertyReturnsOnCall(i int, result1 error) {
+	fake.setPropertyMutex.Lock()
+	defer fake.setPropertyMutex.Unlock()
 	fake.SetPropertyStub = nil
 	if fake.setPropertyReturnsOnCall == nil {
 		fake.setPropertyReturnsOnCall = make(map[int]struct {
@@ -503,6 +579,12 @@ func (fake *FakeVolume) SetTTLCallCount() int {
 	return len(fake.setTTLArgsForCall)
 }
 
+func (fake *FakeVolume) SetTTLCalls(stub func(time.Duration) error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
+	fake.SetTTLStub = stub
+}
+
 func (fake *FakeVolume) SetTTLArgsForCall(i int) time.Duration {
 	fake.setTTLMutex.RLock()
 	defer fake.setTTLMutex.RUnlock()
@@ -511,6 +593,8 @@ func (fake *FakeVolume) SetTTLArgsForCall(i int) time.Duration {
 }
 
 func (fake *FakeVolume) SetTTLReturns(result1 error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
 	fake.SetTTLStub = nil
 	fake.setTTLReturns = struct {
 		result1 error
@@ -518,6 +602,8 @@ func (fake *FakeVolume) SetTTLReturns(result1 error) {
 }
 
 func (fake *FakeVolume) SetTTLReturnsOnCall(i int, result1 error) {
+	fake.setTTLMutex.Lock()
+	defer fake.setTTLMutex.Unlock()
 	fake.SetTTLStub = nil
 	if fake.setTTLReturnsOnCall == nil {
 		fake.setTTLReturnsOnCall = make(map[int]struct {
@@ -554,6 +640,12 @@ func (fake *FakeVolume) StreamInCallCount() int {
 	return len(fake.streamInArgsForCall)
 }
 
+func (fake *FakeVolume) StreamInCalls(stub func(string, io.Reader) error) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
+	fake.StreamInStub = stub
+}
+
 func (fake *FakeVolume) StreamInArgsForCall(i int) (string, io.Reader) {
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
@@ -562,6 +654,8 @@ func (fake *FakeVolume) StreamInArgsForCall(i int) (string, io.Reader) {
 }
 
 func (fake *FakeVolume) StreamInReturns(result1 error) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = nil
 	fake.streamInReturns = struct {
 		result1 error
@@ -569,6 +663,8 @@ func (fake *FakeVolume) StreamInReturns(result1 error) {
 }
 
 func (fake *FakeVolume) StreamInReturnsOnCall(i int, result1 error) {
+	fake.streamInMutex.Lock()
+	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = nil
 	if fake.streamInReturnsOnCall == nil {
 		fake.streamInReturnsOnCall = make(map[int]struct {
@@ -604,6 +700,12 @@ func (fake *FakeVolume) StreamOutCallCount() int {
 	return len(fake.streamOutArgsForCall)
 }
 
+func (fake *FakeVolume) StreamOutCalls(stub func(string) (io.ReadCloser, error)) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
+	fake.StreamOutStub = stub
+}
+
 func (fake *FakeVolume) StreamOutArgsForCall(i int) string {
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
@@ -612,6 +714,8 @@ func (fake *FakeVolume) StreamOutArgsForCall(i int) string {
 }
 
 func (fake *FakeVolume) StreamOutReturns(result1 io.ReadCloser, result2 error) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = nil
 	fake.streamOutReturns = struct {
 		result1 io.ReadCloser
@@ -620,6 +724,8 @@ func (fake *FakeVolume) StreamOutReturns(result1 io.ReadCloser, result2 error) {
 }
 
 func (fake *FakeVolume) StreamOutReturnsOnCall(i int, result1 io.ReadCloser, result2 error) {
+	fake.streamOutMutex.Lock()
+	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = nil
 	if fake.streamOutReturnsOnCall == nil {
 		fake.streamOutReturnsOnCall = make(map[int]struct {

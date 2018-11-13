@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"sync"
 
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerctx"
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
@@ -54,12 +56,14 @@ func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	request, handle, strategy, hLog, err := vs.prepareCreate(w, req, hLog)
 	if err != nil {
 		return
 	}
 
-	createdVolume, err := vs.doCreate(w, request, handle, strategy, hLog, vs)
+	createdVolume, err := vs.doCreate(ctx, w, request, handle, strategy, hLog, vs)
 	if err != nil {
 		return
 	}
@@ -80,6 +84,8 @@ func (vs *VolumeServer) CreateVolumeAsync(w http.ResponseWriter, req *http.Reque
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	request, handle, strategy, hLog, err := vs.prepareCreate(w, req, hLog)
 	if err != nil {
 		return
@@ -97,7 +103,7 @@ func (vs *VolumeServer) CreateVolumeAsync(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	go vs.doCreate(w, request, handle, strategy, hLog, handlers)
+	go vs.doCreate(ctx, w, request, handle, strategy, hLog, handlers)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -200,7 +206,9 @@ func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) 
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	err := vs.volumeRepo.DestroyVolume(handle)
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	err := vs.volumeRepo.DestroyVolume(ctx, handle)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-does-not-exist")
@@ -238,34 +246,37 @@ func (vs *VolumeServer) DestroyVolumes(w http.ResponseWriter, req *http.Request)
 	var errChan = make(chan error, len(volumes))
 
 	for _, handle := range volumes {
-		handlerLog := hLog.Session("destroying-volume", lager.Data{"handle": handle})
+		volumeLog := hLog.Session("destroy", lager.Data{"handle": handle})
+
+		ctx := lagerctx.NewContext(req.Context(), volumeLog)
 
 		handleWg.Add(1)
+		go func(handle string) {
+			defer handleWg.Done()
 
-		go func(errChan chan error, wg *sync.WaitGroup, handle string, hLog lager.Logger) {
-			err := vs.volumeRepo.DestroyVolume(handle)
+			err := vs.volumeRepo.DestroyVolume(ctx, handle)
 			if err != nil {
 				if err == volume.ErrVolumeDoesNotExist {
-					hLog.Info("volume-does-not-exist")
+					volumeLog.Info("volume-does-not-exist")
 				} else {
-					hLog.Error("failed-to-destroy-volume", err)
+					volumeLog.Error("failed-to-destroy-volume", err)
 					errChan <- err
 				}
 			}
-			handleWg.Done()
-		}(errChan, &handleWg, handle, handlerLog)
+		}(handle)
 	}
 
-	hLog.Info("waiting-for-volumes-to-be-destroyed")
+	hLog.Debug("waiting-for-volumes-to-be-destroyed")
+
 	handleWg.Wait()
 	close(errChan)
 
 	if len(errChan) > 0 {
 		RespondWithError(w, ErrDestroyVolumeFailed, http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-	hLog.Info("destroyed")
 }
 
 func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
@@ -273,6 +284,8 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 
 	hLog.Debug("start")
 	defer hLog.Debug("done")
+
+	ctx := lagerctx.NewContext(req.Context(), hLog)
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -282,7 +295,7 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	volumes, _, err := vs.volumeRepo.ListVolumes(properties)
+	volumes, _, err := vs.volumeRepo.ListVolumes(ctx, properties)
 	if err != nil {
 		hLog.Error("failed-to-list-volumes", err)
 		RespondWithError(w, ErrListVolumesFailed, http.StatusInternalServerError)
@@ -306,7 +319,9 @@ func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	vol, found, err := vs.volumeRepo.GetVolume(handle)
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
 	if err != nil {
 		hLog.Error("failed-to-get-volume", err)
 		RespondWithError(w, ErrGetVolumeFailed, http.StatusInternalServerError)
@@ -336,6 +351,8 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	var request baggageclaim.PropertyRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
@@ -347,7 +364,7 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 
 	hLog.Debug("setting-property")
 
-	err = vs.volumeRepo.SetProperty(handle, propertyName, propertyValue)
+	err = vs.volumeRepo.SetProperty(ctx, handle, propertyName, propertyValue)
 	if err != nil {
 		hLog.Error("failed-to-set-property", err)
 
@@ -373,6 +390,8 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	var request baggageclaim.TTLRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
@@ -384,7 +403,7 @@ func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
 
 	hLog.Debug("setting-ttl", lager.Data{"ttl": ttl})
 
-	err = vs.volumeRepo.SetTTL(handle, ttl)
+	err = vs.volumeRepo.SetTTL(ctx, handle, ttl)
 	if err != nil {
 		hLog.Error("failed-to-set-ttl", err)
 
@@ -410,6 +429,8 @@ func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) 
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	var request baggageclaim.PrivilegedRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
@@ -421,7 +442,7 @@ func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) 
 
 	hLog.Debug("setting-privileged", lager.Data{"privileged": privileged})
 
-	err = vs.volumeRepo.SetPrivileged(handle, privileged)
+	err = vs.volumeRepo.SetPrivileged(ctx, handle, privileged)
 	if err != nil {
 		hLog.Error("failed-to-change-privileged-status", err)
 
@@ -447,12 +468,14 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	var subPath string
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
-	badStream, err := vs.volumeRepo.StreamIn(handle, subPath, req.Body)
+	badStream, err := vs.volumeRepo.StreamIn(ctx, handle, subPath, req.Body)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
@@ -484,12 +507,14 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
 	var subPath string
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
 
-	err := vs.volumeRepo.StreamOut(handle, subPath, w)
+	err := vs.volumeRepo.StreamOut(ctx, handle, subPath, w)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
@@ -554,10 +579,11 @@ func (vs *VolumeServer) prepareCreate(w http.ResponseWriter, req *http.Request, 
 	return request, handle, strategy, hLog, nil
 }
 
-func (vs *VolumeServer) doCreate(w http.ResponseWriter, request baggageclaim.VolumeRequest, handle string, strategy volume.Strategy, hLog lager.Logger, handlers volumeCreationHandler) (volume.Volume, error) {
+func (vs *VolumeServer) doCreate(ctx context.Context, w http.ResponseWriter, request baggageclaim.VolumeRequest, handle string, strategy volume.Strategy, hLog lager.Logger, handlers volumeCreationHandler) (volume.Volume, error) {
 	hLog.Debug("creating")
 
 	createdVolume, err := vs.volumeRepo.CreateVolume(
+		ctx,
 		handle,
 		strategy,
 		volume.Properties(request.Properties),
@@ -567,7 +593,6 @@ func (vs *VolumeServer) doCreate(w http.ResponseWriter, request baggageclaim.Vol
 
 	if err != nil {
 		hLog.Error("failed-to-create", err)
-
 		return handlers.creationFailed(w, err)
 	}
 
@@ -577,12 +602,12 @@ func (vs *VolumeServer) doCreate(w http.ResponseWriter, request baggageclaim.Vol
 
 	hLog.Debug("created")
 
-	return handlers.creationSucceeded(createdVolume, hLog)
+	return handlers.creationSucceeded(ctx, createdVolume, hLog)
 }
 
 type volumeCreationHandler interface {
 	creationFailed(w http.ResponseWriter, err error) (volume.Volume, error)
-	creationSucceeded(createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error)
+	creationSucceeded(ctx context.Context, createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error)
 }
 
 func (vs *VolumeServer) creationFailed(w http.ResponseWriter, err error) (volume.Volume, error) {
@@ -599,7 +624,7 @@ func (vs *VolumeServer) creationFailed(w http.ResponseWriter, err error) (volume
 	return volume.Volume{}, err
 }
 
-func (vs *VolumeServer) creationSucceeded(createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error) {
+func (vs *VolumeServer) creationSucceeded(ctx context.Context, createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error) {
 	return createdVolume, nil
 }
 
@@ -614,23 +639,23 @@ func (h *createVolumeHandlerAsync) creationFailed(w http.ResponseWriter, err err
 	return volume.Volume{}, err
 }
 
-func (h *createVolumeHandlerAsync) creationSucceeded(createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error) {
+func (h *createVolumeHandlerAsync) creationSucceeded(ctx context.Context, createdVolume volume.Volume, hLog lager.Logger) (volume.Volume, error) {
 	err := h.promise.Fulfill(createdVolume)
 	if err != nil {
 		if err == volume.ErrPromiseCanceled {
 			hLog.Info("promise-was-canceled")
 
-			hLogDestroy := h.server.logger.Session("destroy", lager.Data{
+			hLogDestroy := lagerctx.FromContext(ctx).Session("destroy-via-cancel", lager.Data{
 				"volume": createdVolume.Handle,
 			})
 
 			hLogDestroy.Debug("start")
 			defer hLogDestroy.Debug("done")
 
-			err := h.server.volumeRepo.DestroyVolume(createdVolume.Handle)
+			err := h.server.volumeRepo.DestroyVolume(lagerctx.NewContext(ctx, hLogDestroy), createdVolume.Handle)
 			if err != nil {
 				if err != volume.ErrVolumeDoesNotExist {
-					hLog.Error("failed-to-destroy", err)
+					hLogDestroy.Error("failed-to-destroy", err)
 				}
 			}
 		} else {

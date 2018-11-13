@@ -67,6 +67,12 @@ func (fake *FakeStreamer) InCallCount() int {
 	return len(fake.inArgsForCall)
 }
 
+func (fake *FakeStreamer) InCalls(stub func(io.Reader, string, bool) (bool, error)) {
+	fake.inMutex.Lock()
+	defer fake.inMutex.Unlock()
+	fake.InStub = stub
+}
+
 func (fake *FakeStreamer) InArgsForCall(i int) (io.Reader, string, bool) {
 	fake.inMutex.RLock()
 	defer fake.inMutex.RUnlock()
@@ -75,6 +81,8 @@ func (fake *FakeStreamer) InArgsForCall(i int) (io.Reader, string, bool) {
 }
 
 func (fake *FakeStreamer) InReturns(result1 bool, result2 error) {
+	fake.inMutex.Lock()
+	defer fake.inMutex.Unlock()
 	fake.InStub = nil
 	fake.inReturns = struct {
 		result1 bool
@@ -83,6 +91,8 @@ func (fake *FakeStreamer) InReturns(result1 bool, result2 error) {
 }
 
 func (fake *FakeStreamer) InReturnsOnCall(i int, result1 bool, result2 error) {
+	fake.inMutex.Lock()
+	defer fake.inMutex.Unlock()
 	fake.InStub = nil
 	if fake.inReturnsOnCall == nil {
 		fake.inReturnsOnCall = make(map[int]struct {
@@ -122,6 +132,12 @@ func (fake *FakeStreamer) OutCallCount() int {
 	return len(fake.outArgsForCall)
 }
 
+func (fake *FakeStreamer) OutCalls(stub func(io.Writer, string, bool) error) {
+	fake.outMutex.Lock()
+	defer fake.outMutex.Unlock()
+	fake.OutStub = stub
+}
+
 func (fake *FakeStreamer) OutArgsForCall(i int) (io.Writer, string, bool) {
 	fake.outMutex.RLock()
 	defer fake.outMutex.RUnlock()
@@ -130,6 +146,8 @@ func (fake *FakeStreamer) OutArgsForCall(i int) (io.Writer, string, bool) {
 }
 
 func (fake *FakeStreamer) OutReturns(result1 error) {
+	fake.outMutex.Lock()
+	defer fake.outMutex.Unlock()
 	fake.OutStub = nil
 	fake.outReturns = struct {
 		result1 error
@@ -137,6 +155,8 @@ func (fake *FakeStreamer) OutReturns(result1 error) {
 }
 
 func (fake *FakeStreamer) OutReturnsOnCall(i int, result1 error) {
+	fake.outMutex.Lock()
+	defer fake.outMutex.Unlock()
 	fake.OutStub = nil
 	if fake.outReturnsOnCall == nil {
 		fake.outReturnsOnCall = make(map[int]struct {

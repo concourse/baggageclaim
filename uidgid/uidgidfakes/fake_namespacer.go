@@ -49,6 +49,12 @@ func (fake *FakeNamespacer) NamespaceCommandCallCount() int {
 	return len(fake.namespaceCommandArgsForCall)
 }
 
+func (fake *FakeNamespacer) NamespaceCommandCalls(stub func(*exec.Cmd)) {
+	fake.namespaceCommandMutex.Lock()
+	defer fake.namespaceCommandMutex.Unlock()
+	fake.NamespaceCommandStub = stub
+}
+
 func (fake *FakeNamespacer) NamespaceCommandArgsForCall(i int) *exec.Cmd {
 	fake.namespaceCommandMutex.RLock()
 	defer fake.namespaceCommandMutex.RUnlock()
@@ -81,6 +87,12 @@ func (fake *FakeNamespacer) NamespacePathCallCount() int {
 	return len(fake.namespacePathArgsForCall)
 }
 
+func (fake *FakeNamespacer) NamespacePathCalls(stub func(lager.Logger, string) error) {
+	fake.namespacePathMutex.Lock()
+	defer fake.namespacePathMutex.Unlock()
+	fake.NamespacePathStub = stub
+}
+
 func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) (lager.Logger, string) {
 	fake.namespacePathMutex.RLock()
 	defer fake.namespacePathMutex.RUnlock()
@@ -89,6 +101,8 @@ func (fake *FakeNamespacer) NamespacePathArgsForCall(i int) (lager.Logger, strin
 }
 
 func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {
+	fake.namespacePathMutex.Lock()
+	defer fake.namespacePathMutex.Unlock()
 	fake.NamespacePathStub = nil
 	fake.namespacePathReturns = struct {
 		result1 error
@@ -96,6 +110,8 @@ func (fake *FakeNamespacer) NamespacePathReturns(result1 error) {
 }
 
 func (fake *FakeNamespacer) NamespacePathReturnsOnCall(i int, result1 error) {
+	fake.namespacePathMutex.Lock()
+	defer fake.namespacePathMutex.Unlock()
 	fake.NamespacePathStub = nil
 	if fake.namespacePathReturnsOnCall == nil {
 		fake.namespacePathReturnsOnCall = make(map[int]struct {

@@ -96,6 +96,12 @@ func (fake *FakeClient) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
+func (fake *FakeClient) CreateVolumeCalls(stub func(lager.Logger, string, baggageclaim.VolumeSpec) (baggageclaim.Volume, error)) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
+	fake.CreateVolumeStub = stub
+}
+
 func (fake *FakeClient) CreateVolumeArgsForCall(i int) (lager.Logger, string, baggageclaim.VolumeSpec) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
@@ -104,6 +110,8 @@ func (fake *FakeClient) CreateVolumeArgsForCall(i int) (lager.Logger, string, ba
 }
 
 func (fake *FakeClient) CreateVolumeReturns(result1 baggageclaim.Volume, result2 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	fake.createVolumeReturns = struct {
 		result1 baggageclaim.Volume
@@ -112,6 +120,8 @@ func (fake *FakeClient) CreateVolumeReturns(result1 baggageclaim.Volume, result2
 }
 
 func (fake *FakeClient) CreateVolumeReturnsOnCall(i int, result1 baggageclaim.Volume, result2 error) {
+	fake.createVolumeMutex.Lock()
+	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = nil
 	if fake.createVolumeReturnsOnCall == nil {
 		fake.createVolumeReturnsOnCall = make(map[int]struct {
@@ -155,6 +165,12 @@ func (fake *FakeClient) DestroyVolumesCallCount() int {
 	return len(fake.destroyVolumesArgsForCall)
 }
 
+func (fake *FakeClient) DestroyVolumesCalls(stub func(lager.Logger, []string) error) {
+	fake.destroyVolumesMutex.Lock()
+	defer fake.destroyVolumesMutex.Unlock()
+	fake.DestroyVolumesStub = stub
+}
+
 func (fake *FakeClient) DestroyVolumesArgsForCall(i int) (lager.Logger, []string) {
 	fake.destroyVolumesMutex.RLock()
 	defer fake.destroyVolumesMutex.RUnlock()
@@ -163,6 +179,8 @@ func (fake *FakeClient) DestroyVolumesArgsForCall(i int) (lager.Logger, []string
 }
 
 func (fake *FakeClient) DestroyVolumesReturns(result1 error) {
+	fake.destroyVolumesMutex.Lock()
+	defer fake.destroyVolumesMutex.Unlock()
 	fake.DestroyVolumesStub = nil
 	fake.destroyVolumesReturns = struct {
 		result1 error
@@ -170,6 +188,8 @@ func (fake *FakeClient) DestroyVolumesReturns(result1 error) {
 }
 
 func (fake *FakeClient) DestroyVolumesReturnsOnCall(i int, result1 error) {
+	fake.destroyVolumesMutex.Lock()
+	defer fake.destroyVolumesMutex.Unlock()
 	fake.DestroyVolumesStub = nil
 	if fake.destroyVolumesReturnsOnCall == nil {
 		fake.destroyVolumesReturnsOnCall = make(map[int]struct {
@@ -206,6 +226,12 @@ func (fake *FakeClient) ListVolumesCallCount() int {
 	return len(fake.listVolumesArgsForCall)
 }
 
+func (fake *FakeClient) ListVolumesCalls(stub func(lager.Logger, baggageclaim.VolumeProperties) (baggageclaim.Volumes, error)) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
+	fake.ListVolumesStub = stub
+}
+
 func (fake *FakeClient) ListVolumesArgsForCall(i int) (lager.Logger, baggageclaim.VolumeProperties) {
 	fake.listVolumesMutex.RLock()
 	defer fake.listVolumesMutex.RUnlock()
@@ -214,6 +240,8 @@ func (fake *FakeClient) ListVolumesArgsForCall(i int) (lager.Logger, baggageclai
 }
 
 func (fake *FakeClient) ListVolumesReturns(result1 baggageclaim.Volumes, result2 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	fake.listVolumesReturns = struct {
 		result1 baggageclaim.Volumes
@@ -222,6 +250,8 @@ func (fake *FakeClient) ListVolumesReturns(result1 baggageclaim.Volumes, result2
 }
 
 func (fake *FakeClient) ListVolumesReturnsOnCall(i int, result1 baggageclaim.Volumes, result2 error) {
+	fake.listVolumesMutex.Lock()
+	defer fake.listVolumesMutex.Unlock()
 	fake.ListVolumesStub = nil
 	if fake.listVolumesReturnsOnCall == nil {
 		fake.listVolumesReturnsOnCall = make(map[int]struct {
@@ -260,6 +290,12 @@ func (fake *FakeClient) LookupVolumeCallCount() int {
 	return len(fake.lookupVolumeArgsForCall)
 }
 
+func (fake *FakeClient) LookupVolumeCalls(stub func(lager.Logger, string) (baggageclaim.Volume, bool, error)) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
+	fake.LookupVolumeStub = stub
+}
+
 func (fake *FakeClient) LookupVolumeArgsForCall(i int) (lager.Logger, string) {
 	fake.lookupVolumeMutex.RLock()
 	defer fake.lookupVolumeMutex.RUnlock()
@@ -268,6 +304,8 @@ func (fake *FakeClient) LookupVolumeArgsForCall(i int) (lager.Logger, string) {
 }
 
 func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2 bool, result3 error) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
 	fake.LookupVolumeStub = nil
 	fake.lookupVolumeReturns = struct {
 		result1 baggageclaim.Volume
@@ -277,6 +315,8 @@ func (fake *FakeClient) LookupVolumeReturns(result1 baggageclaim.Volume, result2
 }
 
 func (fake *FakeClient) LookupVolumeReturnsOnCall(i int, result1 baggageclaim.Volume, result2 bool, result3 error) {
+	fake.lookupVolumeMutex.Lock()
+	defer fake.lookupVolumeMutex.Unlock()
 	fake.LookupVolumeStub = nil
 	if fake.lookupVolumeReturnsOnCall == nil {
 		fake.lookupVolumeReturnsOnCall = make(map[int]struct {

@@ -153,7 +153,15 @@ func (fake *FakeFilesystemVolume) DataPathCallCount() int {
 	return len(fake.dataPathArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) DataPathCalls(stub func() string) {
+	fake.dataPathMutex.Lock()
+	defer fake.dataPathMutex.Unlock()
+	fake.DataPathStub = stub
+}
+
 func (fake *FakeFilesystemVolume) DataPathReturns(result1 string) {
+	fake.dataPathMutex.Lock()
+	defer fake.dataPathMutex.Unlock()
 	fake.DataPathStub = nil
 	fake.dataPathReturns = struct {
 		result1 string
@@ -161,6 +169,8 @@ func (fake *FakeFilesystemVolume) DataPathReturns(result1 string) {
 }
 
 func (fake *FakeFilesystemVolume) DataPathReturnsOnCall(i int, result1 string) {
+	fake.dataPathMutex.Lock()
+	defer fake.dataPathMutex.Unlock()
 	fake.DataPathStub = nil
 	if fake.dataPathReturnsOnCall == nil {
 		fake.dataPathReturnsOnCall = make(map[int]struct {
@@ -195,7 +205,15 @@ func (fake *FakeFilesystemVolume) DestroyCallCount() int {
 	return len(fake.destroyArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) DestroyCalls(stub func() error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
+	fake.DestroyStub = stub
+}
+
 func (fake *FakeFilesystemVolume) DestroyReturns(result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	fake.destroyReturns = struct {
 		result1 error
@@ -203,6 +221,8 @@ func (fake *FakeFilesystemVolume) DestroyReturns(result1 error) {
 }
 
 func (fake *FakeFilesystemVolume) DestroyReturnsOnCall(i int, result1 error) {
+	fake.destroyMutex.Lock()
+	defer fake.destroyMutex.Unlock()
 	fake.DestroyStub = nil
 	if fake.destroyReturnsOnCall == nil {
 		fake.destroyReturnsOnCall = make(map[int]struct {
@@ -237,7 +257,15 @@ func (fake *FakeFilesystemVolume) HandleCallCount() int {
 	return len(fake.handleArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) HandleCalls(stub func() string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
+	fake.HandleStub = stub
+}
+
 func (fake *FakeFilesystemVolume) HandleReturns(result1 string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	fake.handleReturns = struct {
 		result1 string
@@ -245,6 +273,8 @@ func (fake *FakeFilesystemVolume) HandleReturns(result1 string) {
 }
 
 func (fake *FakeFilesystemVolume) HandleReturnsOnCall(i int, result1 string) {
+	fake.handleMutex.Lock()
+	defer fake.handleMutex.Unlock()
 	fake.HandleStub = nil
 	if fake.handleReturnsOnCall == nil {
 		fake.handleReturnsOnCall = make(map[int]struct {
@@ -279,7 +309,15 @@ func (fake *FakeFilesystemVolume) LoadPrivilegedCallCount() int {
 	return len(fake.loadPrivilegedArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) LoadPrivilegedCalls(stub func() (bool, error)) {
+	fake.loadPrivilegedMutex.Lock()
+	defer fake.loadPrivilegedMutex.Unlock()
+	fake.LoadPrivilegedStub = stub
+}
+
 func (fake *FakeFilesystemVolume) LoadPrivilegedReturns(result1 bool, result2 error) {
+	fake.loadPrivilegedMutex.Lock()
+	defer fake.loadPrivilegedMutex.Unlock()
 	fake.LoadPrivilegedStub = nil
 	fake.loadPrivilegedReturns = struct {
 		result1 bool
@@ -288,6 +326,8 @@ func (fake *FakeFilesystemVolume) LoadPrivilegedReturns(result1 bool, result2 er
 }
 
 func (fake *FakeFilesystemVolume) LoadPrivilegedReturnsOnCall(i int, result1 bool, result2 error) {
+	fake.loadPrivilegedMutex.Lock()
+	defer fake.loadPrivilegedMutex.Unlock()
 	fake.LoadPrivilegedStub = nil
 	if fake.loadPrivilegedReturnsOnCall == nil {
 		fake.loadPrivilegedReturnsOnCall = make(map[int]struct {
@@ -324,7 +364,15 @@ func (fake *FakeFilesystemVolume) LoadPropertiesCallCount() int {
 	return len(fake.loadPropertiesArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) LoadPropertiesCalls(stub func() (volume.Properties, error)) {
+	fake.loadPropertiesMutex.Lock()
+	defer fake.loadPropertiesMutex.Unlock()
+	fake.LoadPropertiesStub = stub
+}
+
 func (fake *FakeFilesystemVolume) LoadPropertiesReturns(result1 volume.Properties, result2 error) {
+	fake.loadPropertiesMutex.Lock()
+	defer fake.loadPropertiesMutex.Unlock()
 	fake.LoadPropertiesStub = nil
 	fake.loadPropertiesReturns = struct {
 		result1 volume.Properties
@@ -333,6 +381,8 @@ func (fake *FakeFilesystemVolume) LoadPropertiesReturns(result1 volume.Propertie
 }
 
 func (fake *FakeFilesystemVolume) LoadPropertiesReturnsOnCall(i int, result1 volume.Properties, result2 error) {
+	fake.loadPropertiesMutex.Lock()
+	defer fake.loadPropertiesMutex.Unlock()
 	fake.LoadPropertiesStub = nil
 	if fake.loadPropertiesReturnsOnCall == nil {
 		fake.loadPropertiesReturnsOnCall = make(map[int]struct {
@@ -369,7 +419,15 @@ func (fake *FakeFilesystemVolume) LoadTTLCallCount() int {
 	return len(fake.loadTTLArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) LoadTTLCalls(stub func() (volume.TTL, time.Time, error)) {
+	fake.loadTTLMutex.Lock()
+	defer fake.loadTTLMutex.Unlock()
+	fake.LoadTTLStub = stub
+}
+
 func (fake *FakeFilesystemVolume) LoadTTLReturns(result1 volume.TTL, result2 time.Time, result3 error) {
+	fake.loadTTLMutex.Lock()
+	defer fake.loadTTLMutex.Unlock()
 	fake.LoadTTLStub = nil
 	fake.loadTTLReturns = struct {
 		result1 volume.TTL
@@ -379,6 +437,8 @@ func (fake *FakeFilesystemVolume) LoadTTLReturns(result1 volume.TTL, result2 tim
 }
 
 func (fake *FakeFilesystemVolume) LoadTTLReturnsOnCall(i int, result1 volume.TTL, result2 time.Time, result3 error) {
+	fake.loadTTLMutex.Lock()
+	defer fake.loadTTLMutex.Unlock()
 	fake.LoadTTLStub = nil
 	if fake.loadTTLReturnsOnCall == nil {
 		fake.loadTTLReturnsOnCall = make(map[int]struct {
@@ -417,7 +477,15 @@ func (fake *FakeFilesystemVolume) ParentCallCount() int {
 	return len(fake.parentArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) ParentCalls(stub func() (volume.FilesystemLiveVolume, bool, error)) {
+	fake.parentMutex.Lock()
+	defer fake.parentMutex.Unlock()
+	fake.ParentStub = stub
+}
+
 func (fake *FakeFilesystemVolume) ParentReturns(result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.parentMutex.Lock()
+	defer fake.parentMutex.Unlock()
 	fake.ParentStub = nil
 	fake.parentReturns = struct {
 		result1 volume.FilesystemLiveVolume
@@ -427,6 +495,8 @@ func (fake *FakeFilesystemVolume) ParentReturns(result1 volume.FilesystemLiveVol
 }
 
 func (fake *FakeFilesystemVolume) ParentReturnsOnCall(i int, result1 volume.FilesystemLiveVolume, result2 bool, result3 error) {
+	fake.parentMutex.Lock()
+	defer fake.parentMutex.Unlock()
 	fake.ParentStub = nil
 	if fake.parentReturnsOnCall == nil {
 		fake.parentReturnsOnCall = make(map[int]struct {
@@ -466,6 +536,12 @@ func (fake *FakeFilesystemVolume) StorePrivilegedCallCount() int {
 	return len(fake.storePrivilegedArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) StorePrivilegedCalls(stub func(bool) error) {
+	fake.storePrivilegedMutex.Lock()
+	defer fake.storePrivilegedMutex.Unlock()
+	fake.StorePrivilegedStub = stub
+}
+
 func (fake *FakeFilesystemVolume) StorePrivilegedArgsForCall(i int) bool {
 	fake.storePrivilegedMutex.RLock()
 	defer fake.storePrivilegedMutex.RUnlock()
@@ -474,6 +550,8 @@ func (fake *FakeFilesystemVolume) StorePrivilegedArgsForCall(i int) bool {
 }
 
 func (fake *FakeFilesystemVolume) StorePrivilegedReturns(result1 error) {
+	fake.storePrivilegedMutex.Lock()
+	defer fake.storePrivilegedMutex.Unlock()
 	fake.StorePrivilegedStub = nil
 	fake.storePrivilegedReturns = struct {
 		result1 error
@@ -481,6 +559,8 @@ func (fake *FakeFilesystemVolume) StorePrivilegedReturns(result1 error) {
 }
 
 func (fake *FakeFilesystemVolume) StorePrivilegedReturnsOnCall(i int, result1 error) {
+	fake.storePrivilegedMutex.Lock()
+	defer fake.storePrivilegedMutex.Unlock()
 	fake.StorePrivilegedStub = nil
 	if fake.storePrivilegedReturnsOnCall == nil {
 		fake.storePrivilegedReturnsOnCall = make(map[int]struct {
@@ -516,6 +596,12 @@ func (fake *FakeFilesystemVolume) StorePropertiesCallCount() int {
 	return len(fake.storePropertiesArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) StorePropertiesCalls(stub func(volume.Properties) error) {
+	fake.storePropertiesMutex.Lock()
+	defer fake.storePropertiesMutex.Unlock()
+	fake.StorePropertiesStub = stub
+}
+
 func (fake *FakeFilesystemVolume) StorePropertiesArgsForCall(i int) volume.Properties {
 	fake.storePropertiesMutex.RLock()
 	defer fake.storePropertiesMutex.RUnlock()
@@ -524,6 +610,8 @@ func (fake *FakeFilesystemVolume) StorePropertiesArgsForCall(i int) volume.Prope
 }
 
 func (fake *FakeFilesystemVolume) StorePropertiesReturns(result1 error) {
+	fake.storePropertiesMutex.Lock()
+	defer fake.storePropertiesMutex.Unlock()
 	fake.StorePropertiesStub = nil
 	fake.storePropertiesReturns = struct {
 		result1 error
@@ -531,6 +619,8 @@ func (fake *FakeFilesystemVolume) StorePropertiesReturns(result1 error) {
 }
 
 func (fake *FakeFilesystemVolume) StorePropertiesReturnsOnCall(i int, result1 error) {
+	fake.storePropertiesMutex.Lock()
+	defer fake.storePropertiesMutex.Unlock()
 	fake.StorePropertiesStub = nil
 	if fake.storePropertiesReturnsOnCall == nil {
 		fake.storePropertiesReturnsOnCall = make(map[int]struct {
@@ -566,6 +656,12 @@ func (fake *FakeFilesystemVolume) StoreTTLCallCount() int {
 	return len(fake.storeTTLArgsForCall)
 }
 
+func (fake *FakeFilesystemVolume) StoreTTLCalls(stub func(volume.TTL) (time.Time, error)) {
+	fake.storeTTLMutex.Lock()
+	defer fake.storeTTLMutex.Unlock()
+	fake.StoreTTLStub = stub
+}
+
 func (fake *FakeFilesystemVolume) StoreTTLArgsForCall(i int) volume.TTL {
 	fake.storeTTLMutex.RLock()
 	defer fake.storeTTLMutex.RUnlock()
@@ -574,6 +670,8 @@ func (fake *FakeFilesystemVolume) StoreTTLArgsForCall(i int) volume.TTL {
 }
 
 func (fake *FakeFilesystemVolume) StoreTTLReturns(result1 time.Time, result2 error) {
+	fake.storeTTLMutex.Lock()
+	defer fake.storeTTLMutex.Unlock()
 	fake.StoreTTLStub = nil
 	fake.storeTTLReturns = struct {
 		result1 time.Time
@@ -582,6 +680,8 @@ func (fake *FakeFilesystemVolume) StoreTTLReturns(result1 time.Time, result2 err
 }
 
 func (fake *FakeFilesystemVolume) StoreTTLReturnsOnCall(i int, result1 time.Time, result2 error) {
+	fake.storeTTLMutex.Lock()
+	defer fake.storeTTLMutex.Unlock()
 	fake.StoreTTLStub = nil
 	if fake.storeTTLReturnsOnCall == nil {
 		fake.storeTTLReturnsOnCall = make(map[int]struct {

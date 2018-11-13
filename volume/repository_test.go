@@ -1,10 +1,10 @@
 package volume_test
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/concourse/baggageclaim/uidgid/uidgidfakes"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
@@ -14,7 +14,6 @@ import (
 
 var _ = Describe("Repository", func() {
 	var (
-		logger                     *lagertest.TestLogger
 		fakeFilesystem             *volumefakes.FakeFilesystem
 		fakeLocker                 *volumefakes.FakeLockManager
 		fakePrivilegedNamespacer   *uidgidfakes.FakeNamespacer
@@ -24,14 +23,12 @@ var _ = Describe("Repository", func() {
 	)
 
 	BeforeEach(func() {
-		logger = lagertest.NewTestLogger("test")
 		fakeFilesystem = new(volumefakes.FakeFilesystem)
 		fakeLocker = new(volumefakes.FakeLockManager)
 		fakePrivilegedNamespacer = new(uidgidfakes.FakeNamespacer)
 		fakeUnprivilegedNamespacer = new(uidgidfakes.FakeNamespacer)
 
 		repository = volume.NewRepository(
-			logger,
 			fakeFilesystem,
 			fakeLocker,
 			fakePrivilegedNamespacer,
@@ -59,6 +56,7 @@ var _ = Describe("Repository", func() {
 
 		JustBeforeEach(func() {
 			createdVolume, createErr = repository.CreateVolume(
+				context.Background(),
 				"some-handle",
 				fakeStrategy,
 				properties,
@@ -284,7 +282,7 @@ var _ = Describe("Repository", func() {
 		var destroyErr error
 
 		JustBeforeEach(func() {
-			destroyErr = repository.DestroyVolume("some-volume")
+			destroyErr = repository.DestroyVolume(context.Background(), "some-volume")
 		})
 
 		Context("when the volume can be found", func() {
@@ -350,7 +348,7 @@ var _ = Describe("Repository", func() {
 		var destroyErr error
 
 		JustBeforeEach(func() {
-			destroyErr = repository.DestroyVolumeAndDescendants("parent")
+			destroyErr = repository.DestroyVolumeAndDescendants(context.Background(), "parent")
 		})
 
 		Context("when the volume and its children can be found", func() {
@@ -453,7 +451,7 @@ var _ = Describe("Repository", func() {
 		})
 
 		JustBeforeEach(func() {
-			volumes, corruptedVolumes, listErr = repository.ListVolumes(queryProperties)
+			volumes, corruptedVolumes, listErr = repository.ListVolumes(context.Background(), queryProperties)
 		})
 
 		Context("when volumes are found in the filesystem", func() {
@@ -711,7 +709,7 @@ var _ = Describe("Repository", func() {
 		)
 
 		JustBeforeEach(func() {
-			foundVolume, found, getErr = repository.GetVolume("some-volume")
+			foundVolume, found, getErr = repository.GetVolume(context.Background(), "some-volume")
 		})
 
 		Context("when the volume is found in the filesystem", func() {
@@ -813,7 +811,7 @@ var _ = Describe("Repository", func() {
 		)
 
 		JustBeforeEach(func() {
-			setErr = repository.SetProperty("some-volume", "some-property", "some-value")
+			setErr = repository.SetProperty(context.Background(), "some-volume", "some-property", "some-value")
 		})
 
 		Context("when the volume is found in the filesystem", func() {
@@ -907,7 +905,7 @@ var _ = Describe("Repository", func() {
 		)
 
 		JustBeforeEach(func() {
-			setErr = repository.SetTTL("some-volume", 42)
+			setErr = repository.SetTTL(context.Background(), "some-volume", 42)
 		})
 
 		Context("when the volume is found in the filesystem", func() {
@@ -991,7 +989,7 @@ var _ = Describe("Repository", func() {
 		)
 
 		JustBeforeEach(func() {
-			parent, found, parentErr = repository.VolumeParent("some-volume")
+			parent, found, parentErr = repository.VolumeParent(context.Background(), "some-volume")
 		})
 
 		Context("when the volume is found in the filesystem", func() {
