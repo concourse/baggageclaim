@@ -15,7 +15,7 @@ require (
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/onsi/ginkgo v1.7.0
-	github.com/onsi/gomega v1.4.2
+	github.com/onsi/gomega v1.4.3
 	github.com/otiai10/copy v0.0.0-20180813032824-7e9a647135a1
 	github.com/otiai10/mint v1.2.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
