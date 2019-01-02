@@ -11,5 +11,5 @@ func cp(followSymlinks bool, src, dest string) error {
 		return fmt.Errorf("FollowSymlinks not supported on Windows")
 	}
 
-	return copy.Copy(src, dest, info)
+	return copy.Copy(src, dest)
 }
