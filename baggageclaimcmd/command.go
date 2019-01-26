@@ -36,6 +36,8 @@ type BaggageclaimCommand struct {
 	OverlaysDir string `long:"overlays-dir" description:"Path to directory in which to store overlay data"`
 
 	ReapInterval time.Duration `long:"reap-interval" default:"10s" description:"Interval on which to reap expired volumes."`
+
+	DisableUserNamespaces bool `long:"disable-user-namespaces" description:"Disable remapping of user/group IDs in unprivileged volumes."`
 }
 
 func (cmd *BaggageclaimCommand) debugBindAddr() string {
@@ -58,7 +60,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 
 	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 
-	if uidgid.Supported() {
+	if !cmd.DisableUserNamespaces && uidgid.Supported() {
 		privilegedNamespacer = &uidgid.UidNamespacer{
 			Translator: uidgid.NewTranslator(uidgid.NewPrivilegedMapper()),
 			Logger:     logger.Session("uid-namespacer"),
