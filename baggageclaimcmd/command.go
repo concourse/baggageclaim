@@ -22,9 +22,11 @@ import (
 type BaggageclaimCommand struct {
 	Logger flag.Lager
 
-	BindIP        flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
-	BindPort      uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
-	DebugBindPort uint16  `long:"bind-debug-port" default:"8099"    description:"Port on which to listen for baggageclaim pprof server."`
+	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
+	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+
+	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
+	DebugBindPort uint16  `long:"debug-bind-port" default:"7787"      description:"Port on which to listen for the pprof debugger endpoints."`
 
 	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
@@ -38,10 +40,6 @@ type BaggageclaimCommand struct {
 	ReapInterval time.Duration `long:"reap-interval" default:"10s" description:"Interval on which to reap expired volumes."`
 
 	DisableUserNamespaces bool `long:"disable-user-namespaces" description:"Disable remapping of user/group IDs in unprivileged volumes."`
-}
-
-func (cmd *BaggageclaimCommand) debugBindAddr() string {
-	return fmt.Sprintf("127.0.0.1:%d", cmd.DebugBindPort)
 }
 
 func (cmd *BaggageclaimCommand) Execute(args []string) error {
@@ -129,6 +127,10 @@ func (cmd *BaggageclaimCommand) constructLogger() (lager.Logger, *lager.Reconfig
 	logger, reconfigurableSink := cmd.Logger.Logger("baggageclaim")
 
 	return logger, reconfigurableSink
+}
+
+func (cmd *BaggageclaimCommand) debugBindAddr() string {
+	return fmt.Sprintf("%s:%d", cmd.DebugBindIP, cmd.DebugBindPort)
 }
 
 func onReady(runner ifrit.Runner, cb func()) ifrit.Runner {
