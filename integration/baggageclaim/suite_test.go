@@ -90,7 +90,7 @@ func (bcr *BaggageClaimRunner) Start() {
 		Command: exec.Command(
 			bcr.path,
 			"--bind-port", strconv.Itoa(bcr.port),
-			"--bind-debug-port", strconv.Itoa(8099+GinkgoParallelNode()),
+			"--debug-bind-port", strconv.Itoa(8099+GinkgoParallelNode()),
 			"--volumes", bcr.volumeDir,
 			"--reap-interval", "100ms",
 			"--driver", "naive",
