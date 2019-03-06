@@ -44,7 +44,7 @@ type Client interface {
 	// or an error as to why the volume could not be found.
 	LookupVolume(lager.Logger, string) (Volume, bool, error)
 
-	// Destroy volumes deletes the list of volumes that is present on the server. It takes
+	// DestroyVolumes deletes the list of volumes that is present on the server. It takes
 	// a string of volumes
 	//
 	// You are required to pass in a logger to the call to retain context across
@@ -53,8 +53,16 @@ type Client interface {
 	// DestroyVolumes returns an error if any of the volume deletion fails. It does not
 	// return an error if volumes were not found on the server.
 	// DestroyVolumes returns an error as to why one or more volumes could not be deleted.
-	// DestroyVolumes return list of volumes that are destroyed successfully.
 	DestroyVolumes(lager.Logger, []string) error
+
+	// DestroyVolume deletes the volume with the provided handle that is present on the server.
+	//
+	// You are required to pass in a logger to the call to retain context across
+	// the library boundary.
+	//
+	// DestroyVolume returns an error if the volume deletion fails. It does not
+	// return an error if the volume was not found on the server.
+	DestroyVolume(lager.Logger, string) error
 }
 
 //go:generate counterfeiter . Volume
