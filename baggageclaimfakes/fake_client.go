@@ -24,6 +24,18 @@ type FakeClient struct {
 		result1 baggageclaim.Volume
 		result2 error
 	}
+	DestroyVolumeStub        func(lager.Logger, string) error
+	destroyVolumeMutex       sync.RWMutex
+	destroyVolumeArgsForCall []struct {
+		arg1 lager.Logger
+		arg2 string
+	}
+	destroyVolumeReturns struct {
+		result1 error
+	}
+	destroyVolumeReturnsOnCall map[int]struct {
+		result1 error
+	}
 	DestroyVolumesStub        func(lager.Logger, []string) error
 	destroyVolumesMutex       sync.RWMutex
 	destroyVolumesArgsForCall []struct {
@@ -133,6 +145,67 @@ func (fake *FakeClient) CreateVolumeReturnsOnCall(i int, result1 baggageclaim.Vo
 		result1 baggageclaim.Volume
 		result2 error
 	}{result1, result2}
+}
+
+func (fake *FakeClient) DestroyVolume(arg1 lager.Logger, arg2 string) error {
+	fake.destroyVolumeMutex.Lock()
+	ret, specificReturn := fake.destroyVolumeReturnsOnCall[len(fake.destroyVolumeArgsForCall)]
+	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
+		arg1 lager.Logger
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("DestroyVolume", []interface{}{arg1, arg2})
+	fake.destroyVolumeMutex.Unlock()
+	if fake.DestroyVolumeStub != nil {
+		return fake.DestroyVolumeStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.destroyVolumeReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeClient) DestroyVolumeCallCount() int {
+	fake.destroyVolumeMutex.RLock()
+	defer fake.destroyVolumeMutex.RUnlock()
+	return len(fake.destroyVolumeArgsForCall)
+}
+
+func (fake *FakeClient) DestroyVolumeCalls(stub func(lager.Logger, string) error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
+	fake.DestroyVolumeStub = stub
+}
+
+func (fake *FakeClient) DestroyVolumeArgsForCall(i int) (lager.Logger, string) {
+	fake.destroyVolumeMutex.RLock()
+	defer fake.destroyVolumeMutex.RUnlock()
+	argsForCall := fake.destroyVolumeArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeClient) DestroyVolumeReturns(result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
+	fake.DestroyVolumeStub = nil
+	fake.destroyVolumeReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeClient) DestroyVolumeReturnsOnCall(i int, result1 error) {
+	fake.destroyVolumeMutex.Lock()
+	defer fake.destroyVolumeMutex.Unlock()
+	fake.DestroyVolumeStub = nil
+	if fake.destroyVolumeReturnsOnCall == nil {
+		fake.destroyVolumeReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.destroyVolumeReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *FakeClient) DestroyVolumes(arg1 lager.Logger, arg2 []string) error {
@@ -337,6 +410,8 @@ func (fake *FakeClient) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
+	fake.destroyVolumeMutex.RLock()
+	defer fake.destroyVolumeMutex.RUnlock()
 	fake.destroyVolumesMutex.RLock()
 	defer fake.destroyVolumesMutex.RUnlock()
 	fake.listVolumesMutex.RLock()

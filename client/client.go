@@ -211,6 +211,28 @@ func (c *client) DestroyVolumes(logger lager.Logger, handles []string) error {
 	return nil
 }
 
+func (c *client) DestroyVolume(logger lager.Logger, handle string) error {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.DestroyVolume, rata.Params{"handle": handle}, nil)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Add("Content-type", "application/json")
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusNoContent {
+		logger.Info("failed-volume-deletion", lager.Data{"status": response.StatusCode})
+		return ErrVolumeDeletion
+	}
+	return nil
+}
+
 func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
 	volume := &clientVolume{
 		logger: logger,

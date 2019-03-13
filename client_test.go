@@ -131,7 +131,7 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 
-			Context("when the intial heartbeat fails", func() {
+			Context("when the initial heartbeat fails", func() {
 				It("reports that the volume could not be found", func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
@@ -186,7 +186,7 @@ var _ = Describe("Baggage Claim Client", func() {
 		})
 
 		Describe("Listing volumes", func() {
-			Context("when the inital heartbeat fails for a volume", func() {
+			Context("when the initial heartbeat fails for a volume", func() {
 				It("it is omitted from the returned list of volumes", func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
@@ -258,7 +258,7 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 
-			Context("when no volumes are destroyes", func() {
+			Context("when no volumes are destroyed", func() {
 				var handles = []string{"some-handle"}
 				var buf bytes.Buffer
 				json.NewEncoder(&buf).Encode(handles)
@@ -272,6 +272,42 @@ var _ = Describe("Baggage Claim Client", func() {
 						))
 
 					err := bcClient.DestroyVolumes(logger, handles)
+					Expect(err).To(HaveOccurred())
+				})
+			})
+		})
+
+		Describe("Destroying a single volume", func() {
+			Context("when a volume is destroyed as requested", func() {
+				var buf bytes.Buffer
+				handle := "some-handle"
+				_ = json.NewEncoder(&buf).Encode(handle)
+
+				It("it does not return an error", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", fmt.Sprintf("/volumes/%s", handle)),
+							ghttp.RespondWithJSONEncoded(204, nil),
+						))
+
+					err := bcClient.DestroyVolume(logger, handle)
+					Expect(err).NotTo(HaveOccurred())
+				})
+			})
+
+			Context("when the volume could not be destroyed", func() {
+				var buf bytes.Buffer
+				handle := "some-handle"
+				_ = json.NewEncoder(&buf).Encode(handle)
+
+				It("it returns an error", func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("DELETE", fmt.Sprintf("/volumes/%s", handle)),
+							ghttp.RespondWithJSONEncoded(500, handle),
+						))
+
+					err := bcClient.DestroyVolume(logger, handle)
 					Expect(err).To(HaveOccurred())
 				})
 			})
