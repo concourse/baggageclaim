@@ -241,7 +241,7 @@ var _ = Describe("Baggage Claim Client", func() {
 
 		Describe("Destroying volumes", func() {
 			Context("when all volumes are destroyed as requested", func() {
-				var handles= []string{"some-handle"}
+				var handles = []string{"some-handle"}
 				var buf bytes.Buffer
 				json.NewEncoder(&buf).Encode(handles)
 
@@ -259,7 +259,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			})
 
 			Context("when no volumes are destroyed", func() {
-				var handles= []string{"some-handle"}
+				var handles = []string{"some-handle"}
 				var buf bytes.Buffer
 				json.NewEncoder(&buf).Encode(handles)
 
@@ -281,7 +281,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			Context("when a volume is destroyed as requested", func() {
 				var buf bytes.Buffer
 				handle := "some-handle"
-				json.NewEncoder(&buf).Encode(handle)
+				_ = json.NewEncoder(&buf).Encode(handle)
 
 				It("it does not return an error", func() {
 					bcServer.AppendHandlers(
@@ -298,7 +298,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			Context("when the volume could not be destroyed", func() {
 				var buf bytes.Buffer
 				handle := "some-handle"
-				json.NewEncoder(&buf).Encode(handle)
+				_ = json.NewEncoder(&buf).Encode(handle)
 
 				It("it returns an error", func() {
 					bcServer.AppendHandlers(

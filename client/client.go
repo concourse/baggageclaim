@@ -212,13 +212,7 @@ func (c *client) DestroyVolumes(logger lager.Logger, handles []string) error {
 }
 
 func (c *client) DestroyVolume(logger lager.Logger, handle string) error {
-	//var buf bytes.Buffer
-	//err := json.NewEncoder(&buf).Encode(handle)
-	//if err != nil {
-	//	return err
-	//}
-
-	request, err := c.requestGenerator.CreateRequest(baggageclaim.DestroyVolume, rata.Params{"handle":handle}, nil)
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.DestroyVolume, rata.Params{"handle": handle}, nil)
 	if err != nil {
 		return err
 	}
