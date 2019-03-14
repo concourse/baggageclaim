@@ -1,11 +1,9 @@
 package baggageclaim
 
 import (
+	"code.cloudfoundry.org/lager"
 	"encoding/json"
 	"io"
-	"time"
-
-	"code.cloudfoundry.org/lager"
 )
 
 //go:generate counterfeiter . Client
@@ -77,10 +75,6 @@ type Volume interface {
 	// supplied to other systems in order to let them use the volume.
 	Path() string
 
-	// SetTTL sets the volume's TTL to an absolute value. An error is returned if
-	// the TTL could not be set.
-	SetTTL(time.Duration) error
-
 	// SetProperty sets a property on the Volume. Properties can be used to
 	// filter the results in the ListVolumes call above.
 	SetProperty(key string, value string) error
@@ -95,19 +89,12 @@ type Volume interface {
 
 	StreamOut(path string) (io.ReadCloser, error)
 
-	Expiration() (time.Duration, time.Time, error)
-
 	// Properties returns the currently set properties for a Volume. An error is
 	// returned if these could not be retrieved.
 	Properties() (VolumeProperties, error)
 
-	// Release stops the Volume being kept alive by the server. A final TTL can
-	// be specified.
-	Release(*time.Duration)
-
 	// Destroy removes the volume and its contents. Note that it does not
-	// safeguard against child volumes being present. To safely remove a volume
-	// that may have children, set a TTL instead.
+	// safeguard against child volumes being present.
 	Destroy() error
 }
 
@@ -148,9 +135,6 @@ type VolumeSpec struct {
 
 	// Properties is the set of initial properties that the Volume should have.
 	Properties VolumeProperties
-
-	// TTL is the initial TTL of the volume.
-	TTL time.Duration
 
 	// Privileged is used to determine whether or not we need to perform a UID
 	// translation of the files in the volume so that they can be read by a
@@ -215,6 +199,3 @@ func (EmptyStrategy) Encode() *json.RawMessage {
 	return &msg
 }
 
-func FinalTTL(dur time.Duration) *time.Duration {
-	return &dur
-}

@@ -1,15 +1,9 @@
 package baggageclaimcmd
 
 import (
-	"fmt"
-	"net/http"
-	"os"
-	"time"
-
-	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
+	"fmt"
 	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/reaper"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/flag"
@@ -17,6 +11,8 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
+	"net/http"
+	"os"
 )
 
 type BaggageclaimCommand struct {
@@ -36,8 +32,6 @@ type BaggageclaimCommand struct {
 	MkfsBin  string `long:"mkfs-bin" default:"mkfs.btrfs" description:"Path to mkfs.btrfs binary"`
 
 	OverlaysDir string `long:"overlays-dir" description:"Path to directory in which to store overlay data"`
-
-	ReapInterval time.Duration `long:"reap-interval" default:"10s" description:"Interval on which to reap expired volumes."`
 
 	DisableUserNamespaces bool `long:"disable-user-namespaces" description:"Disable remapping of user/group IDs in unprivileged volumes."`
 }
@@ -103,13 +97,8 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		logger.Fatal("failed-to-create-handler", err)
 	}
 
-	clock := clock.NewClock()
-
-	morbidReality := reaper.NewReaper(clock, volumeRepo)
-
 	members := []grouper.Member{
 		{Name: "api", Runner: http_server.New(listenAddr, apiHandler)},
-		{Name: "reaper", Runner: reaper.NewRunner(logger, clock, cmd.ReapInterval, morbidReality.Reap)},
 		{Name: "debug-server", Runner: http_server.New(
 			cmd.debugBindAddr(),
 			http.DefaultServeMux,

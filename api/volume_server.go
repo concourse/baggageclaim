@@ -23,7 +23,6 @@ var ErrGetVolumeFailed = errors.New("failed to get volume")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
-var ErrSetTTLFailed = errors.New("failed to set ttl on volume")
 var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of volume")
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
@@ -380,44 +379,6 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (vs *VolumeServer) SetTTL(w http.ResponseWriter, req *http.Request) {
-	handle := rata.Param(req, "handle")
-
-	hLog := vs.logger.Session("set-ttl", lager.Data{
-		"volume": handle,
-	})
-
-	hLog.Debug("start")
-	defer hLog.Debug("done")
-
-	ctx := lagerctx.NewContext(req.Context(), hLog)
-
-	var request baggageclaim.TTLRequest
-	err := json.NewDecoder(req.Body).Decode(&request)
-	if err != nil {
-		RespondWithError(w, ErrSetTTLFailed, http.StatusBadRequest)
-		return
-	}
-
-	ttl := request.Value
-
-	hLog.Debug("setting-ttl", lager.Data{"ttl": ttl})
-
-	err = vs.volumeRepo.SetTTL(ctx, handle, ttl)
-	if err != nil {
-		hLog.Error("failed-to-set-ttl", err)
-
-		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrSetTTLFailed, http.StatusNotFound)
-		} else {
-			RespondWithError(w, ErrSetTTLFailed, http.StatusInternalServerError)
-		}
-
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
 
 func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) {
 	handle := rata.Param(req, "handle")
@@ -564,7 +525,6 @@ func (vs *VolumeServer) prepareCreate(w http.ResponseWriter, req *http.Request, 
 
 	hLog = hLog.WithData(lager.Data{
 		"handle":     handle,
-		"ttl":        request.TTLInSeconds,
 		"privileged": request.Privileged,
 		"strategy":   request.Strategy,
 	})
@@ -587,7 +547,6 @@ func (vs *VolumeServer) doCreate(ctx context.Context, w http.ResponseWriter, req
 		handle,
 		strategy,
 		volume.Properties(request.Properties),
-		request.TTLInSeconds,
 		request.Privileged,
 	)
 

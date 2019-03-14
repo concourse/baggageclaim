@@ -10,15 +10,14 @@ import (
 )
 
 type FakeRepository struct {
-	CreateVolumeStub        func(context.Context, string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)
+	CreateVolumeStub        func(context.Context, string, volume.Strategy, volume.Properties, bool) (volume.Volume, error)
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
 		arg3 volume.Strategy
 		arg4 volume.Properties
-		arg5 uint
-		arg6 bool
+		arg5 bool
 	}
 	createVolumeReturns struct {
 		result1 volume.Volume
@@ -111,19 +110,6 @@ type FakeRepository struct {
 	setPropertyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	SetTTLStub        func(context.Context, string, uint) error
-	setTTLMutex       sync.RWMutex
-	setTTLArgsForCall []struct {
-		arg1 context.Context
-		arg2 string
-		arg3 uint
-	}
-	setTTLReturns struct {
-		result1 error
-	}
-	setTTLReturnsOnCall map[int]struct {
-		result1 error
-	}
 	StreamInStub        func(context.Context, string, string, io.Reader) (bool, error)
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
@@ -174,7 +160,7 @@ type FakeRepository struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeRepository) CreateVolume(arg1 context.Context, arg2 string, arg3 volume.Strategy, arg4 volume.Properties, arg5 uint, arg6 bool) (volume.Volume, error) {
+func (fake *FakeRepository) CreateVolume(arg1 context.Context, arg2 string, arg3 volume.Strategy, arg4 volume.Properties, arg5 bool) (volume.Volume, error) {
 	fake.createVolumeMutex.Lock()
 	ret, specificReturn := fake.createVolumeReturnsOnCall[len(fake.createVolumeArgsForCall)]
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
@@ -182,13 +168,12 @@ func (fake *FakeRepository) CreateVolume(arg1 context.Context, arg2 string, arg3
 		arg2 string
 		arg3 volume.Strategy
 		arg4 volume.Properties
-		arg5 uint
-		arg6 bool
-	}{arg1, arg2, arg3, arg4, arg5, arg6})
-	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
+		arg5 bool
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("CreateVolume", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.createVolumeMutex.Unlock()
 	if fake.CreateVolumeStub != nil {
-		return fake.CreateVolumeStub(arg1, arg2, arg3, arg4, arg5, arg6)
+		return fake.CreateVolumeStub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -203,17 +188,17 @@ func (fake *FakeRepository) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeRepository) CreateVolumeCalls(stub func(context.Context, string, volume.Strategy, volume.Properties, uint, bool) (volume.Volume, error)) {
+func (fake *FakeRepository) CreateVolumeCalls(stub func(context.Context, string, volume.Strategy, volume.Properties, bool) (volume.Volume, error)) {
 	fake.createVolumeMutex.Lock()
 	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = stub
 }
 
-func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (context.Context, string, volume.Strategy, volume.Properties, uint, bool) {
+func (fake *FakeRepository) CreateVolumeArgsForCall(i int) (context.Context, string, volume.Strategy, volume.Properties, bool) {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
 	argsForCall := fake.createVolumeArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeRepository) CreateVolumeReturns(result1 volume.Volume, result2 error) {
@@ -623,68 +608,6 @@ func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) SetTTL(arg1 context.Context, arg2 string, arg3 uint) error {
-	fake.setTTLMutex.Lock()
-	ret, specificReturn := fake.setTTLReturnsOnCall[len(fake.setTTLArgsForCall)]
-	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
-		arg1 context.Context
-		arg2 string
-		arg3 uint
-	}{arg1, arg2, arg3})
-	fake.recordInvocation("SetTTL", []interface{}{arg1, arg2, arg3})
-	fake.setTTLMutex.Unlock()
-	if fake.SetTTLStub != nil {
-		return fake.SetTTLStub(arg1, arg2, arg3)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.setTTLReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeRepository) SetTTLCallCount() int {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	return len(fake.setTTLArgsForCall)
-}
-
-func (fake *FakeRepository) SetTTLCalls(stub func(context.Context, string, uint) error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = stub
-}
-
-func (fake *FakeRepository) SetTTLArgsForCall(i int) (context.Context, string, uint) {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	argsForCall := fake.setTTLArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
-}
-
-func (fake *FakeRepository) SetTTLReturns(result1 error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = nil
-	fake.setTTLReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeRepository) SetTTLReturnsOnCall(i int, result1 error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = nil
-	if fake.setTTLReturnsOnCall == nil {
-		fake.setTTLReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.setTTLReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeRepository) StreamIn(arg1 context.Context, arg2 string, arg3 string, arg4 io.Reader) (bool, error) {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
@@ -898,8 +821,6 @@ func (fake *FakeRepository) Invocations() map[string][][]interface{} {
 	defer fake.setPrivilegedMutex.RUnlock()
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()

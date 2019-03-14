@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 //go:generate counterfeiter . Filesystem
@@ -28,9 +27,6 @@ type FilesystemVolume interface {
 
 	LoadProperties() (Properties, error)
 	StoreProperties(Properties) error
-
-	LoadTTL() (TTL, time.Time, error)
-	StoreTTL(TTL) (time.Time, error)
 
 	LoadPrivileged() (bool, error)
 	StorePrivileged(bool) error
@@ -186,11 +182,6 @@ func (fs *filesystem) initRawVolume(handle string) (*initVolume, error) {
 		return nil, err
 	}
 
-	_, err = volume.StoreTTL(0)
-	if err != nil {
-		return nil, err
-	}
-
 	return volume, nil
 }
 
@@ -227,14 +218,6 @@ func (base *baseVolume) LoadProperties() (Properties, error) {
 
 func (base *baseVolume) StoreProperties(newProperties Properties) error {
 	return (&Metadata{base.dir}).StoreProperties(newProperties)
-}
-
-func (base *baseVolume) LoadTTL() (TTL, time.Time, error) {
-	return (&Metadata{base.dir}).TTL()
-}
-
-func (base *baseVolume) StoreTTL(ttl TTL) (time.Time, error) {
-	return (&Metadata{base.dir}).StoreTTL(ttl)
 }
 
 func (base *baseVolume) LoadPrivileged() (bool, error) {

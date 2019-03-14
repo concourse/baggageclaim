@@ -3,7 +3,6 @@ package volumefakes
 
 import (
 	sync "sync"
-	time "time"
 
 	volume "github.com/concourse/baggageclaim/volume"
 )
@@ -75,20 +74,6 @@ type FakeFilesystemInitVolume struct {
 		result1 volume.Properties
 		result2 error
 	}
-	LoadTTLStub        func() (volume.TTL, time.Time, error)
-	loadTTLMutex       sync.RWMutex
-	loadTTLArgsForCall []struct {
-	}
-	loadTTLReturns struct {
-		result1 volume.TTL
-		result2 time.Time
-		result3 error
-	}
-	loadTTLReturnsOnCall map[int]struct {
-		result1 volume.TTL
-		result2 time.Time
-		result3 error
-	}
 	ParentStub        func() (volume.FilesystemLiveVolume, bool, error)
 	parentMutex       sync.RWMutex
 	parentArgsForCall []struct {
@@ -124,19 +109,6 @@ type FakeFilesystemInitVolume struct {
 	}
 	storePropertiesReturnsOnCall map[int]struct {
 		result1 error
-	}
-	StoreTTLStub        func(volume.TTL) (time.Time, error)
-	storeTTLMutex       sync.RWMutex
-	storeTTLArgsForCall []struct {
-		arg1 volume.TTL
-	}
-	storeTTLReturns struct {
-		result1 time.Time
-		result2 error
-	}
-	storeTTLReturnsOnCall map[int]struct {
-		result1 time.Time
-		result2 error
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -463,64 +435,6 @@ func (fake *FakeFilesystemInitVolume) LoadPropertiesReturnsOnCall(i int, result1
 	}{result1, result2}
 }
 
-func (fake *FakeFilesystemInitVolume) LoadTTL() (volume.TTL, time.Time, error) {
-	fake.loadTTLMutex.Lock()
-	ret, specificReturn := fake.loadTTLReturnsOnCall[len(fake.loadTTLArgsForCall)]
-	fake.loadTTLArgsForCall = append(fake.loadTTLArgsForCall, struct {
-	}{})
-	fake.recordInvocation("LoadTTL", []interface{}{})
-	fake.loadTTLMutex.Unlock()
-	if fake.LoadTTLStub != nil {
-		return fake.LoadTTLStub()
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	fakeReturns := fake.loadTTLReturns
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
-}
-
-func (fake *FakeFilesystemInitVolume) LoadTTLCallCount() int {
-	fake.loadTTLMutex.RLock()
-	defer fake.loadTTLMutex.RUnlock()
-	return len(fake.loadTTLArgsForCall)
-}
-
-func (fake *FakeFilesystemInitVolume) LoadTTLCalls(stub func() (volume.TTL, time.Time, error)) {
-	fake.loadTTLMutex.Lock()
-	defer fake.loadTTLMutex.Unlock()
-	fake.LoadTTLStub = stub
-}
-
-func (fake *FakeFilesystemInitVolume) LoadTTLReturns(result1 volume.TTL, result2 time.Time, result3 error) {
-	fake.loadTTLMutex.Lock()
-	defer fake.loadTTLMutex.Unlock()
-	fake.LoadTTLStub = nil
-	fake.loadTTLReturns = struct {
-		result1 volume.TTL
-		result2 time.Time
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeFilesystemInitVolume) LoadTTLReturnsOnCall(i int, result1 volume.TTL, result2 time.Time, result3 error) {
-	fake.loadTTLMutex.Lock()
-	defer fake.loadTTLMutex.Unlock()
-	fake.LoadTTLStub = nil
-	if fake.loadTTLReturnsOnCall == nil {
-		fake.loadTTLReturnsOnCall = make(map[int]struct {
-			result1 volume.TTL
-			result2 time.Time
-			result3 error
-		})
-	}
-	fake.loadTTLReturnsOnCall[i] = struct {
-		result1 volume.TTL
-		result2 time.Time
-		result3 error
-	}{result1, result2, result3}
-}
-
 func (fake *FakeFilesystemInitVolume) Parent() (volume.FilesystemLiveVolume, bool, error) {
 	fake.parentMutex.Lock()
 	ret, specificReturn := fake.parentReturnsOnCall[len(fake.parentArgsForCall)]
@@ -699,69 +613,6 @@ func (fake *FakeFilesystemInitVolume) StorePropertiesReturnsOnCall(i int, result
 	}{result1}
 }
 
-func (fake *FakeFilesystemInitVolume) StoreTTL(arg1 volume.TTL) (time.Time, error) {
-	fake.storeTTLMutex.Lock()
-	ret, specificReturn := fake.storeTTLReturnsOnCall[len(fake.storeTTLArgsForCall)]
-	fake.storeTTLArgsForCall = append(fake.storeTTLArgsForCall, struct {
-		arg1 volume.TTL
-	}{arg1})
-	fake.recordInvocation("StoreTTL", []interface{}{arg1})
-	fake.storeTTLMutex.Unlock()
-	if fake.StoreTTLStub != nil {
-		return fake.StoreTTLStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	fakeReturns := fake.storeTTLReturns
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeFilesystemInitVolume) StoreTTLCallCount() int {
-	fake.storeTTLMutex.RLock()
-	defer fake.storeTTLMutex.RUnlock()
-	return len(fake.storeTTLArgsForCall)
-}
-
-func (fake *FakeFilesystemInitVolume) StoreTTLCalls(stub func(volume.TTL) (time.Time, error)) {
-	fake.storeTTLMutex.Lock()
-	defer fake.storeTTLMutex.Unlock()
-	fake.StoreTTLStub = stub
-}
-
-func (fake *FakeFilesystemInitVolume) StoreTTLArgsForCall(i int) volume.TTL {
-	fake.storeTTLMutex.RLock()
-	defer fake.storeTTLMutex.RUnlock()
-	argsForCall := fake.storeTTLArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *FakeFilesystemInitVolume) StoreTTLReturns(result1 time.Time, result2 error) {
-	fake.storeTTLMutex.Lock()
-	defer fake.storeTTLMutex.Unlock()
-	fake.StoreTTLStub = nil
-	fake.storeTTLReturns = struct {
-		result1 time.Time
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *FakeFilesystemInitVolume) StoreTTLReturnsOnCall(i int, result1 time.Time, result2 error) {
-	fake.storeTTLMutex.Lock()
-	defer fake.storeTTLMutex.Unlock()
-	fake.StoreTTLStub = nil
-	if fake.storeTTLReturnsOnCall == nil {
-		fake.storeTTLReturnsOnCall = make(map[int]struct {
-			result1 time.Time
-			result2 error
-		})
-	}
-	fake.storeTTLReturnsOnCall[i] = struct {
-		result1 time.Time
-		result2 error
-	}{result1, result2}
-}
-
 func (fake *FakeFilesystemInitVolume) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -777,16 +628,12 @@ func (fake *FakeFilesystemInitVolume) Invocations() map[string][][]interface{} {
 	defer fake.loadPrivilegedMutex.RUnlock()
 	fake.loadPropertiesMutex.RLock()
 	defer fake.loadPropertiesMutex.RUnlock()
-	fake.loadTTLMutex.RLock()
-	defer fake.loadTTLMutex.RUnlock()
 	fake.parentMutex.RLock()
 	defer fake.parentMutex.RUnlock()
 	fake.storePrivilegedMutex.RLock()
 	defer fake.storePrivilegedMutex.RUnlock()
 	fake.storePropertiesMutex.RLock()
 	defer fake.storePropertiesMutex.RUnlock()
-	fake.storeTTLMutex.RLock()
-	defer fake.storeTTLMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

@@ -20,10 +20,8 @@ existing, and then dying. This state model is required as creating large
 amounts of data can potentially take a long time to materialize. You are only
 able to interact with volumes that are in the middle state.
 
-Volumes are given a TTL which means that BaggageClaim can reclaim the disk
-space used by the volumes over the life of the service. Parent-child
-relationships between volumes are understood and will prevent a parent being
-deleted while a child is still active.
+It's the responsibility of the API consumer to delete child volumes before
+parent volumes.
 
 The standard way to construct a client is:
 

@@ -21,12 +21,11 @@ var ErrVolumeIsCorrupted = errors.New("volume is corrupted")
 type Repository interface {
 	ListVolumes(ctx context.Context, queryProperties Properties) (Volumes, []string, error)
 	GetVolume(ctx context.Context, handle string) (Volume, bool, error)
-	CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error)
+	CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, isPrivileged bool) (Volume, error)
 	DestroyVolume(ctx context.Context, handle string) error
 	DestroyVolumeAndDescendants(ctx context.Context, handle string) error
 
 	SetProperty(ctx context.Context, handle string, propertyName string, propertyValue string) error
-	SetTTL(ctx context.Context, handle string, ttl uint) error
 	SetPrivileged(ctx context.Context, handle string, privileged bool) error
 
 	StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error)
@@ -134,7 +133,7 @@ func (repo *repository) DestroyVolumeAndDescendants(ctx context.Context, handle 
 	return repo.DestroyVolume(ctx, handle)
 }
 
-func (repo *repository) CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, ttlInSeconds uint, isPrivileged bool) (Volume, error) {
+func (repo *repository) CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, isPrivileged bool) (Volume, error) {
 	logger := lagerctx.FromContext(ctx).Session("create-volume", lager.Data{"handle": handle})
 
 	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem, repo.streamer)
@@ -151,14 +150,6 @@ func (repo *repository) CreateVolume(ctx context.Context, handle string, strateg
 	}()
 
 	err = initVolume.StoreProperties(properties)
-	if err != nil {
-		logger.Error("failed-to-set-properties", err)
-		return Volume{}, err
-	}
-
-	ttl := TTL(ttlInSeconds)
-
-	expiresAt, err := initVolume.StoreTTL(ttl)
 	if err != nil {
 		logger.Error("failed-to-set-properties", err)
 		return Volume{}, err
@@ -188,8 +179,6 @@ func (repo *repository) CreateVolume(ctx context.Context, handle string, strateg
 		Handle:     liveVolume.Handle(),
 		Path:       liveVolume.DataPath(),
 		Properties: properties,
-		TTL:        ttl,
-		ExpiresAt:  expiresAt,
 	}, nil
 }
 
@@ -287,34 +276,6 @@ func (repo *repository) SetProperty(ctx context.Context, handle string, property
 	err = volume.StoreProperties(properties)
 	if err != nil {
 		logger.Error("failed-to-store-properties", err)
-		return err
-	}
-
-	return nil
-}
-
-func (repo *repository) SetTTL(ctx context.Context, handle string, ttl uint) error {
-	repo.locker.Lock(handle)
-	defer repo.locker.Unlock(handle)
-
-	logger := lagerctx.FromContext(ctx).Session("set-ttl", lager.Data{
-		"volume": handle,
-	})
-
-	volume, found, err := repo.filesystem.LookupVolume(handle)
-	if err != nil {
-		logger.Error("failed-to-lookup-volume", err)
-		return err
-	}
-
-	if !found {
-		logger.Info("volume-not-found")
-		return ErrVolumeDoesNotExist
-	}
-
-	_, err = volume.StoreTTL(TTL(ttl))
-	if err != nil {
-		logger.Error("failed-to-store-ttl", err)
 		return err
 	}
 
@@ -470,11 +431,6 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 		return Volume{}, err
 	}
 
-	ttl, expiresAt, err := liveVolume.LoadTTL()
-	if err != nil {
-		return Volume{}, err
-	}
-
 	isPrivileged, err := liveVolume.LoadPrivileged()
 	if err != nil {
 		return Volume{}, err
@@ -484,8 +440,6 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 		Handle:     liveVolume.Handle(),
 		Path:       liveVolume.DataPath(),
 		Properties: properties,
-		TTL:        ttl,
-		ExpiresAt:  expiresAt,
 		Privileged: isPrivileged,
 	}, nil
 }

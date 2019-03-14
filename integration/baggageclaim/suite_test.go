@@ -92,7 +92,6 @@ func (bcr *BaggageClaimRunner) Start() {
 			"--bind-port", strconv.Itoa(bcr.port),
 			"--debug-bind-port", strconv.Itoa(8099+GinkgoParallelNode()),
 			"--volumes", bcr.volumeDir,
-			"--reap-interval", "100ms",
 			"--driver", "naive",
 		),
 		StartCheck: "baggageclaim.listening",
@@ -136,7 +135,6 @@ func (bcr *BaggageClaimRunner) CurrentHandles() []string {
 
 	for _, v := range volumes {
 		handles = append(handles, v.Handle())
-		v.Release(nil)
 	}
 
 	return handles
