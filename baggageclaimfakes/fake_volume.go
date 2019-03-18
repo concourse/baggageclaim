@@ -4,7 +4,6 @@ package baggageclaimfakes
 import (
 	io "io"
 	sync "sync"
-	time "time"
 
 	baggageclaim "github.com/concourse/baggageclaim"
 )
@@ -19,20 +18,6 @@ type FakeVolume struct {
 	}
 	destroyReturnsOnCall map[int]struct {
 		result1 error
-	}
-	ExpirationStub        func() (time.Duration, time.Time, error)
-	expirationMutex       sync.RWMutex
-	expirationArgsForCall []struct {
-	}
-	expirationReturns struct {
-		result1 time.Duration
-		result2 time.Time
-		result3 error
-	}
-	expirationReturnsOnCall map[int]struct {
-		result1 time.Duration
-		result2 time.Time
-		result3 error
 	}
 	HandleStub        func() string
 	handleMutex       sync.RWMutex
@@ -66,11 +51,6 @@ type FakeVolume struct {
 		result1 baggageclaim.VolumeProperties
 		result2 error
 	}
-	ReleaseStub        func(*time.Duration)
-	releaseMutex       sync.RWMutex
-	releaseArgsForCall []struct {
-		arg1 *time.Duration
-	}
 	SetPrivilegedStub        func(bool) error
 	setPrivilegedMutex       sync.RWMutex
 	setPrivilegedArgsForCall []struct {
@@ -92,17 +72,6 @@ type FakeVolume struct {
 		result1 error
 	}
 	setPropertyReturnsOnCall map[int]struct {
-		result1 error
-	}
-	SetTTLStub        func(time.Duration) error
-	setTTLMutex       sync.RWMutex
-	setTTLArgsForCall []struct {
-		arg1 time.Duration
-	}
-	setTTLReturns struct {
-		result1 error
-	}
-	setTTLReturnsOnCall map[int]struct {
 		result1 error
 	}
 	StreamInStub        func(string, io.Reader) error
@@ -184,64 +153,6 @@ func (fake *FakeVolume) DestroyReturnsOnCall(i int, result1 error) {
 	fake.destroyReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
-}
-
-func (fake *FakeVolume) Expiration() (time.Duration, time.Time, error) {
-	fake.expirationMutex.Lock()
-	ret, specificReturn := fake.expirationReturnsOnCall[len(fake.expirationArgsForCall)]
-	fake.expirationArgsForCall = append(fake.expirationArgsForCall, struct {
-	}{})
-	fake.recordInvocation("Expiration", []interface{}{})
-	fake.expirationMutex.Unlock()
-	if fake.ExpirationStub != nil {
-		return fake.ExpirationStub()
-	}
-	if specificReturn {
-		return ret.result1, ret.result2, ret.result3
-	}
-	fakeReturns := fake.expirationReturns
-	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
-}
-
-func (fake *FakeVolume) ExpirationCallCount() int {
-	fake.expirationMutex.RLock()
-	defer fake.expirationMutex.RUnlock()
-	return len(fake.expirationArgsForCall)
-}
-
-func (fake *FakeVolume) ExpirationCalls(stub func() (time.Duration, time.Time, error)) {
-	fake.expirationMutex.Lock()
-	defer fake.expirationMutex.Unlock()
-	fake.ExpirationStub = stub
-}
-
-func (fake *FakeVolume) ExpirationReturns(result1 time.Duration, result2 time.Time, result3 error) {
-	fake.expirationMutex.Lock()
-	defer fake.expirationMutex.Unlock()
-	fake.ExpirationStub = nil
-	fake.expirationReturns = struct {
-		result1 time.Duration
-		result2 time.Time
-		result3 error
-	}{result1, result2, result3}
-}
-
-func (fake *FakeVolume) ExpirationReturnsOnCall(i int, result1 time.Duration, result2 time.Time, result3 error) {
-	fake.expirationMutex.Lock()
-	defer fake.expirationMutex.Unlock()
-	fake.ExpirationStub = nil
-	if fake.expirationReturnsOnCall == nil {
-		fake.expirationReturnsOnCall = make(map[int]struct {
-			result1 time.Duration
-			result2 time.Time
-			result3 error
-		})
-	}
-	fake.expirationReturnsOnCall[i] = struct {
-		result1 time.Duration
-		result2 time.Time
-		result3 error
-	}{result1, result2, result3}
 }
 
 func (fake *FakeVolume) Handle() string {
@@ -403,37 +314,6 @@ func (fake *FakeVolume) PropertiesReturnsOnCall(i int, result1 baggageclaim.Volu
 	}{result1, result2}
 }
 
-func (fake *FakeVolume) Release(arg1 *time.Duration) {
-	fake.releaseMutex.Lock()
-	fake.releaseArgsForCall = append(fake.releaseArgsForCall, struct {
-		arg1 *time.Duration
-	}{arg1})
-	fake.recordInvocation("Release", []interface{}{arg1})
-	fake.releaseMutex.Unlock()
-	if fake.ReleaseStub != nil {
-		fake.ReleaseStub(arg1)
-	}
-}
-
-func (fake *FakeVolume) ReleaseCallCount() int {
-	fake.releaseMutex.RLock()
-	defer fake.releaseMutex.RUnlock()
-	return len(fake.releaseArgsForCall)
-}
-
-func (fake *FakeVolume) ReleaseCalls(stub func(*time.Duration)) {
-	fake.releaseMutex.Lock()
-	defer fake.releaseMutex.Unlock()
-	fake.ReleaseStub = stub
-}
-
-func (fake *FakeVolume) ReleaseArgsForCall(i int) *time.Duration {
-	fake.releaseMutex.RLock()
-	defer fake.releaseMutex.RUnlock()
-	argsForCall := fake.releaseArgsForCall[i]
-	return argsForCall.arg1
-}
-
 func (fake *FakeVolume) SetPrivileged(arg1 bool) error {
 	fake.setPrivilegedMutex.Lock()
 	ret, specificReturn := fake.setPrivilegedReturnsOnCall[len(fake.setPrivilegedArgsForCall)]
@@ -551,66 +431,6 @@ func (fake *FakeVolume) SetPropertyReturnsOnCall(i int, result1 error) {
 		})
 	}
 	fake.setPropertyReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeVolume) SetTTL(arg1 time.Duration) error {
-	fake.setTTLMutex.Lock()
-	ret, specificReturn := fake.setTTLReturnsOnCall[len(fake.setTTLArgsForCall)]
-	fake.setTTLArgsForCall = append(fake.setTTLArgsForCall, struct {
-		arg1 time.Duration
-	}{arg1})
-	fake.recordInvocation("SetTTL", []interface{}{arg1})
-	fake.setTTLMutex.Unlock()
-	if fake.SetTTLStub != nil {
-		return fake.SetTTLStub(arg1)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	fakeReturns := fake.setTTLReturns
-	return fakeReturns.result1
-}
-
-func (fake *FakeVolume) SetTTLCallCount() int {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	return len(fake.setTTLArgsForCall)
-}
-
-func (fake *FakeVolume) SetTTLCalls(stub func(time.Duration) error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = stub
-}
-
-func (fake *FakeVolume) SetTTLArgsForCall(i int) time.Duration {
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
-	argsForCall := fake.setTTLArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *FakeVolume) SetTTLReturns(result1 error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = nil
-	fake.setTTLReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeVolume) SetTTLReturnsOnCall(i int, result1 error) {
-	fake.setTTLMutex.Lock()
-	defer fake.setTTLMutex.Unlock()
-	fake.SetTTLStub = nil
-	if fake.setTTLReturnsOnCall == nil {
-		fake.setTTLReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.setTTLReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
 }
@@ -744,22 +564,16 @@ func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.destroyMutex.RLock()
 	defer fake.destroyMutex.RUnlock()
-	fake.expirationMutex.RLock()
-	defer fake.expirationMutex.RUnlock()
 	fake.handleMutex.RLock()
 	defer fake.handleMutex.RUnlock()
 	fake.pathMutex.RLock()
 	defer fake.pathMutex.RUnlock()
 	fake.propertiesMutex.RLock()
 	defer fake.propertiesMutex.RUnlock()
-	fake.releaseMutex.RLock()
-	defer fake.releaseMutex.RUnlock()
 	fake.setPrivilegedMutex.RLock()
 	defer fake.setPrivilegedMutex.RUnlock()
 	fake.setPropertyMutex.RLock()
 	defer fake.setPropertyMutex.RUnlock()
-	fake.setTTLMutex.RLock()
-	defer fake.setTTLMutex.RUnlock()
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()

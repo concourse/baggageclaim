@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"code.cloudfoundry.org/lager"
@@ -74,11 +72,10 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.VolumeRequest{
-		Handle:       handle,
-		Strategy:     strategy.Encode(),
-		TTLInSeconds: uint(math.Ceil(volumeSpec.TTL.Seconds())),
-		Properties:   volumeSpec.Properties,
-		Privileged:   volumeSpec.Privileged,
+		Handle:     handle,
+		Strategy:   strategy.Encode(),
+		Properties: volumeSpec.Properties,
+		Privileged: volumeSpec.Privileged,
 	})
 
 	request, _ := c.requestGenerator.CreateRequest(baggageclaim.CreateVolumeAsync, nil, buffer)
@@ -158,10 +155,8 @@ func (c *client) ListVolumes(logger lager.Logger, properties baggageclaim.Volume
 
 	var volumes baggageclaim.Volumes
 	for _, vr := range volumesResponse {
-		v, initialHeartbeatSuccess := c.newVolume(logger, vr)
-		if initialHeartbeatSuccess {
-			volumes = append(volumes, v)
-		}
+		v := c.newVolume(logger, vr)
+		volumes = append(volumes, v)
 	}
 
 	return volumes, nil
@@ -176,11 +171,7 @@ func (c *client) LookupVolume(logger lager.Logger, handle string) (baggageclaim.
 		return nil, found, nil
 	}
 
-	v, initialHeartbeatSuccess := c.newVolume(logger, volumeResponse)
-	if !initialHeartbeatSuccess {
-		return nil, false, nil
-	}
-	return v, true, nil
+	return c.newVolume(logger, volumeResponse), true, nil
 }
 
 func (c *client) DestroyVolumes(logger lager.Logger, handles []string) error {
@@ -233,25 +224,17 @@ func (c *client) DestroyVolume(logger lager.Logger, handle string) error {
 	return nil
 }
 
-func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) (baggageclaim.Volume, bool) {
+func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeResponse) baggageclaim.Volume {
 	volume := &clientVolume{
 		logger: logger,
 
 		handle: apiVolume.Handle,
 		path:   apiVolume.Path,
 
-		bcClient:     c,
-		heartbeating: new(sync.WaitGroup),
-		release:      make(chan *time.Duration, 1),
+		bcClient: c,
 	}
 
-	if apiVolume.TTLInSeconds == 0 {
-		return volume, true
-	}
-
-	initialHeartbeatSuccess := volume.startHeartbeating(logger, time.Duration(apiVolume.TTLInSeconds)*time.Second)
-
-	return volume, initialHeartbeatSuccess
+	return volume
 }
 
 func (c *client) streamIn(logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {
@@ -350,35 +333,6 @@ func (c *client) getVolumeResponse(logger lager.Logger, handle string) (baggagec
 	}
 
 	return volumeResponse, true, nil
-}
-
-func (c *client) setTTL(logger lager.Logger, handle string, ttl time.Duration) error {
-	buffer := &bytes.Buffer{}
-	json.NewEncoder(buffer).Encode(baggageclaim.TTLRequest{
-		Value: uint(math.Ceil(ttl.Seconds())),
-	})
-
-	request, err := c.requestGenerator.CreateRequest(baggageclaim.SetTTL, rata.Params{
-		"handle": handle,
-	}, buffer)
-	if err != nil {
-		return err
-	}
-
-	request.Header.Add("Content-type", "application/json")
-
-	response, err := c.httpClient(logger).Do(request)
-	if err != nil {
-		return err
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode != 204 {
-		return getError(response)
-	}
-
-	return nil
 }
 
 func (c *client) destroy(logger lager.Logger, handle string) error {

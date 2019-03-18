@@ -11,7 +11,6 @@ import (
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/volume"
 )
 
 type volumeFuture struct {
@@ -66,11 +65,7 @@ func (f *volumeFuture) Wait() (baggageclaim.Volume, error) {
 			return nil, err
 		}
 
-		v, initialHeartbeatSuccess := f.client.newVolume(f.logger, volumeResponse)
-		if !initialHeartbeatSuccess {
-			return nil, volume.ErrVolumeDoesNotExist
-		}
-		return v, nil
+		return f.client.newVolume(f.logger, volumeResponse), nil
 	}
 }
 

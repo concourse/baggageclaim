@@ -480,51 +480,6 @@ var _ = Describe("Volume Server", func() {
 			Expect(volumes).To(HaveLen(1))
 		})
 
-		It("can have its ttl updated", func() {
-			body := &bytes.Buffer{}
-
-			err := json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
-				Handle: "some-handle",
-				Strategy: encStrategy(map[string]string{
-					"type": "empty",
-				}),
-				TTLInSeconds: 1,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			recorder := httptest.NewRecorder()
-			request, _ := http.NewRequest("POST", "/volumes", body)
-			handler.ServeHTTP(recorder, request)
-			Expect(recorder.Code).To(Equal(201))
-
-			var firstVolume volume.Volume
-			err = json.NewDecoder(recorder.Body).Decode(&firstVolume)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(firstVolume.TTL).To(Equal(volume.TTL(1)))
-
-			err = json.NewEncoder(body).Encode(baggageclaim.TTLRequest{
-				Value: 2,
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			recorder = httptest.NewRecorder()
-			request, _ = http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/ttl", firstVolume.Handle), body)
-			handler.ServeHTTP(recorder, request)
-			Expect(recorder.Code).To(Equal(http.StatusNoContent))
-			Expect(recorder.Body.String()).To(BeEmpty())
-
-			recorder = httptest.NewRecorder()
-			request, _ = http.NewRequest("GET", "/volumes", body)
-			handler.ServeHTTP(recorder, request)
-			Expect(recorder.Code).To(Equal(200))
-
-			var volumes volume.Volumes
-			err = json.NewDecoder(recorder.Body).Decode(&volumes)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(volumes).To(HaveLen(1))
-			Expect(volumes[0].TTL).To(Equal(volume.TTL(2)))
-			Expect(volumes[0].ExpiresAt).NotTo(Equal(firstVolume.ExpiresAt))
-		})
 	})
 
 	Describe("destroying a volume", func() {
@@ -536,7 +491,6 @@ var _ = Describe("Volume Server", func() {
 				Strategy: encStrategy(map[string]string{
 					"type": "empty",
 				}),
-				TTLInSeconds: 0,
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -547,11 +501,6 @@ var _ = Describe("Volume Server", func() {
 
 			var createdVolume volume.Volume
 			err = json.NewDecoder(recorder.Body).Decode(&createdVolume)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = json.NewEncoder(body).Encode(baggageclaim.TTLRequest{
-				Value: 2,
-			})
 			Expect(err).NotTo(HaveOccurred())
 
 			recorder = httptest.NewRecorder()
@@ -582,7 +531,6 @@ var _ = Describe("Volume Server", func() {
 					Strategy: encStrategy(map[string]string{
 						"type": "empty",
 					}),
-					TTLInSeconds: 0,
 				})
 				Expect(err).NotTo(HaveOccurred())
 
@@ -647,7 +595,7 @@ var _ = Describe("Volume Server", func() {
 					}
 
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "empty",
@@ -683,7 +631,7 @@ var _ = Describe("Volume Server", func() {
 		Context("when there are no properties given", func() {
 			BeforeEach(func() {
 				body = &bytes.Buffer{}
-				json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+				_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 					Handle: "some-handle",
 					Strategy: encStrategy(map[string]string{
 						"type": "empty",
@@ -699,7 +647,7 @@ var _ = Describe("Volume Server", func() {
 			Context("when handle is not provided in request", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 						Strategy: encStrategy(map[string]string{
 							"type": "empty",
 						}),
@@ -758,7 +706,7 @@ var _ = Describe("Volume Server", func() {
 			Context("when an unrecognized strategy is submitted", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "grime",
@@ -785,7 +733,7 @@ var _ = Describe("Volume Server", func() {
 			Context("when the strategy is cow but not parent volume is provided", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 						Handle: "some-handle",
 						Strategy: encStrategy(map[string]string{
 							"type": "cow",
@@ -812,7 +760,7 @@ var _ = Describe("Volume Server", func() {
 			Context("when the strategy is cow and the parent volume does not exist", func() {
 				BeforeEach(func() {
 					body = &bytes.Buffer{}
-					json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
+					_ = json.NewEncoder(body).Encode(baggageclaim.VolumeRequest{
 						Strategy: encStrategy(map[string]string{
 							"type":   "cow",
 							"volume": "#pain",
@@ -908,7 +856,6 @@ var _ = Describe("Volume Server", func() {
 						var volumeResponse baggageclaim.VolumeResponse
 						err := json.NewDecoder(recorder.Body).Decode(&volumeResponse)
 						Expect(err).NotTo(HaveOccurred())
-						volumeResponse.ExpiresAt = time.Time{}
 						return volumeResponse
 					}, Equal(baggageclaim.VolumeResponse{
 						Handle:     "some-handle-2",
