@@ -14,9 +14,12 @@ import (
 )
 
 type PluginCommand struct {
-	CreateCommand CreateCommand `command:"create"`
-	DeleteCommand DeleteCommand `command:"delete"`
-	ListCommand   ListCommand   `command:"list"`
+	CreateCommand    CreateCommand    `command:"create"`
+	DeleteCommand    DeleteCommand    `command:"delete"`
+	ListCommand      ListCommand      `command:"list"`
+	InitStoreCommand InitStoreCommand `command:"init-store"`
+
+	foo string `long:"store-size-bytes" required:"true" description:"Address to Baggageclaim Server"`
 }
 
 type CreateCommand struct {
@@ -27,6 +30,10 @@ type CreateCommand struct {
 type DeleteCommand struct {
 	Handle string `long:"handle" required:"true" description:"Handle to Delete"`
 	ApiUrl string `long:"apiURL" required:"true" description:"Address to Baggageclaim Server"`
+}
+
+type InitStoreCommand struct {
+	StoreSizeBytes string `long:"store-size-bytes" required:"true" description:"Address to Baggageclaim Server"`
 }
 
 type ListCommand struct {
@@ -64,6 +71,11 @@ func (dc *DeleteCommand) Execute(args []string) error {
 	return nil
 }
 
+func (lc *InitStoreCommand) Execute(args []string) error {
+	fmt.Println("hello im here init storing")
+	return nil
+}
+
 func (lc *ListCommand) Execute(args []string) error {
 	logger := lager.NewLogger("baggageclaim_client")
 	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
@@ -91,7 +103,7 @@ var defaultRoundTripper http.RoundTripper = &http.Transport{
 func main() {
 	cmd := &PluginCommand{}
 
-	parser := flags.NewParser(cmd, flags.Default)
+	parser := flags.NewParser(cmd, flags.HelpFlag|flags.PrintErrors|flags.PassDoubleDash|flags.IgnoreUnknown)
 	parser.NamespaceDelimiter = "-"
 
 	_, err := parser.Parse()
