@@ -23,6 +23,7 @@ type PluginCommand struct {
 }
 
 type CreateCommand struct {
+	Path   string `long:"path" required:"true" description:"Path to rootfs"`
 	Handle string `long:"handle" required:"true" description:"Handle to Create"`
 	ApiUrl string `long:"apiURL" required:"true" description:"Address to Baggageclaim Server"`
 }
@@ -47,7 +48,16 @@ func (cc *CreateCommand) Execute(args []string) error {
 
 	client := client.New(cc.ApiUrl, defaultRoundTripper)
 
-	vol, err := client.CreateVolume(logger, cc.Handle, baggageclaim.VolumeSpec{})
+	vol, err := client.CreateVolume(
+		logger,
+		cc.Handle,
+		baggageclaim.VolumeSpec{
+			Strategy: baggageclaim.COWStrategy{
+				Parent: NewCantTellYouNothingVolume(cc.Handle, cc.Path),
+			},
+			Privileged: true,
+		},
+	)
 	if err != nil {
 		return err
 	}
