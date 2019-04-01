@@ -12,7 +12,7 @@ type CantTellYouNothingVolume struct {
 	path   string
 }
 
-func NewCantTellYouNothingVolume(handle, path string) CantTellYouNothingVolume {
+func NewCantTellYouNothingVolume(path, handle string) CantTellYouNothingVolume {
 	return CantTellYouNothingVolume{
 		handle: handle,
 		path:   path,

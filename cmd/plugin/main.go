@@ -20,17 +20,16 @@ type PluginCommand struct {
 	InitStoreCommand InitStoreCommand `command:"init-store"`
 
 	foo string `long:"store-size-bytes" required:"true" description:"Address to Baggageclaim Server"`
+	//ImagePluginExtraArg string `long:"image-plugin--arg" required:"true" description:"Address to Baggageclaim Server"`
 }
 
 type CreateCommand struct {
-	Path   string `long:"path" required:"true" description:"Path to rootfs"`
-	Handle string `long:"handle" required:"true" description:"Handle to Create"`
-	ApiUrl string `long:"apiURL" required:"true" description:"Address to Baggageclaim Server"`
+	Path   string `required:"true" positional-args:"yes" description:"Path to rootfs"`
+	Handle string `required:"true" positional-args:"yes" description:"Handle to Create"`
 }
 
 type DeleteCommand struct {
 	Handle string `long:"handle" required:"true" description:"Handle to Delete"`
-	ApiUrl string `long:"apiURL" required:"true" description:"Address to Baggageclaim Server"`
 }
 
 type InitStoreCommand struct {
@@ -46,19 +45,20 @@ func (cc *CreateCommand) Execute(args []string) error {
 	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	client := client.New(cc.ApiUrl, defaultRoundTripper)
+	client := client.New("http://localhost:7788", defaultRoundTripper)
 
 	vol, err := client.CreateVolume(
 		logger,
 		cc.Handle,
 		baggageclaim.VolumeSpec{
 			Strategy: baggageclaim.COWStrategy{
-				Parent: NewCantTellYouNothingVolume(cc.Handle, cc.Path),
+				Parent: NewCantTellYouNothingVolume(args[0], args[1]),
 			},
 			Privileged: true,
 		},
 	)
 	if err != nil {
+		logger.Error("could not create COW volume", err, lager.Data{"args":args})
 		return err
 	}
 
@@ -71,7 +71,7 @@ func (dc *DeleteCommand) Execute(args []string) error {
 	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
 	logger.RegisterSink(sink)
 
-	client := client.New(dc.ApiUrl, defaultRoundTripper)
+	client := client.New("http://localhost:7788", defaultRoundTripper)
 	handles := []string{dc.Handle}
 
 	err := client.DestroyVolumes(logger, handles)
@@ -113,7 +113,7 @@ var defaultRoundTripper http.RoundTripper = &http.Transport{
 func main() {
 	cmd := &PluginCommand{}
 
-	parser := flags.NewParser(cmd, flags.HelpFlag|flags.PrintErrors|flags.PassDoubleDash|flags.IgnoreUnknown)
+	parser := flags.NewParser(cmd, flags.HelpFlag|flags.PrintErrors|flags.IgnoreUnknown)
 	parser.NamespaceDelimiter = "-"
 
 	_, err := parser.Parse()
