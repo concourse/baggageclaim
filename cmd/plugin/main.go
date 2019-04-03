@@ -1,10 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"time"
 
 	"code.cloudfoundry.org/lager"
@@ -29,7 +33,7 @@ type CreateCommand struct {
 }
 
 type DeleteCommand struct {
-	Handle string `long:"handle" required:"true" description:"Handle to Delete"`
+	Handle string `required:"true" positional-args:"yes" description:"Handle to Delete"`
 }
 
 type InitStoreCommand struct {
@@ -41,20 +45,28 @@ type ListCommand struct {
 }
 
 func (cc *CreateCommand) Execute(args []string) error {
-	logger := lager.NewLogger("baggageclaim_client")
-	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
+	logger := lager.NewLogger("baggageclaim_plugin")
+	sink := lager.NewWriterSink(os.Stderr, lager.DEBUG)
 	logger.RegisterSink(sink)
 
 	client := client.New("http://localhost:7788", defaultRoundTripper)
 
+	rootfsURL, err := url.Parse(args[0])
+	if err != nil {
+		return err
+	}
+
+	dir, _ := path.Split(rootfsURL.Path)
+	handle := path.Base(dir)
+	logger.Debug("creating volume", lager.Data{"path":rootfsURL.Path, "handle":handle})
 	vol, err := client.CreateVolume(
 		logger,
 		cc.Handle,
 		baggageclaim.VolumeSpec{
 			Strategy: baggageclaim.COWStrategy{
-				Parent: NewCantTellYouNothingVolume(args[0], args[1]),
+				Parent: NewCantTellYouNothingVolume(rootfsURL.Path, handle),
 			},
-			Privileged: true,
+			Privileged: false, ///TODO: Set this to a sane value
 		},
 	)
 	if err != nil {
@@ -62,19 +74,28 @@ func (cc *CreateCommand) Execute(args []string) error {
 		return err
 	}
 
-	fmt.Println("whats in here", vol)
+	runtimeSpec := &specs.Spec{
+		Root: &specs.Root{
+			Path: vol.Path(),
+			Readonly: false,
+		},
+	}
+
+	logger.Debug("created-cow-volume", lager.Data{"path":vol.Path()})
+
+	b, _ := json.Marshal(runtimeSpec)
+	fmt.Println(string(b))
 	return nil
 }
 
 func (dc *DeleteCommand) Execute(args []string) error {
 	logger := lager.NewLogger("baggageclaim_client")
-	sink := lager.NewWriterSink(os.Stdout, lager.DEBUG)
+	sink := lager.NewWriterSink(os.Stderr, lager.DEBUG)
 	logger.RegisterSink(sink)
 
 	client := client.New("http://localhost:7788", defaultRoundTripper)
-	handles := []string{dc.Handle}
 
-	err := client.DestroyVolumes(logger, handles)
+	err := client.DestroyVolume(logger, dc.Handle)
 	if err != nil {
 		return err
 	}
@@ -82,7 +103,6 @@ func (dc *DeleteCommand) Execute(args []string) error {
 }
 
 func (lc *InitStoreCommand) Execute(args []string) error {
-	fmt.Println("hello im here init storing")
 	return nil
 }
 
