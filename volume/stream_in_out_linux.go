@@ -5,10 +5,80 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/DataDog/zstd"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
-func (streamer *streamer) In(tgzStream io.Reader, dest string, privileged bool) (bool, error) {
-	tarCommand, dirFd, err := streamer.tarIn(privileged, dest, "-xz")
+func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged bool) (bool, error) {
+	tarCommand, dirFd, err := tarCmd(streamer.namespacer, privileged, dest, "-xf", "-")
+	if err != nil {
+		return false, err
+	}
+
+	defer dirFd.Close()
+
+	zstdDecompressedStream := zstd.NewReader(tzstInput)
+
+	tarCommand.Stdin = zstdDecompressedStream
+	tarCommand.Stdout = os.Stderr
+	tarCommand.Stderr = os.Stderr
+
+	err = tarCommand.Run()
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return true, err
+		}
+
+		return false, err
+	}
+
+	return false, nil
+}
+
+func (streamer *tarZstdStreamer) Out(tzstOutput io.Writer, src string, privileged bool) error {
+	fileInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	var tarCommandPath, tarCommandDir string
+
+	if fileInfo.IsDir() {
+		tarCommandPath = "."
+		tarCommandDir = src
+	} else {
+		tarCommandPath = filepath.Base(src)
+		tarCommandDir = filepath.Dir(src)
+	}
+
+	tarCommand, dirFd, err := tarCmd(streamer.namespacer, privileged, tarCommandDir, "-cf", "-", tarCommandPath)
+	if err != nil {
+		return err
+	}
+
+	defer dirFd.Close()
+
+	zstdCompressor := zstd.NewWriter(tzstOutput)
+
+	tarCommand.Stdout = zstdCompressor
+	tarCommand.Stderr = os.Stderr
+
+	err = tarCommand.Run()
+	if err != nil {
+		return err
+	}
+
+	err = zstdCompressor.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (streamer *tarGzipStreamer) In(tgzStream io.Reader, dest string, privileged bool) (bool, error) {
+	tarCommand, dirFd, err := tarCmd(streamer.namespacer, privileged, dest, "-xz")
 	if err != nil {
 		return false, err
 	}
@@ -31,7 +101,7 @@ func (streamer *streamer) In(tgzStream io.Reader, dest string, privileged bool) 
 	return false, nil
 }
 
-func (streamer *streamer) Out(w io.Writer, src string, privileged bool) error {
+func (streamer *tarGzipStreamer) Out(w io.Writer, src string, privileged bool) error {
 	fileInfo, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -47,7 +117,7 @@ func (streamer *streamer) Out(w io.Writer, src string, privileged bool) error {
 		tarCommandDir = filepath.Dir(src)
 	}
 
-	tarCommand, dirFd, err := streamer.tarIn(privileged, tarCommandDir, "-cz", tarCommandPath)
+	tarCommand, dirFd, err := tarCmd(streamer.namespacer, privileged, tarCommandDir, "-cz", tarCommandPath)
 	if err != nil {
 		return err
 	}
@@ -65,7 +135,7 @@ func (streamer *streamer) Out(w io.Writer, src string, privileged bool) error {
 	return nil
 }
 
-func (streamer *streamer) tarIn(privileged bool, dir string, args ...string) (*exec.Cmd, *os.File, error) {
+func tarCmd(namespacer uidgid.Namespacer, privileged bool, dir string, args ...string) (*exec.Cmd, *os.File, error) {
 	// 'tar' may run as MAX_UID in order to remap UIDs when streaming into an
 	// unprivileged volume. this may cause permission issues when exec'ing as it
 	// may not be able to even see the destination directory as non-root.
@@ -81,7 +151,7 @@ func (streamer *streamer) tarIn(privileged bool, dir string, args ...string) (*e
 	tarCommand.ExtraFiles = []*os.File{dirFd}
 
 	if !privileged {
-		streamer.namespacer.NamespaceCommand(tarCommand)
+		namespacer.NamespaceCommand(tarCommand)
 	}
 
 	return tarCommand, dirFd, nil

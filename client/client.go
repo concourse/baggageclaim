@@ -237,7 +237,7 @@ func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeRes
 	return volume
 }
 
-func (c *client) streamIn(logger lager.Logger, destHandle string, path string, tarContent io.Reader) error {
+func (c *client) streamIn(logger lager.Logger, destHandle string, path string, encoding baggageclaim.Encoding, tarContent io.Reader) error {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
 		"handle": destHandle,
 	}, tarContent)
@@ -246,6 +246,7 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, t
 	if err != nil {
 		return err
 	}
+	request.Header.Set("Content-Encoding", string(encoding))
 
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
@@ -259,7 +260,7 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, t
 	return getError(response)
 }
 
-func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (io.ReadCloser, error) {
+func (c *client) streamOut(logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string) (io.ReadCloser, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamOut, rata.Params{
 		"handle": srcHandle,
 	}, nil)
@@ -268,6 +269,7 @@ func (c *client) streamOut(logger lager.Logger, srcHandle string, path string) (
 	if err != nil {
 		return nil, err
 	}
+	request.Header.Set("Accept-Encoding", string(encoding))
 
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {

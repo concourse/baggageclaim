@@ -2,9 +2,9 @@
 package baggageclaimfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	baggageclaim "github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim"
 )
 
 type FakeVolumeFuture struct {
