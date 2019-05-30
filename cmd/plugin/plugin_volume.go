@@ -2,59 +2,50 @@ package main
 
 import (
 	"io"
-	"time"
 
 	"github.com/concourse/baggageclaim"
 )
 
-type CantTellYouNothingVolume struct {
+type PluginVolume struct {
 	handle string
 	path   string
 }
 
-func NewCantTellYouNothingVolume(path, handle string) CantTellYouNothingVolume {
-	return CantTellYouNothingVolume{
+func NewPluginVolume(path, handle string) PluginVolume {
+	return PluginVolume{
 		handle: handle,
 		path:   path,
 	}
 }
 
-func (pv CantTellYouNothingVolume) Handle() string {
+func (pv PluginVolume) Handle() string {
 	return pv.handle
 }
 
-func (pv CantTellYouNothingVolume) Path() string {
+func (pv PluginVolume) Path() string {
 	return pv.path
 }
 
-func (cv CantTellYouNothingVolume) Properties() (baggageclaim.VolumeProperties, error) {
+func (cv PluginVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	return nil, nil
 }
 
-func (cv CantTellYouNothingVolume) StreamIn(path string, tarStream io.Reader) error {
+func (cv PluginVolume) StreamIn(path string, tarStream io.Reader) error {
 	return nil
 }
 
-func (cv CantTellYouNothingVolume) StreamOut(path string) (io.ReadCloser, error) {
+func (cv PluginVolume) StreamOut(path string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func (cv CantTellYouNothingVolume) SetPrivileged(privileged bool) error {
+func (cv PluginVolume) SetPrivileged(privileged bool) error {
 	return nil
 }
 
-func (cv CantTellYouNothingVolume) Destroy() error {
+func (cv PluginVolume) Destroy() error {
 	return nil
-}
-func (cv CantTellYouNothingVolume) Release(duration *time.Duration) {
 }
 
-func (cv CantTellYouNothingVolume) Expiration() (time.Duration, time.Time, error) {
-	return 0 * time.Second, time.Time{}, nil
-}
-func (cv CantTellYouNothingVolume) SetTTL(time.Duration) error {
-	return nil
-}
-func (cv CantTellYouNothingVolume) SetProperty(name string, value string) error {
+func (cv PluginVolume) SetProperty(name string, value string) error {
 	return nil
 }
