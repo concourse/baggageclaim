@@ -53,15 +53,17 @@ func (cc *CreateCommand) Execute(args []string) error {
 
 	dir, _ := path.Split(rootfsURL.Path)
 	handle := path.Base(dir)
+
 	logger.Debug("create-volume", lager.Data{"path": rootfsURL.Path, "handle": handle})
-	vol, err := client.CreateVolume(
+
+	volume, err := client.CreateVolume(
 		logger,
 		cc.Handle,
 		baggageclaim.VolumeSpec{
 			Strategy: baggageclaim.COWStrategy{
 				Parent: NewPluginVolume(rootfsURL.Path, handle),
 			},
-			Privileged: false, ///TODO: Set this to a sane value
+			Privileged: true, ///TODO: Set this to a sane value
 		},
 	)
 	if err != nil {
@@ -71,12 +73,12 @@ func (cc *CreateCommand) Execute(args []string) error {
 
 	runtimeSpec := &specs.Spec{
 		Root: &specs.Root{
-			Path:     vol.Path(),
+			Path:     volume.Path(),
 			Readonly: false,
 		},
 	}
 
-	logger.Debug("created-cow-volume", lager.Data{"path": vol.Path()})
+	logger.Debug("created-cow-volume", lager.Data{"path": volume.Path()})
 
 	b, _ := json.Marshal(runtimeSpec)
 	fmt.Println(string(b))
