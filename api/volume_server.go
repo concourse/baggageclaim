@@ -23,6 +23,7 @@ var ErrGetVolumeFailed = errors.New("failed to get volume")
 var ErrCreateVolumeFailed = errors.New("failed to create volume")
 var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
 var ErrSetPropertyFailed = errors.New("failed to set property on volume")
+var ErrGetPrivilegedFailed = errors.New("failed to get privileged status of volume")
 var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of volume")
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
@@ -377,6 +378,38 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) GetPrivileged(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("get-privileged", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	privileged, err := vs.volumeRepo.GetPrivileged(ctx, handle)
+	if err != nil {
+		hLog.Error("failed-to-change-privileged-status", err)
+
+		if err == volume.ErrVolumeDoesNotExist {
+			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusNotFound)
+		} else {
+			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(privileged); err != nil {
+		hLog.Error("failed-to-encode", err)
+	}
 }
 
 
