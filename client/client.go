@@ -357,8 +357,10 @@ func (c *client) destroy(logger lager.Logger, handle string) error {
 	return nil
 }
 
-func (c *client) getPrivileged(logger lager.Logger, handle string) (bool,error) {
-	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetPrivileged, nil, buffer)
+func (c *client) getPrivileged(logger lager.Logger, handle string) (bool, error) {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetPrivileged, rata.Params{
+		"handle": handle,
+	}, nil)
 	if err != nil {
 		return false, err
 	}
@@ -370,7 +372,7 @@ func (c *client) getPrivileged(logger lager.Logger, handle string) (bool,error) 
 
 	defer response.Body.Close()
 
-	if response.StatusCode != 204 {
+	if response.StatusCode != 200 {
 		return false, getError(response)
 	}
 

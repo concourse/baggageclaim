@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -17,6 +18,8 @@ import (
 	"github.com/concourse/baggageclaim/client"
 	"github.com/jessevdk/go-flags"
 )
+
+var ErrVolumeDoesNotExist = errors.New("volume does not exist")
 
 type PluginCommand struct {
 	CreateCommand    CreateCommand    `command:"create"`
@@ -56,6 +59,24 @@ func (cc *CreateCommand) Execute(args []string) error {
 
 	logger.Debug("create-volume", lager.Data{"path": rootfsURL.Path, "handle": handle})
 
+	parentVolume, found, err := client.LookupVolume(logger, handle)
+
+	if !found {
+		logger.Error("could not find parent volume", err)
+		return ErrVolumeDoesNotExist
+	}
+
+	if err != nil {
+		logger.Error("failed to find parent volume", err)
+		return err
+	}
+
+	parentPrivileged, err := parentVolume.GetPrivileged()
+	if err != nil {
+		logger.Error("could not get privilege of parent volume", err)
+		return err
+	}
+
 	volume, err := client.CreateVolume(
 		logger,
 		cc.Handle,
@@ -63,7 +84,7 @@ func (cc *CreateCommand) Execute(args []string) error {
 			Strategy: baggageclaim.COWStrategy{
 				Parent: NewPluginVolume(rootfsURL.Path, handle),
 			},
-			Privileged: true, ///TODO: Set this to a sane value
+			Privileged: parentPrivileged,
 		},
 	)
 	if err != nil {

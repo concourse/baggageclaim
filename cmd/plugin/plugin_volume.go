@@ -38,6 +38,10 @@ func (cv PluginVolume) StreamOut(path string) (io.ReadCloser, error) {
 	return nil, nil
 }
 
+func (cv PluginVolume) GetPrivileged() (bool, error) {
+	return false, nil
+}
+
 func (cv PluginVolume) SetPrivileged(privileged bool) error {
 	return nil
 }

@@ -2,10 +2,10 @@
 package baggageclaimfakes
 
 import (
-	sync "sync"
+	"sync"
 
-	lager "code.cloudfoundry.org/lager"
-	baggageclaim "github.com/concourse/baggageclaim"
+	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim"
 )
 
 type FakeClient struct {

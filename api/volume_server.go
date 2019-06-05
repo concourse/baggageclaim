@@ -399,9 +399,9 @@ func (vs *VolumeServer) GetPrivileged(w http.ResponseWriter, req *http.Request) 
 		hLog.Error("failed-to-change-privileged-status", err)
 
 		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusNotFound)
+			RespondWithError(w, ErrGetPrivilegedFailed, http.StatusNotFound)
 		} else {
-			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusInternalServerError)
+			RespondWithError(w, ErrGetPrivilegedFailed, http.StatusInternalServerError)
 		}
 
 		return
