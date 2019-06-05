@@ -26,6 +26,7 @@ type Repository interface {
 	DestroyVolumeAndDescendants(ctx context.Context, handle string) error
 
 	SetProperty(ctx context.Context, handle string, propertyName string, propertyValue string) error
+	GetPrivileged(ctx context.Context, handle string) (bool, error)
 	SetPrivileged(ctx context.Context, handle string, privileged bool) error
 
 	StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error)
@@ -280,6 +281,34 @@ func (repo *repository) SetProperty(ctx context.Context, handle string, property
 	}
 
 	return nil
+}
+
+func (repo *repository) GetPrivileged(ctx context.Context, handle string) (bool, error) {
+	repo.locker.Lock(handle)
+	defer repo.locker.Unlock(handle)
+
+	logger := lagerctx.FromContext(ctx).Session("get-privileged", lager.Data{
+		"volume": handle,
+	})
+
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return false, err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return false, ErrVolumeDoesNotExist
+	}
+
+	privileged, err := volume.LoadPrivileged()
+	if err != nil {
+		logger.Error("failed-to-load-privileged", err)
+		return false, err
+	}
+
+	return privileged, nil
 }
 
 func (repo *repository) SetPrivileged(ctx context.Context, handle string, privileged bool) error {

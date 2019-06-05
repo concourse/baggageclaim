@@ -2,11 +2,11 @@
 package volumefakes
 
 import (
-	context "context"
-	io "io"
-	sync "sync"
+	"context"
+	"io"
+	"sync"
 
-	volume "github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type FakeRepository struct {
@@ -50,6 +50,20 @@ type FakeRepository struct {
 	}
 	destroyVolumeAndDescendantsReturnsOnCall map[int]struct {
 		result1 error
+	}
+	GetPrivilegedStub        func(context.Context, string) (bool, error)
+	getPrivilegedMutex       sync.RWMutex
+	getPrivilegedArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+	}
+	getPrivilegedReturns struct {
+		result1 bool
+		result2 error
+	}
+	getPrivilegedReturnsOnCall map[int]struct {
+		result1 bool
+		result2 error
 	}
 	GetVolumeStub        func(context.Context, string) (volume.Volume, bool, error)
 	getVolumeMutex       sync.RWMutex
@@ -347,6 +361,70 @@ func (fake *FakeRepository) DestroyVolumeAndDescendantsReturnsOnCall(i int, resu
 	fake.destroyVolumeAndDescendantsReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeRepository) GetPrivileged(arg1 context.Context, arg2 string) (bool, error) {
+	fake.getPrivilegedMutex.Lock()
+	ret, specificReturn := fake.getPrivilegedReturnsOnCall[len(fake.getPrivilegedArgsForCall)]
+	fake.getPrivilegedArgsForCall = append(fake.getPrivilegedArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	fake.recordInvocation("GetPrivileged", []interface{}{arg1, arg2})
+	fake.getPrivilegedMutex.Unlock()
+	if fake.GetPrivilegedStub != nil {
+		return fake.GetPrivilegedStub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getPrivilegedReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeRepository) GetPrivilegedCallCount() int {
+	fake.getPrivilegedMutex.RLock()
+	defer fake.getPrivilegedMutex.RUnlock()
+	return len(fake.getPrivilegedArgsForCall)
+}
+
+func (fake *FakeRepository) GetPrivilegedCalls(stub func(context.Context, string) (bool, error)) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = stub
+}
+
+func (fake *FakeRepository) GetPrivilegedArgsForCall(i int) (context.Context, string) {
+	fake.getPrivilegedMutex.RLock()
+	defer fake.getPrivilegedMutex.RUnlock()
+	argsForCall := fake.getPrivilegedArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeRepository) GetPrivilegedReturns(result1 bool, result2 error) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = nil
+	fake.getPrivilegedReturns = struct {
+		result1 bool
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeRepository) GetPrivilegedReturnsOnCall(i int, result1 bool, result2 error) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = nil
+	if fake.getPrivilegedReturnsOnCall == nil {
+		fake.getPrivilegedReturnsOnCall = make(map[int]struct {
+			result1 bool
+			result2 error
+		})
+	}
+	fake.getPrivilegedReturnsOnCall[i] = struct {
+		result1 bool
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeRepository) GetVolume(arg1 context.Context, arg2 string) (volume.Volume, bool, error) {
@@ -813,6 +891,8 @@ func (fake *FakeRepository) Invocations() map[string][][]interface{} {
 	defer fake.destroyVolumeMutex.RUnlock()
 	fake.destroyVolumeAndDescendantsMutex.RLock()
 	defer fake.destroyVolumeAndDescendantsMutex.RUnlock()
+	fake.getPrivilegedMutex.RLock()
+	defer fake.getPrivilegedMutex.RUnlock()
 	fake.getVolumeMutex.RLock()
 	defer fake.getVolumeMutex.RUnlock()
 	fake.listVolumesMutex.RLock()

@@ -83,6 +83,9 @@ type Volume interface {
 	// volume's contents.
 	SetPrivileged(bool) error
 
+	// GetPrivileged returns a bool indicating if the volume is privileged.
+	GetPrivileged() (bool, error)
+
 	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
 	// to stream the contents of the Reader into this volume at the specified path.
 	StreamIn(path string, tarStream io.Reader) error

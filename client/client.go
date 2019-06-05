@@ -357,6 +357,35 @@ func (c *client) destroy(logger lager.Logger, handle string) error {
 	return nil
 }
 
+func (c *client) getPrivileged(logger lager.Logger, handle string) (bool, error) {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetPrivileged, rata.Params{
+		"handle": handle,
+	}, nil)
+	if err != nil {
+		return false, err
+	}
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return false, err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		return false, getError(response)
+	}
+
+	var privileged bool
+	err = json.NewDecoder(response.Body).Decode(&privileged)
+	if err != nil {
+		return false, err
+	}
+
+	return privileged, nil
+}
+
+
 func (c *client) setPrivileged(logger lager.Logger, handle string, privileged bool) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.PrivilegedRequest{

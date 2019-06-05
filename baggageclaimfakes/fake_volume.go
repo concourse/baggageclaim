@@ -2,10 +2,10 @@
 package baggageclaimfakes
 
 import (
-	io "io"
-	sync "sync"
+	"io"
+	"sync"
 
-	baggageclaim "github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim"
 )
 
 type FakeVolume struct {
@@ -18,6 +18,18 @@ type FakeVolume struct {
 	}
 	destroyReturnsOnCall map[int]struct {
 		result1 error
+	}
+	GetPrivilegedStub        func() (bool, error)
+	getPrivilegedMutex       sync.RWMutex
+	getPrivilegedArgsForCall []struct {
+	}
+	getPrivilegedReturns struct {
+		result1 bool
+		result2 error
+	}
+	getPrivilegedReturnsOnCall map[int]struct {
+		result1 bool
+		result2 error
 	}
 	HandleStub        func() string
 	handleMutex       sync.RWMutex
@@ -153,6 +165,61 @@ func (fake *FakeVolume) DestroyReturnsOnCall(i int, result1 error) {
 	fake.destroyReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *FakeVolume) GetPrivileged() (bool, error) {
+	fake.getPrivilegedMutex.Lock()
+	ret, specificReturn := fake.getPrivilegedReturnsOnCall[len(fake.getPrivilegedArgsForCall)]
+	fake.getPrivilegedArgsForCall = append(fake.getPrivilegedArgsForCall, struct {
+	}{})
+	fake.recordInvocation("GetPrivileged", []interface{}{})
+	fake.getPrivilegedMutex.Unlock()
+	if fake.GetPrivilegedStub != nil {
+		return fake.GetPrivilegedStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.getPrivilegedReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeVolume) GetPrivilegedCallCount() int {
+	fake.getPrivilegedMutex.RLock()
+	defer fake.getPrivilegedMutex.RUnlock()
+	return len(fake.getPrivilegedArgsForCall)
+}
+
+func (fake *FakeVolume) GetPrivilegedCalls(stub func() (bool, error)) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = stub
+}
+
+func (fake *FakeVolume) GetPrivilegedReturns(result1 bool, result2 error) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = nil
+	fake.getPrivilegedReturns = struct {
+		result1 bool
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeVolume) GetPrivilegedReturnsOnCall(i int, result1 bool, result2 error) {
+	fake.getPrivilegedMutex.Lock()
+	defer fake.getPrivilegedMutex.Unlock()
+	fake.GetPrivilegedStub = nil
+	if fake.getPrivilegedReturnsOnCall == nil {
+		fake.getPrivilegedReturnsOnCall = make(map[int]struct {
+			result1 bool
+			result2 error
+		})
+	}
+	fake.getPrivilegedReturnsOnCall[i] = struct {
+		result1 bool
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *FakeVolume) Handle() string {
@@ -564,6 +631,8 @@ func (fake *FakeVolume) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.destroyMutex.RLock()
 	defer fake.destroyMutex.RUnlock()
+	fake.getPrivilegedMutex.RLock()
+	defer fake.getPrivilegedMutex.RUnlock()
 	fake.handleMutex.RLock()
 	defer fake.handleMutex.RUnlock()
 	fake.pathMutex.RLock()

@@ -45,6 +45,10 @@ func (cv *clientVolume) StreamOut(path string) (io.ReadCloser, error) {
 	return cv.bcClient.streamOut(cv.logger, cv.handle, path)
 }
 
+func (cv *clientVolume) GetPrivileged() (bool, error) {
+	return cv.bcClient.getPrivileged(cv.logger, cv.handle)
+}
+
 func (cv *clientVolume) SetPrivileged(privileged bool) error {
 	return cv.bcClient.setPrivileged(cv.logger, cv.handle, privileged)
 }

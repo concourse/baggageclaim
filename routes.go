@@ -14,6 +14,7 @@ const (
 	CreateVolumeAsyncCheck  = "CreateVolumeAsyncCheck"
 
 	SetProperty   = "SetProperty"
+	GetPrivileged = "GetPrivileged"
 	SetPrivileged = "SetPrivileged"
 	StreamIn      = "StreamIn"
 	StreamOut     = "StreamOut"
@@ -29,6 +30,7 @@ var Routes = rata.Routes{
 
 	{Path: "/volumes/:handle", Method: "GET", Name: GetVolume},
 	{Path: "/volumes/:handle/properties/:property", Method: "PUT", Name: SetProperty},
+	{Path: "/volumes/:handle/privileged", Method: "GET", Name: GetPrivileged},
 	{Path: "/volumes/:handle/privileged", Method: "PUT", Name: SetPrivileged},
 	{Path: "/volumes/:handle/stream-in", Method: "PUT", Name: StreamIn},
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},

@@ -3,6 +3,7 @@ package volume_test
 import (
 	"context"
 	"errors"
+
 	"github.com/concourse/baggageclaim/uidgid/uidgidfakes"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/volumefakes"
@@ -834,6 +835,137 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
+	Describe("GetPrivileged", func() {
+		var (
+			getErr error
+		)
+
+		JustBeforeEach(func() {
+			_, getErr = repository.GetPrivileged(context.Background(), "some-volume")
+		})
+
+		Context("when the volume is found in the filesystem", func() {
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
+
+			BeforeEach(func() {
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeVolume.HandleReturns("some-volume")
+				fakeVolume.DataPathReturns("some-data-path")
+
+				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
+			})
+
+			Context("when getting privileged succeeds", func() {
+				BeforeEach(func() {
+					fakeVolume.LoadPrivilegedReturns(true, nil)
+				})
+
+				It("succeeds", func() {
+					Expect(getErr).ToNot(HaveOccurred())
+				})
+			})
+
+			Context("when getting privileged fails", func() {
+				disaster := errors.New("nope")
+
+				BeforeEach(func() {
+					fakeVolume.LoadPrivilegedReturns(false, disaster)
+				})
+
+				It("returns the error", func() {
+					Expect(getErr).To(Equal(disaster))
+				})
+			})
+		})
+
+		Context("when the volume is not found on the filesystem", func() {
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, false, nil)
+			})
+
+			It("returns ErrVolumeDoesNotExist", func() {
+				Expect(getErr).To(Equal(volume.ErrVolumeDoesNotExist))
+			})
+		})
+
+		Context("when looking up the volume on the filesystem fails", func() {
+			disaster := errors.New("nope")
+
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, false, disaster)
+			})
+
+			It("returns the error", func() {
+				Expect(getErr).To(Equal(disaster))
+			})
+		})
+	})
+
+	Describe("SetPrivileged", func() {
+		var (
+			setErr error
+		)
+
+		JustBeforeEach(func() {
+			setErr = repository.SetPrivileged(context.Background(), "some-volume", true)
+		})
+
+		Context("when the volume is found in the filesystem", func() {
+			var fakeVolume *volumefakes.FakeFilesystemLiveVolume
+
+			BeforeEach(func() {
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeVolume.HandleReturns("some-volume")
+				fakeVolume.DataPathReturns("some-data-path")
+
+				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
+			})
+
+			Context("when setting privileged succeeds", func() {
+				BeforeEach(func() {
+					fakeVolume.StorePrivilegedReturns(nil)
+				})
+
+				It("succeeds", func() {
+					Expect(setErr).ToNot(HaveOccurred())
+				})
+			})
+
+			Context("when setting privileged fails", func() {
+				disaster := errors.New("nope")
+
+				BeforeEach(func() {
+					fakeVolume.StorePrivilegedReturns(disaster)
+				})
+
+				It("returns the error", func() {
+					Expect(setErr).To(Equal(disaster))
+				})
+			})
+		})
+
+		Context("when the volume is not found on the filesystem", func() {
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, false, nil)
+			})
+
+			It("returns ErrVolumeDoesNotExist", func() {
+				Expect(setErr).To(Equal(volume.ErrVolumeDoesNotExist))
+			})
+		})
+
+		Context("when looking up the volume on the filesystem fails", func() {
+			disaster := errors.New("nope")
+
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, false, disaster)
+			})
+
+			It("returns the error", func() {
+				Expect(setErr).To(Equal(disaster))
+			})
+		})
+	})
 
 	Describe("VolumeParent", func() {
 		var (
