@@ -361,50 +361,5 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 		})
-
-		Describe("Setting privilege on a container", func() {
-			var vol baggageclaim.Volume
-			BeforeEach(func() {
-				bcServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/volumes-async"),
-						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
-							Handle: "some-handle",
-						}),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
-						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
-							Handle:     "some-handle",
-							Path:       "some-path",
-							Properties: volume.Properties{},
-						}),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
-						ghttp.RespondWith(http.StatusNoContent, nil),
-					),
-				)
-				var err error
-				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
-				Expect(err).ToNot(HaveOccurred())
-			})
-
-			Context("when error occurs", func() {
-				It("returns API error message", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/properties/key", "lost baggage", http.StatusInternalServerError)
-					err := vol.SetProperty("key", "value")
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("lost baggage"))
-				})
-
-				It("returns ErrVolumeNotFound", func() {
-					mockErrorResponse("PUT", "/volumes/some-handle/properties/key", "lost baggage", http.StatusNotFound)
-					err := vol.SetProperty("key", "value")
-					Expect(err).To(HaveOccurred())
-					Expect(err).To(Equal(baggageclaim.ErrVolumeNotFound))
-				})
-			})
-		})
 	})
 })

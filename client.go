@@ -83,8 +83,7 @@ type Volume interface {
 	// volume's contents.
 	SetPrivileged(bool) error
 
-	// GetPrivileged namespaces or un-namespaces the UID/GID ownership of the
-	// volume's contents.
+	// GetPrivileged returns a bool indicating if the volume is privileged.
 	GetPrivileged() (bool, error)
 
 	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
