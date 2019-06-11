@@ -124,13 +124,14 @@ type FakeRepository struct {
 	setPropertyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StreamInStub        func(context.Context, string, string, io.Reader) (bool, error)
+	StreamInStub        func(context.Context, string, string, string, io.Reader) (bool, error)
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 io.Reader
+		arg4 string
+		arg5 io.Reader
 	}
 	streamInReturns struct {
 		result1 bool
@@ -140,13 +141,14 @@ type FakeRepository struct {
 		result1 bool
 		result2 error
 	}
-	StreamOutStub        func(context.Context, string, string, io.Writer) error
+	StreamOutStub        func(context.Context, string, string, string, io.Writer) error
 	streamOutMutex       sync.RWMutex
 	streamOutArgsForCall []struct {
 		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 io.Writer
+		arg4 string
+		arg5 io.Writer
 	}
 	streamOutReturns struct {
 		result1 error
@@ -686,19 +688,20 @@ func (fake *FakeRepository) SetPropertyReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeRepository) StreamIn(arg1 context.Context, arg2 string, arg3 string, arg4 io.Reader) (bool, error) {
+func (fake *FakeRepository) StreamIn(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 io.Reader) (bool, error) {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
 	fake.streamInArgsForCall = append(fake.streamInArgsForCall, struct {
 		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 io.Reader
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3, arg4})
+		arg4 string
+		arg5 io.Reader
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.streamInMutex.Unlock()
 	if fake.StreamInStub != nil {
-		return fake.StreamInStub(arg1, arg2, arg3, arg4)
+		return fake.StreamInStub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -713,17 +716,17 @@ func (fake *FakeRepository) StreamInCallCount() int {
 	return len(fake.streamInArgsForCall)
 }
 
-func (fake *FakeRepository) StreamInCalls(stub func(context.Context, string, string, io.Reader) (bool, error)) {
+func (fake *FakeRepository) StreamInCalls(stub func(context.Context, string, string, string, io.Reader) (bool, error)) {
 	fake.streamInMutex.Lock()
 	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = stub
 }
 
-func (fake *FakeRepository) StreamInArgsForCall(i int) (context.Context, string, string, io.Reader) {
+func (fake *FakeRepository) StreamInArgsForCall(i int) (context.Context, string, string, string, io.Reader) {
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	argsForCall := fake.streamInArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeRepository) StreamInReturns(result1 bool, result2 error) {
@@ -752,19 +755,20 @@ func (fake *FakeRepository) StreamInReturnsOnCall(i int, result1 bool, result2 e
 	}{result1, result2}
 }
 
-func (fake *FakeRepository) StreamOut(arg1 context.Context, arg2 string, arg3 string, arg4 io.Writer) error {
+func (fake *FakeRepository) StreamOut(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 io.Writer) error {
 	fake.streamOutMutex.Lock()
 	ret, specificReturn := fake.streamOutReturnsOnCall[len(fake.streamOutArgsForCall)]
 	fake.streamOutArgsForCall = append(fake.streamOutArgsForCall, struct {
 		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 io.Writer
-	}{arg1, arg2, arg3, arg4})
-	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2, arg3, arg4})
+		arg4 string
+		arg5 io.Writer
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.streamOutMutex.Unlock()
 	if fake.StreamOutStub != nil {
-		return fake.StreamOutStub(arg1, arg2, arg3, arg4)
+		return fake.StreamOutStub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -779,17 +783,17 @@ func (fake *FakeRepository) StreamOutCallCount() int {
 	return len(fake.streamOutArgsForCall)
 }
 
-func (fake *FakeRepository) StreamOutCalls(stub func(context.Context, string, string, io.Writer) error) {
+func (fake *FakeRepository) StreamOutCalls(stub func(context.Context, string, string, string, io.Writer) error) {
 	fake.streamOutMutex.Lock()
 	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = stub
 }
 
-func (fake *FakeRepository) StreamOutArgsForCall(i int) (context.Context, string, string, io.Writer) {
+func (fake *FakeRepository) StreamOutArgsForCall(i int) (context.Context, string, string, string, io.Writer) {
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
 	argsForCall := fake.streamOutArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeRepository) StreamOutReturns(result1 error) {

@@ -13,6 +13,10 @@ type Streamer interface {
 	Out(io.Writer, string, bool) error
 }
 
-type streamer struct {
+type tarZstdStreamer struct {
+	namespacer uidgid.Namespacer
+}
+
+type tarGzipStreamer struct {
 	namespacer uidgid.Namespacer
 }

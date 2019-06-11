@@ -1,10 +1,11 @@
 package client
 
 import (
+	"io"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
-	"io"
 )
 
 type clientVolume struct {
@@ -37,12 +38,12 @@ func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	return vr.Properties, nil
 }
 
-func (cv *clientVolume) StreamIn(path string, tarStream io.Reader) error {
-	return cv.bcClient.streamIn(cv.logger, cv.handle, path, tarStream)
+func (cv *clientVolume) StreamIn(path string, encoding baggageclaim.Encoding, tarStream io.Reader) error {
+	return cv.bcClient.streamIn(cv.logger, cv.handle, path, encoding, tarStream)
 }
 
-func (cv *clientVolume) StreamOut(path string) (io.ReadCloser, error) {
-	return cv.bcClient.streamOut(cv.logger, cv.handle, path)
+func (cv *clientVolume) StreamOut(path string, encoding baggageclaim.Encoding) (io.ReadCloser, error) {
+	return cv.bcClient.streamOut(cv.logger, cv.handle, encoding, path)
 }
 
 func (cv *clientVolume) GetPrivileged() (bool, error) {
@@ -60,4 +61,3 @@ func (cv *clientVolume) Destroy() error {
 func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.logger, cv.handle, name, value)
 }
-

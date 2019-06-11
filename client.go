@@ -1,10 +1,16 @@
 package baggageclaim
 
 import (
-	"code.cloudfoundry.org/lager"
 	"encoding/json"
 	"io"
+
+	"code.cloudfoundry.org/lager"
 )
+
+type Encoding string
+
+const GzipEncoding Encoding = "gzip"
+const ZstdEncoding Encoding = "zstd"
 
 //go:generate counterfeiter . Client
 
@@ -88,9 +94,9 @@ type Volume interface {
 
 	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
 	// to stream the contents of the Reader into this volume at the specified path.
-	StreamIn(path string, tarStream io.Reader) error
+	StreamIn(path string, encoding Encoding, tarStream io.Reader) error
 
-	StreamOut(path string) (io.ReadCloser, error)
+	StreamOut(path string, encoding Encoding) (io.ReadCloser, error)
 
 	// Properties returns the currently set properties for a Volume. An error is
 	// returned if these could not be retrieved.
@@ -201,4 +207,3 @@ func (EmptyStrategy) Encode() *json.RawMessage {
 	msg := json.RawMessage(`{"type":"empty"}`)
 	return &msg
 }
-

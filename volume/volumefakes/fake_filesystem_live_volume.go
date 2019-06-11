@@ -2,9 +2,9 @@
 package volumefakes
 
 import (
-	sync "sync"
+	"sync"
 
-	volume "github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type FakeFilesystemLiveVolume struct {

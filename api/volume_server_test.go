@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/DataDog/zstd"
+	"github.com/concourse/go-archive/tarfs"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -198,34 +200,72 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		Context("when tar file is valid", func() {
-			BeforeEach(func() {
-				tgzBuffer = new(bytes.Buffer)
-				gzWriter := gzip.NewWriter(tgzBuffer)
-				defer gzWriter.Close()
 
-				tarWriter := tar.NewWriter(gzWriter)
-				defer tarWriter.Close()
+			Context("when using gzip encoding", func() {
+				BeforeEach(func() {
+					tgzBuffer = new(bytes.Buffer)
+					gzWriter := gzip.NewWriter(tgzBuffer)
+					defer gzWriter.Close()
 
-				err := tarWriter.WriteHeader(&tar.Header{
-					Name: "some-file",
-					Mode: 0600,
-					Size: int64(len("file-content")),
+					tarWriter := tar.NewWriter(gzWriter)
+					defer tarWriter.Close()
+
+					err := tarWriter.WriteHeader(&tar.Header{
+						Name: "some-file",
+						Mode: 0600,
+						Size: int64(len("file-content")),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					_, err = tarWriter.Write([]byte("file-content"))
+					Expect(err).NotTo(HaveOccurred())
 				})
-				Expect(err).NotTo(HaveOccurred())
-				_, err = tarWriter.Write([]byte("file-content"))
-				Expect(err).NotTo(HaveOccurred())
+
+				It("extracts the tar stream into the volume's DataPath", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
+					request.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarContentsPath).To(BeAnExistingFile())
+
+					Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+				})
+
 			})
 
-			It("extracts the tar stream into the volume's DataPath", func() {
-				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
-				recorder := httptest.NewRecorder()
-				handler.ServeHTTP(recorder, request)
-				Expect(recorder.Code).To(Equal(204))
+			Context("when using zstd encoding", func() {
+				BeforeEach(func() {
+					tgzBuffer = new(bytes.Buffer)
+					zstdWriter := zstd.NewWriter(tgzBuffer)
+					defer zstdWriter.Close()
 
-				tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
-				Expect(tarContentsPath).To(BeAnExistingFile())
+					tarWriter := tar.NewWriter(zstdWriter)
+					defer tarWriter.Close()
 
-				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+					err := tarWriter.WriteHeader(&tar.Header{
+						Name: "some-file",
+						Mode: 0600,
+						Size: int64(len("file-content")),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					_, err = tarWriter.Write([]byte("file-content"))
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				It("extracts the tar stream into the volume's DataPath", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
+					request.Header.Set("Content-Encoding", string(baggageclaim.ZstdEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(204))
+
+					tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+					Expect(tarContentsPath).To(BeAnExistingFile())
+
+					Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+				})
 			})
 		})
 
@@ -235,8 +275,35 @@ var _ = Describe("Volume Server", func() {
 				tgzBuffer.Write([]byte("This is an invalid tar file!"))
 			})
 
-			It("returns 400 when err is exitError", func() {
+			Context("when using gzip encoding", func() {
+				It("returns 400 when err is exitError", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", myVolume.Handle), tgzBuffer)
+					request.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(400))
+				})
+
+			})
+			Context("when using zstd encoding", func() {
+				It("returns 400 when err is exitError", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", myVolume.Handle), tgzBuffer)
+					request.Header.Set("Content-Encoding", string(baggageclaim.ZstdEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(400))
+				})
+			})
+		})
+
+		Context("when using an unsupported encoding", func() {
+			BeforeEach(func() {
+				tgzBuffer = new(bytes.Buffer)
+			})
+
+			It("returns 400 when err is UnsupportedEncodingError", func() {
 				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in", myVolume.Handle), tgzBuffer)
+				request.Header.Set("Content-Encoding", "unsupported")
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				Expect(recorder.Code).To(Equal(400))
@@ -286,6 +353,7 @@ var _ = Describe("Volume Server", func() {
 
 		It("returns 404 when source path is invalid", func() {
 			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "bogus-path"), nil)
+			request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
 			Expect(recorder.Code).To(Equal(404))
@@ -316,6 +384,7 @@ var _ = Describe("Volume Server", func() {
 
 			JustBeforeEach(func() {
 				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
+				streamInRequest.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -326,28 +395,60 @@ var _ = Describe("Volume Server", func() {
 				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
 			})
 
-			It("creates a tar", func() {
-				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
-				recorder := httptest.NewRecorder()
-				handler.ServeHTTP(recorder, request)
-				Expect(recorder.Code).To(Equal(200))
+			Context("when using gzip encoding", func() {
+				It("creates a tar", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+					request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(200))
 
-				unpackedDir := filepath.Join(tempDir, "unpacked-dir")
-				err := os.MkdirAll(unpackedDir, os.ModePerm)
-				Expect(err).NotTo(HaveOccurred())
-				defer os.RemoveAll(unpackedDir)
+					unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+					err := os.MkdirAll(unpackedDir, os.ModePerm)
+					Expect(err).NotTo(HaveOccurred())
+					defer os.RemoveAll(unpackedDir)
 
-				err = tgzfs.Extract(recorder.Body, unpackedDir)
-				Expect(err).NotTo(HaveOccurred())
+					err = tgzfs.Extract(recorder.Body, unpackedDir)
+					Expect(err).NotTo(HaveOccurred())
 
-				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(fileInfo.IsDir()).To(BeFalse())
-				Expect(fileInfo.Size()).To(Equal(int64(len("file-content"))))
+					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("file-content"))))
 
-				contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "./some-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(contents)).To(Equal("file-content"))
+					contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "./some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("file-content"))
+				})
+			})
+
+			Context("when using zstd encoding", func() {
+				It("creates a tar", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+					request.Header.Set("Accept-Encoding", string(baggageclaim.ZstdEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(200))
+
+					unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+					err := os.MkdirAll(unpackedDir, os.ModePerm)
+					Expect(err).NotTo(HaveOccurred())
+					defer os.RemoveAll(unpackedDir)
+
+					tarBytes, err := zstd.Decompress(nil, recorder.Body.Bytes())
+					Expect(err).NotTo(HaveOccurred())
+					err = tarfs.Extract(bytes.NewReader(tarBytes), unpackedDir)
+					Expect(err).NotTo(HaveOccurred())
+
+					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("file-content"))))
+
+					contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "./some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("file-content"))
+				})
 			})
 		})
 
@@ -374,6 +475,7 @@ var _ = Describe("Volume Server", func() {
 
 			JustBeforeEach(func() {
 				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
+				streamInRequest.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -382,41 +484,96 @@ var _ = Describe("Volume Server", func() {
 				Expect(tarContentsPath).To(BeADirectory())
 			})
 
-			It("creates a tar", func() {
+			Context("when using gzip encoding", func() {
+				It("creates a tar", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+					request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(200))
+
+					unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+					err := os.MkdirAll(unpackedDir, os.ModePerm)
+					Expect(err).NotTo(HaveOccurred())
+					defer os.RemoveAll(unpackedDir)
+
+					err = tgzfs.Extract(recorder.Body, unpackedDir)
+					Expect(err).NotTo(HaveOccurred())
+
+					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("other-file-content"))))
+
+					contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "other-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("other-file-content"))
+
+					dirInfo, err := os.Stat(filepath.Join(unpackedDir, "sub"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(dirInfo.IsDir()).To(BeTrue())
+
+					fileInfo, err = os.Stat(filepath.Join(unpackedDir, "sub/some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("some-file-content"))))
+
+					contents, err = ioutil.ReadFile(filepath.Join(unpackedDir, "sub/some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("some-file-content"))
+				})
+			})
+
+			Context("when using zstd encoding", func() {
+				It("creates a tar", func() {
+					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+					request.Header.Set("Accept-Encoding", string(baggageclaim.ZstdEncoding))
+					recorder := httptest.NewRecorder()
+					handler.ServeHTTP(recorder, request)
+					Expect(recorder.Code).To(Equal(200))
+
+					unpackedDir := filepath.Join(tempDir, "unpacked-dir")
+					err := os.MkdirAll(unpackedDir, os.ModePerm)
+					Expect(err).NotTo(HaveOccurred())
+					defer os.RemoveAll(unpackedDir)
+
+					tarBytes, err := zstd.Decompress(nil, recorder.Body.Bytes())
+					Expect(err).NotTo(HaveOccurred())
+					err = tarfs.Extract(bytes.NewReader(tarBytes), unpackedDir)
+					Expect(err).NotTo(HaveOccurred())
+
+					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("other-file-content"))))
+
+					contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "other-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("other-file-content"))
+
+					dirInfo, err := os.Stat(filepath.Join(unpackedDir, "sub"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(dirInfo.IsDir()).To(BeTrue())
+
+					fileInfo, err = os.Stat(filepath.Join(unpackedDir, "sub/some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(fileInfo.IsDir()).To(BeFalse())
+					Expect(fileInfo.Size()).To(Equal(int64(len("some-file-content"))))
+
+					contents, err = ioutil.ReadFile(filepath.Join(unpackedDir, "sub/some-file"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(contents)).To(Equal("some-file-content"))
+				})
+			})
+		})
+
+		Context("when using an unsupported encoding", func() {
+			It("returns 400 when err is UnsupportedEncodingError", func() {
 				request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
+				request.Header.Set("Accept-Encoding", "unsupported")
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
-				Expect(recorder.Code).To(Equal(200))
-
-				unpackedDir := filepath.Join(tempDir, "unpacked-dir")
-				err := os.MkdirAll(unpackedDir, os.ModePerm)
-				Expect(err).NotTo(HaveOccurred())
-				defer os.RemoveAll(unpackedDir)
-
-				err = tgzfs.Extract(recorder.Body, unpackedDir)
-				Expect(err).NotTo(HaveOccurred())
-
-				fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(fileInfo.IsDir()).To(BeFalse())
-				Expect(fileInfo.Size()).To(Equal(int64(len("other-file-content"))))
-
-				contents, err := ioutil.ReadFile(filepath.Join(unpackedDir, "other-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(contents)).To(Equal("other-file-content"))
-
-				dirInfo, err := os.Stat(filepath.Join(unpackedDir, "sub"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(dirInfo.IsDir()).To(BeTrue())
-
-				fileInfo, err = os.Stat(filepath.Join(unpackedDir, "sub/some-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(fileInfo.IsDir()).To(BeFalse())
-				Expect(fileInfo.Size()).To(Equal(int64(len("some-file-content"))))
-
-				contents, err = ioutil.ReadFile(filepath.Join(unpackedDir, "sub/some-file"))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(contents)).To(Equal("some-file-content"))
+				Expect(recorder.Code).To(Equal(400))
 			})
 		})
 

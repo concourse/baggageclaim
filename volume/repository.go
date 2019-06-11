@@ -7,14 +7,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/concourse/baggageclaim/uidgid"
-
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerctx"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
 var ErrVolumeIsCorrupted = errors.New("volume is corrupted")
+var ErrUnsupportedStreamEncoding = errors.New("unsupported stream encoding")
+
+const GzipEncoding string = "gzip"
+const ZstdEncoding string = "zstd"
 
 //go:generate counterfeiter . Repository
 
@@ -29,8 +32,8 @@ type Repository interface {
 	GetPrivileged(ctx context.Context, handle string) (bool, error)
 	SetPrivileged(ctx context.Context, handle string, privileged bool) error
 
-	StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error)
-	StreamOut(ctx context.Context, handle string, path string, dest io.Writer) error
+	StreamIn(ctx context.Context, handle string, path string, encoding string, stream io.Reader) (bool, error)
+	StreamOut(ctx context.Context, handle string, path string, encoding string, dest io.Writer) error
 
 	VolumeParent(ctx context.Context, handle string) (Volume, bool, error)
 }
@@ -40,8 +43,9 @@ type repository struct {
 
 	locker LockManager
 
-	streamer   *streamer
-	namespacer func(bool) uidgid.Namespacer
+	gzipStreamer Streamer
+	zstdStreamer Streamer
+	namespacer   func(bool) uidgid.Namespacer
 }
 
 func NewRepository(
@@ -54,7 +58,11 @@ func NewRepository(
 		filesystem: filesystem,
 		locker:     locker,
 
-		streamer: &streamer{
+		gzipStreamer: &tarGzipStreamer{
+			namespacer: unprivilegedNamespacer,
+		},
+
+		zstdStreamer: &tarZstdStreamer{
 			namespacer: unprivilegedNamespacer,
 		},
 
@@ -137,7 +145,9 @@ func (repo *repository) DestroyVolumeAndDescendants(ctx context.Context, handle 
 func (repo *repository) CreateVolume(ctx context.Context, handle string, strategy Strategy, properties Properties, isPrivileged bool) (Volume, error) {
 	logger := lagerctx.FromContext(ctx).Session("create-volume", lager.Data{"handle": handle})
 
-	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem, repo.streamer)
+	// only the import strategy uses the gzip streamer as,
+	// base resource type rootfs' are available locally as .tgz
+	initVolume, err := strategy.Materialize(logger, handle, repo.filesystem, repo.gzipStreamer)
 	if err != nil {
 		logger.Error("failed-to-materialize-strategy", err)
 		return Volume{}, err
@@ -345,7 +355,7 @@ func (repo *repository) SetPrivileged(ctx context.Context, handle string, privil
 	return nil
 }
 
-func (repo *repository) StreamIn(ctx context.Context, handle string, path string, stream io.Reader) (bool, error) {
+func (repo *repository) StreamIn(ctx context.Context, handle string, path string, encoding string, stream io.Reader) (bool, error) {
 	logger := lagerctx.FromContext(ctx).Session("stream-in", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
@@ -386,10 +396,17 @@ func (repo *repository) StreamIn(ctx context.Context, handle string, path string
 		return false, err
 	}
 
-	return repo.streamer.In(stream, destinationPath, privileged)
+	switch encoding {
+	case ZstdEncoding:
+		return repo.zstdStreamer.In(stream, destinationPath, privileged)
+	case GzipEncoding:
+		return repo.gzipStreamer.In(stream, destinationPath, privileged)
+	}
+
+	return false, ErrUnsupportedStreamEncoding
 }
 
-func (repo *repository) StreamOut(ctx context.Context, handle string, path string, dest io.Writer) error {
+func (repo *repository) StreamOut(ctx context.Context, handle string, path string, encoding string, dest io.Writer) error {
 	logger := lagerctx.FromContext(ctx).Session("stream-in", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
@@ -418,7 +435,14 @@ func (repo *repository) StreamOut(ctx context.Context, handle string, path strin
 		return err
 	}
 
-	return repo.streamer.Out(dest, srcPath, isPrivileged)
+	switch encoding {
+	case ZstdEncoding:
+		return repo.zstdStreamer.Out(dest, srcPath, isPrivileged)
+	case GzipEncoding:
+		return repo.gzipStreamer.Out(dest, srcPath, isPrivileged)
+	}
+
+	return ErrUnsupportedStreamEncoding
 }
 
 func (repo *repository) VolumeParent(ctx context.Context, handle string) (Volume, bool, error) {

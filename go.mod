@@ -2,6 +2,7 @@ module github.com/concourse/baggageclaim
 
 require (
 	code.cloudfoundry.org/lager v1.1.0
+	github.com/DataDog/zstd v1.4.0
 	github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40 // indirect
 	github.com/cenkalti/backoff v2.1.1+incompatible
 	github.com/concourse/flag v0.0.0-20180907155614-cb47f24fff1c

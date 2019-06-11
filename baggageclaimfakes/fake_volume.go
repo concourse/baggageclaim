@@ -86,11 +86,12 @@ type FakeVolume struct {
 	setPropertyReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StreamInStub        func(string, io.Reader) error
+	StreamInStub        func(string, baggageclaim.Encoding, io.Reader) error
 	streamInMutex       sync.RWMutex
 	streamInArgsForCall []struct {
 		arg1 string
-		arg2 io.Reader
+		arg2 baggageclaim.Encoding
+		arg3 io.Reader
 	}
 	streamInReturns struct {
 		result1 error
@@ -98,10 +99,11 @@ type FakeVolume struct {
 	streamInReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StreamOutStub        func(string) (io.ReadCloser, error)
+	StreamOutStub        func(string, baggageclaim.Encoding) (io.ReadCloser, error)
 	streamOutMutex       sync.RWMutex
 	streamOutArgsForCall []struct {
 		arg1 string
+		arg2 baggageclaim.Encoding
 	}
 	streamOutReturns struct {
 		result1 io.ReadCloser
@@ -502,17 +504,18 @@ func (fake *FakeVolume) SetPropertyReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeVolume) StreamIn(arg1 string, arg2 io.Reader) error {
+func (fake *FakeVolume) StreamIn(arg1 string, arg2 baggageclaim.Encoding, arg3 io.Reader) error {
 	fake.streamInMutex.Lock()
 	ret, specificReturn := fake.streamInReturnsOnCall[len(fake.streamInArgsForCall)]
 	fake.streamInArgsForCall = append(fake.streamInArgsForCall, struct {
 		arg1 string
-		arg2 io.Reader
-	}{arg1, arg2})
-	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2})
+		arg2 baggageclaim.Encoding
+		arg3 io.Reader
+	}{arg1, arg2, arg3})
+	fake.recordInvocation("StreamIn", []interface{}{arg1, arg2, arg3})
 	fake.streamInMutex.Unlock()
 	if fake.StreamInStub != nil {
-		return fake.StreamInStub(arg1, arg2)
+		return fake.StreamInStub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -527,17 +530,17 @@ func (fake *FakeVolume) StreamInCallCount() int {
 	return len(fake.streamInArgsForCall)
 }
 
-func (fake *FakeVolume) StreamInCalls(stub func(string, io.Reader) error) {
+func (fake *FakeVolume) StreamInCalls(stub func(string, baggageclaim.Encoding, io.Reader) error) {
 	fake.streamInMutex.Lock()
 	defer fake.streamInMutex.Unlock()
 	fake.StreamInStub = stub
 }
 
-func (fake *FakeVolume) StreamInArgsForCall(i int) (string, io.Reader) {
+func (fake *FakeVolume) StreamInArgsForCall(i int) (string, baggageclaim.Encoding, io.Reader) {
 	fake.streamInMutex.RLock()
 	defer fake.streamInMutex.RUnlock()
 	argsForCall := fake.streamInArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeVolume) StreamInReturns(result1 error) {
@@ -563,16 +566,17 @@ func (fake *FakeVolume) StreamInReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeVolume) StreamOut(arg1 string) (io.ReadCloser, error) {
+func (fake *FakeVolume) StreamOut(arg1 string, arg2 baggageclaim.Encoding) (io.ReadCloser, error) {
 	fake.streamOutMutex.Lock()
 	ret, specificReturn := fake.streamOutReturnsOnCall[len(fake.streamOutArgsForCall)]
 	fake.streamOutArgsForCall = append(fake.streamOutArgsForCall, struct {
 		arg1 string
-	}{arg1})
-	fake.recordInvocation("StreamOut", []interface{}{arg1})
+		arg2 baggageclaim.Encoding
+	}{arg1, arg2})
+	fake.recordInvocation("StreamOut", []interface{}{arg1, arg2})
 	fake.streamOutMutex.Unlock()
 	if fake.StreamOutStub != nil {
-		return fake.StreamOutStub(arg1)
+		return fake.StreamOutStub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
@@ -587,17 +591,17 @@ func (fake *FakeVolume) StreamOutCallCount() int {
 	return len(fake.streamOutArgsForCall)
 }
 
-func (fake *FakeVolume) StreamOutCalls(stub func(string) (io.ReadCloser, error)) {
+func (fake *FakeVolume) StreamOutCalls(stub func(string, baggageclaim.Encoding) (io.ReadCloser, error)) {
 	fake.streamOutMutex.Lock()
 	defer fake.streamOutMutex.Unlock()
 	fake.StreamOutStub = stub
 }
 
-func (fake *FakeVolume) StreamOutArgsForCall(i int) string {
+func (fake *FakeVolume) StreamOutArgsForCall(i int) (string, baggageclaim.Encoding) {
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
 	argsForCall := fake.streamOutArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeVolume) StreamOutReturns(result1 io.ReadCloser, result2 error) {

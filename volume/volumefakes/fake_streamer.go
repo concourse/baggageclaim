@@ -2,10 +2,10 @@
 package volumefakes
 
 import (
-	io "io"
-	sync "sync"
+	"io"
+	"sync"
 
-	volume "github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type FakeStreamer struct {

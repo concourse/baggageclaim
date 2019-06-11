@@ -2,10 +2,10 @@
 package volumefakes
 
 import (
-	sync "sync"
+	"sync"
 
-	lager "code.cloudfoundry.org/lager"
-	volume "github.com/concourse/baggageclaim/volume"
+	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type FakeStrategy struct {

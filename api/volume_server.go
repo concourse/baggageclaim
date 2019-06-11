@@ -412,7 +412,6 @@ func (vs *VolumeServer) GetPrivileged(w http.ResponseWriter, req *http.Request) 
 	}
 }
 
-
 func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) {
 	handle := rata.Param(req, "handle")
 
@@ -469,11 +468,17 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 		subPath = queryPath[0]
 	}
 
-	badStream, err := vs.volumeRepo.StreamIn(ctx, handle, subPath, req.Body)
+	badStream, err := vs.volumeRepo.StreamIn(ctx, handle, subPath, req.Header.Get("Content-Encoding"), req.Body)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
 			RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
+			return
+		}
+
+		if err == volume.ErrUnsupportedStreamEncoding {
+			hLog.Info("unsupported-stream-encoding")
+			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
 			return
 		}
 
@@ -508,11 +513,17 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 		subPath = queryPath[0]
 	}
 
-	err := vs.volumeRepo.StreamOut(ctx, handle, subPath, w)
+	err := vs.volumeRepo.StreamOut(ctx, handle, subPath, req.Header.Get("Accept-Encoding"), w)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
 			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			return
+		}
+
+		if err == volume.ErrUnsupportedStreamEncoding {
+			hLog.Info("unsupported-stream-encoding")
+			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
 			return
 		}
 
