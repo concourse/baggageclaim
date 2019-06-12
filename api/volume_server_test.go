@@ -322,11 +322,12 @@ var _ = Describe("Volume Server", func() {
 	Describe("streaming tar out of a volume", func() {
 		var (
 			myVolume  volume.Volume
-			tgzBuffer *bytes.Buffer
+			tarBuffer *bytes.Buffer
+			encoding  string
 		)
 
 		BeforeEach(func() {
-			tgzBuffer = new(bytes.Buffer)
+			tarBuffer = new(bytes.Buffer)
 		})
 
 		JustBeforeEach(func() {
@@ -365,10 +366,9 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		Context("when streaming a file", func() {
-			var encoding string
 
 			JustBeforeEach(func() {
-				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
 				streamInRequest.Header.Set("Content-Encoding", encoding)
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
@@ -382,7 +382,7 @@ var _ = Describe("Volume Server", func() {
 
 			Context("when using gzip encoding", func() {
 				BeforeEach(func() {
-					gzWriter := gzip.NewWriter(tgzBuffer)
+					gzWriter := gzip.NewWriter(tarBuffer)
 					defer gzWriter.Close()
 
 					tarWriter := tar.NewWriter(gzWriter)
@@ -427,7 +427,7 @@ var _ = Describe("Volume Server", func() {
 
 			Context("when using zstd encoding", func() {
 				BeforeEach(func() {
-					zstdWriter := zstd.NewWriter(tgzBuffer)
+					zstdWriter := zstd.NewWriter(tarBuffer)
 					defer zstdWriter.Close()
 
 					tarWriter := tar.NewWriter(zstdWriter)
@@ -488,15 +488,12 @@ var _ = Describe("Volume Server", func() {
 				err = ioutil.WriteFile(filepath.Join(tarDir, "other-file"), []byte("other-file-content"), os.ModePerm)
 				Expect(err).NotTo(HaveOccurred())
 
-				tgzBuffer = new(bytes.Buffer)
-
-				err = tgzfs.Compress(tgzBuffer, tarDir, ".")
-				Expect(err).NotTo(HaveOccurred())
+				tarBuffer = new(bytes.Buffer)
 			})
 
 			JustBeforeEach(func() {
-				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
-				streamInRequest.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
+				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tarBuffer)
+				streamInRequest.Header.Set("Content-Encoding", encoding)
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -506,6 +503,12 @@ var _ = Describe("Volume Server", func() {
 			})
 
 			Context("when using gzip encoding", func() {
+				BeforeEach(func() {
+					err := tgzfs.Compress(tarBuffer, tarDir, ".")
+					Expect(err).NotTo(HaveOccurred())
+					encoding = string(baggageclaim.GzipEncoding)
+				})
+
 				It("creates a tar", func() {
 					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
 					request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
@@ -546,6 +549,12 @@ var _ = Describe("Volume Server", func() {
 			})
 
 			Context("when using zstd encoding", func() {
+				BeforeEach(func() {
+					err := tarfs.Compress(zstd.NewWriter(tarBuffer), tarDir, ".")
+					Expect(err).NotTo(HaveOccurred())
+					encoding = string(baggageclaim.ZstdEncoding)
+				})
+
 				It("creates a tar", func() {
 					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
 					request.Header.Set("Accept-Encoding", string(baggageclaim.ZstdEncoding))
@@ -558,9 +567,9 @@ var _ = Describe("Volume Server", func() {
 					Expect(err).NotTo(HaveOccurred())
 					defer os.RemoveAll(unpackedDir)
 
-					tarBytes, err := zstd.Decompress(nil, recorder.Body.Bytes())
+					tarByteReader := zstd.NewReader(recorder.Body)
 					Expect(err).NotTo(HaveOccurred())
-					err = tarfs.Extract(bytes.NewReader(tarBytes), unpackedDir)
+					err = tarfs.Extract(tarByteReader, unpackedDir)
 					Expect(err).NotTo(HaveOccurred())
 
 					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
