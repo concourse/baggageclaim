@@ -365,26 +365,11 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		Context("when streaming a file", func() {
-			BeforeEach(func() {
-				gzWriter := gzip.NewWriter(tgzBuffer)
-				defer gzWriter.Close()
-
-				tarWriter := tar.NewWriter(gzWriter)
-				defer tarWriter.Close()
-
-				err := tarWriter.WriteHeader(&tar.Header{
-					Name: "some-file",
-					Mode: 0600,
-					Size: int64(len("file-content")),
-				})
-				Expect(err).NotTo(HaveOccurred())
-				_, err = tarWriter.Write([]byte("file-content"))
-				Expect(err).NotTo(HaveOccurred())
-			})
+			var encoding string
 
 			JustBeforeEach(func() {
 				streamInRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-in?path=%s", myVolume.Handle, "dest-path"), tgzBuffer)
-				streamInRequest.Header.Set("Content-Encoding", string(baggageclaim.GzipEncoding))
+				streamInRequest.Header.Set("Content-Encoding", encoding)
 				streamInRecorder := httptest.NewRecorder()
 				handler.ServeHTTP(streamInRecorder, streamInRequest)
 				Expect(streamInRecorder.Code).To(Equal(204))
@@ -396,6 +381,24 @@ var _ = Describe("Volume Server", func() {
 			})
 
 			Context("when using gzip encoding", func() {
+				BeforeEach(func() {
+					gzWriter := gzip.NewWriter(tgzBuffer)
+					defer gzWriter.Close()
+
+					tarWriter := tar.NewWriter(gzWriter)
+					defer tarWriter.Close()
+
+					err := tarWriter.WriteHeader(&tar.Header{
+						Name: "some-file",
+						Mode: 0600,
+						Size: int64(len("file-content")),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					_, err = tarWriter.Write([]byte("file-content"))
+					Expect(err).NotTo(HaveOccurred())
+					encoding = string(baggageclaim.GzipEncoding)
+				})
+
 				It("creates a tar", func() {
 					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
 					request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
@@ -423,6 +426,24 @@ var _ = Describe("Volume Server", func() {
 			})
 
 			Context("when using zstd encoding", func() {
+				BeforeEach(func() {
+					zstdWriter := zstd.NewWriter(tgzBuffer)
+					defer zstdWriter.Close()
+
+					tarWriter := tar.NewWriter(zstdWriter)
+					defer tarWriter.Close()
+
+					err := tarWriter.WriteHeader(&tar.Header{
+						Name: "some-file",
+						Mode: 0600,
+						Size: int64(len("file-content")),
+					})
+					Expect(err).NotTo(HaveOccurred())
+					_, err = tarWriter.Write([]byte("file-content"))
+					Expect(err).NotTo(HaveOccurred())
+					encoding = string(baggageclaim.ZstdEncoding)
+				})
+
 				It("creates a tar", func() {
 					request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-out?path=%s", myVolume.Handle, "dest-path"), nil)
 					request.Header.Set("Accept-Encoding", string(baggageclaim.ZstdEncoding))
