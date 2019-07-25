@@ -33,6 +33,11 @@ func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged
 		return false, err
 	}
 
+	err = zstdDecompressedStream.Close()
+	if err != nil {
+		return true, err
+	}
+
 	return false, nil
 }
 
