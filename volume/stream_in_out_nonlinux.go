@@ -41,7 +41,14 @@ func (streamer *tarGzipStreamer) Out(w io.Writer, src string, privileged bool) e
 }
 
 func (streamer *tarZstdStreamer) In(stream io.Reader, dest string, privileged bool) (bool, error) {
-	err := tarfs.Extract(zstd.NewReader(stream), dest)
+	zstdStreamReader := zstd.NewReader(stream)
+
+	err := tarfs.Extract(zstdStreamReader, dest)
+	if err != nil {
+		return true, err
+	}
+
+	err = zstdStreamReader.Close()
 	if err != nil {
 		return true, err
 	}
@@ -65,5 +72,17 @@ func (streamer *tarZstdStreamer) Out(w io.Writer, src string, privileged bool) e
 		tarPath = filepath.Base(src)
 	}
 
-	return tarfs.Compress(zstd.NewWriter(w), tarDir, tarPath)
+	zstdStreamWriter := zstd.NewWriter(w)
+
+	err = tarfs.Compress(zstdStreamWriter, tarDir, tarPath)
+	if err != nil {
+		return err
+	}
+
+	err = zstdStreamWriter.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
