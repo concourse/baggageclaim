@@ -45,6 +45,7 @@ func (streamer *tarZstdStreamer) In(stream io.Reader, dest string, privileged bo
 
 	err := tarfs.Extract(zstdStreamReader, dest)
 	if err != nil {
+		zstdStreamReader.Close()
 		return true, err
 	}
 
@@ -76,6 +77,7 @@ func (streamer *tarZstdStreamer) Out(w io.Writer, src string, privileged bool) e
 
 	err = tarfs.Compress(zstdStreamWriter, tarDir, tarPath)
 	if err != nil {
+		zstdStreamWriter.Close()
 		return err
 	}
 
