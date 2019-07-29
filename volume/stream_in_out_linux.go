@@ -26,6 +26,8 @@ func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged
 
 	err = tarCommand.Run()
 	if err != nil {
+		zstdDecompressedStream.Close()
+
 		if _, ok := err.(*exec.ExitError); ok {
 			return true, err
 		}
@@ -71,6 +73,7 @@ func (streamer *tarZstdStreamer) Out(tzstOutput io.Writer, src string, privilege
 
 	err = tarCommand.Run()
 	if err != nil {
+		zstdCompressor.Close()
 		return err
 	}
 
