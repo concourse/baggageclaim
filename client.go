@@ -1,6 +1,7 @@
 package baggageclaim
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -94,9 +95,9 @@ type Volume interface {
 
 	// StreamIn calls BaggageClaim API endpoint in order to initialize tarStream
 	// to stream the contents of the Reader into this volume at the specified path.
-	StreamIn(path string, encoding Encoding, tarStream io.Reader) error
+	StreamIn(ctx context.Context, path string, encoding Encoding, tarStream io.Reader) error
 
-	StreamOut(path string, encoding Encoding) (io.ReadCloser, error)
+	StreamOut(ctx context.Context, path string, encoding Encoding) (io.ReadCloser, error)
 
 	// Properties returns the currently set properties for a Volume. An error is
 	// returned if these could not be retrieved.
