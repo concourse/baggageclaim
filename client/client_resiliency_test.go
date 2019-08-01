@@ -16,10 +16,10 @@ import (
 )
 
 var _ = Describe("baggageclaim http client", func() {
-	FContext("when making a streamIn/streamOut api call ", func () {
+	Context("when making a streamIn/streamOut api call ", func() {
 		var (
-			gServer *ghttp.Server
-			ctx context.Context
+			gServer    *ghttp.Server
+			ctx        context.Context
 			cancelFunc context.CancelFunc
 		)
 
