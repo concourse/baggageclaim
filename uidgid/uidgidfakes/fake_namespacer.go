@@ -2,11 +2,11 @@
 package uidgidfakes
 
 import (
-	exec "os/exec"
-	sync "sync"
+	"os/exec"
+	"sync"
 
-	lager "code.cloudfoundry.org/lager"
-	uidgid "github.com/concourse/baggageclaim/uidgid"
+	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type FakeNamespacer struct {
