@@ -2,11 +2,11 @@
 package uidgidfakes
 
 import (
-	os "os"
-	exec "os/exec"
-	sync "sync"
+	"os"
+	"os/exec"
+	"sync"
 
-	uidgid "github.com/concourse/baggageclaim/uidgid"
+	"github.com/concourse/baggageclaim/uidgid"
 )
 
 type FakeTranslator struct {

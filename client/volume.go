@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"io"
 
 	"code.cloudfoundry.org/lager"
@@ -38,12 +39,12 @@ func (cv *clientVolume) Properties() (baggageclaim.VolumeProperties, error) {
 	return vr.Properties, nil
 }
 
-func (cv *clientVolume) StreamIn(path string, encoding baggageclaim.Encoding, tarStream io.Reader) error {
-	return cv.bcClient.streamIn(cv.logger, cv.handle, path, encoding, tarStream)
+func (cv *clientVolume) StreamIn(ctx context.Context, path string, encoding baggageclaim.Encoding, tarStream io.Reader) error {
+	return cv.bcClient.streamIn(ctx, cv.logger, cv.handle, path, encoding, tarStream)
 }
 
-func (cv *clientVolume) StreamOut(path string, encoding baggageclaim.Encoding) (io.ReadCloser, error) {
-	return cv.bcClient.streamOut(cv.logger, cv.handle, encoding, path)
+func (cv *clientVolume) StreamOut(ctx context.Context, path string, encoding baggageclaim.Encoding) (io.ReadCloser, error) {
+	return cv.bcClient.streamOut(ctx, cv.logger, cv.handle, encoding, path)
 }
 
 func (cv *clientVolume) GetPrivileged() (bool, error) {

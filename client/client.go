@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -83,7 +84,6 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	if err != nil {
 		return nil, err
 	}
-
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusCreated {
@@ -112,6 +112,7 @@ func (c *client) CreateVolume(logger lager.Logger, handle string, volumeSpec bag
 	if err != nil {
 		return nil, err
 	}
+
 	return volume, nil
 }
 
@@ -237,7 +238,7 @@ func (c *client) newVolume(logger lager.Logger, apiVolume baggageclaim.VolumeRes
 	return volume
 }
 
-func (c *client) streamIn(logger lager.Logger, destHandle string, path string, encoding baggageclaim.Encoding, tarContent io.Reader) error {
+func (c *client) streamIn(ctx context.Context, logger lager.Logger, destHandle string, path string, encoding baggageclaim.Encoding, tarContent io.Reader) error {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
 		"handle": destHandle,
 	}, tarContent)
@@ -247,6 +248,8 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, e
 		return err
 	}
 	request.Header.Set("Content-Encoding", string(encoding))
+
+	request = request.WithContext(ctx)
 
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {
@@ -260,7 +263,7 @@ func (c *client) streamIn(logger lager.Logger, destHandle string, path string, e
 	return getError(response)
 }
 
-func (c *client) streamOut(logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string) (io.ReadCloser, error) {
+func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string) (io.ReadCloser, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamOut, rata.Params{
 		"handle": srcHandle,
 	}, nil)
@@ -270,6 +273,8 @@ func (c *client) streamOut(logger lager.Logger, srcHandle string, encoding bagga
 		return nil, err
 	}
 	request.Header.Set("Accept-Encoding", string(encoding))
+
+	request = request.WithContext(ctx)
 
 	response, err := c.httpClient(logger).Do(request)
 	if err != nil {

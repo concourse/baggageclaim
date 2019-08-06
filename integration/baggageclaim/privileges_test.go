@@ -5,6 +5,7 @@ package integration_test
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -134,7 +135,7 @@ var _ = Describe("Privileges", func() {
 
 			BeforeEach(func() {
 				var err error
-				tgzStream, err = childVolume.StreamOut(dataFilename, baggageclaim.GzipEncoding)
+				tgzStream, err = childVolume.StreamOut(context.TODO(), dataFilename, baggageclaim.GzipEncoding)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -169,7 +170,7 @@ var _ = Describe("Privileges", func() {
 				})
 
 				It("maps uid 0 to uid 0", func() {
-					err := privilegedVolume.StreamIn(".", baggageclaim.GzipEncoding, tgzStream)
+					err := privilegedVolume.StreamIn(context.TODO(),".", baggageclaim.GzipEncoding, tgzStream)
 					Expect(err).ToNot(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(privilegedVolume.Path(), dataFilename))
@@ -200,7 +201,7 @@ var _ = Describe("Privileges", func() {
 
 			Describe("streaming out of the volume", func() {
 				It("re-maps uid 0 to uid 0", func() {
-					tgzStream, err := childVolume.StreamOut(dataFilename, baggageclaim.GzipEncoding)
+					tgzStream, err := childVolume.StreamOut(context.TODO(), dataFilename, baggageclaim.GzipEncoding)
 					Expect(err).ToNot(HaveOccurred())
 
 					tarStream, err := gzip.NewReader(tgzStream)
@@ -295,7 +296,7 @@ var _ = Describe("Privileges", func() {
 
 			BeforeEach(func() {
 				var err error
-				tgzStream, err = childVolume.StreamOut(dataFilename, baggageclaim.GzipEncoding)
+				tgzStream, err = childVolume.StreamOut(context.TODO(), dataFilename, baggageclaim.GzipEncoding)
 				Expect(err).ToNot(HaveOccurred())
 			})
 
@@ -330,7 +331,7 @@ var _ = Describe("Privileges", func() {
 				})
 
 				It("maps uid 0 to (MAX_UID)", func() {
-					err := unprivilegedVolume.StreamIn(".", baggageclaim.GzipEncoding, tgzStream)
+					err := unprivilegedVolume.StreamIn(context.TODO(), ".", baggageclaim.GzipEncoding, tgzStream)
 					Expect(err).ToNot(HaveOccurred())
 
 					stat, err := os.Stat(filepath.Join(unprivilegedVolume.Path(), dataFilename))
