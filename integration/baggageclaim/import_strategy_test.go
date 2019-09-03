@@ -19,7 +19,7 @@ var _ = Describe("Import Strategy", func() {
 	)
 
 	BeforeEach(func() {
-		runner = NewRunner(baggageClaimPath)
+		runner = NewRunner(baggageClaimPath, "naive")
 		runner.Start()
 		client = runner.Client()
 	})
