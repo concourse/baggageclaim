@@ -80,7 +80,7 @@ var _ = Describe("Privileges", func() {
 		maxUID = uidgid.MustGetMaxValidUID()
 		maxGID = uidgid.MustGetMaxValidGID()
 
-		runner = NewRunner(baggageClaimPath)
+		runner = NewRunner(baggageClaimPath, "naive")
 		runner.Start()
 
 		client = runner.Client()

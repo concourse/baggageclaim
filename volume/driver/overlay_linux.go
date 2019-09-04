@@ -2,14 +2,31 @@ package driver
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type OverlayDriver struct {
+	VolumesDir string
 	OverlaysDir string
+}
+
+func NewOverlayDriver(volumesDir, overlaysDir string) (volume.Driver, error) {
+	driver := &OverlayDriver{
+		VolumesDir:  volumesDir,
+		OverlaysDir: overlaysDir,
+	}
+
+	err := driver.RecoverMountTable(filepath.Join(volumesDir, "live"))
+	if err != nil {
+		return nil, err
+	}
+	return driver, nil
 }
 
 func (driver *OverlayDriver) CreateVolume(path string) error {
@@ -30,7 +47,10 @@ func (driver *OverlayDriver) CreateVolume(path string) error {
 
 func (driver *OverlayDriver) DestroyVolume(path string) error {
 	err := syscall.Unmount(path, 0)
-	if err != nil {
+	// when a path is already unmounted, and unmount is called
+	// on it, syscall.EINVAL is returned as an error
+	// ignore this error and continue to clean up
+	if err != nil && err != os.ErrInvalid {
 		return err
 	}
 
@@ -81,18 +101,105 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 	return syscall.Mount("overlay", path, "overlay", 0, opts)
 }
 
-func (driver *OverlayDriver) layerDir(path string) string {
-	return filepath.Join(driver.OverlaysDir, driver.pathId(path))
+// We apply 2 types of mounts when using the overlay driver
+//
+// 1. For any new volume, we create its root in the overlaysDir and
+// 	  issue a bind mount of that root into the liveVolumesDir
+// 2. For COW volumes, we create upper and work dirs and use
+// 	  ancestry to determine the lower dir. These dirs are
+//	  used to create an overlay mount.
+//
+// These mounts can disappear when the system reboots (mount table cleared)
+// As a precaution we reattach mounts during startup to fix missing ones
+func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
+	// skip recovery if live dir hasn't been initialized (nothing to mount)
+	if _, err := os.Stat(liveVolumesDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	liveVolumes, err := ioutil.ReadDir(liveVolumesDir)
+	if err != nil {
+		return err
+	}
+
+	for _, volumeFileInfo := range(liveVolumes) {
+
+		liveVolumePath := filepath.Join(liveVolumesDir, volumeFileInfo.Name())
+		liveVolumeDataPath := filepath.Join(liveVolumePath, "volume")
+		parentSymlink := filepath.Join(liveVolumePath, "parent")
+
+		// a parent symlink indicates a COW
+		if _, err := os.Stat(parentSymlink); err == nil {
+			parentPath, err := os.Readlink(parentSymlink)
+			if err != nil {
+				return err
+			}
+			parentDataPath := filepath.Join(parentPath, "volume")
+
+			ancestry, err := driver.ancestry(parentDataPath)
+			if err != nil {
+				return err
+			}
+
+			err = driver.applyOverlayMount(ancestry, liveVolumeDataPath)
+			if err != nil {
+				return err
+			}
+		} else if os.IsNotExist(err) {
+			err := driver.applyBindMount(liveVolumeDataPath)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
 }
 
-func (driver *OverlayDriver) workDir(path string) string {
-	return filepath.Join(driver.OverlaysDir, "work", driver.pathId(path))
+func (driver *OverlayDriver) applyBindMount(datapath string) error {
+	layerDir := driver.layerDir(datapath)
+
+	err := syscall.Mount(layerDir, datapath, "", syscall.MS_BIND, "")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (driver *OverlayDriver) ancestry(path string) ([]string, error) {
+func (driver *OverlayDriver) applyOverlayMount(ancestry []string, datapath string) error {
+	opts := fmt.Sprintf(
+		"lowerdir=%s,upperdir=%s,workdir=%s",
+		strings.Join(ancestry, ":"),
+		driver.layerDir(datapath),
+		driver.workDir(datapath),
+	)
+
+	err := syscall.Mount("overlay", datapath, "overlay", 0, opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (driver *OverlayDriver) layerDir(datapath string) string {
+	return filepath.Join(driver.OverlaysDir, driver.getGUID(datapath))
+}
+
+func (driver *OverlayDriver) workDir(datapath string) string {
+	return filepath.Join(driver.OverlaysDir, "work", driver.getGUID(datapath))
+}
+
+func (driver *OverlayDriver) ancestry(datapath string) ([]string, error) {
 	ancestry := []string{}
 
-	currentPath := path
+	currentPath := datapath
 	for {
 		ancestry = append(ancestry, driver.layerDir(currentPath))
 
@@ -111,6 +218,6 @@ func (driver *OverlayDriver) ancestry(path string) ([]string, error) {
 	return ancestry, nil
 }
 
-func (driver *OverlayDriver) pathId(path string) string {
-	return filepath.Base(filepath.Dir(path))
+func (driver *OverlayDriver) getGUID(datapath string) string {
+	return filepath.Base(filepath.Dir(datapath))
 }

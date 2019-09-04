@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
@@ -70,17 +72,29 @@ type BaggageClaimRunner struct {
 	process   ifrit.Process
 	port      int
 	volumeDir string
+	driver    string
 }
 
-func NewRunner(path string) *BaggageClaimRunner {
+func NewRunner(path string, driver string) *BaggageClaimRunner {
 	port := 7788 + GinkgoParallelNode()
+
 	volumeDir, err := ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
+	Expect(err).NotTo(HaveOccurred())
+
+	// Cannot use overlay driver if the overlays/volumes dir is fstype overlay.
+	// This is because you can't nest overlay mounts ( a known limitation)
+	// Mounting the TempDir as tmpfs lets us use the overlay driver for integration
+	err = syscall.Mount("tmpfs", volumeDir, "tmpfs", 0, "")
+	Expect(err).NotTo(HaveOccurred())
+
+	err = os.Mkdir(filepath.Join(volumeDir, "overlays"), 0700)
 	Expect(err).NotTo(HaveOccurred())
 
 	return &BaggageClaimRunner{
 		path:      path,
 		port:      port,
 		volumeDir: volumeDir,
+		driver:    driver,
 	}
 }
 
@@ -92,7 +106,8 @@ func (bcr *BaggageClaimRunner) Start() {
 			"--bind-port", strconv.Itoa(bcr.port),
 			"--debug-bind-port", strconv.Itoa(8099+GinkgoParallelNode()),
 			"--volumes", bcr.volumeDir,
-			"--driver", "naive",
+			"--driver", bcr.driver,
+			"--overlays-dir", filepath.Join(bcr.volumeDir, "overlays"),
 		),
 		StartCheck: "baggageclaim.listening",
 	})
@@ -111,7 +126,10 @@ func (bcr *BaggageClaimRunner) Bounce() {
 }
 
 func (bcr *BaggageClaimRunner) Cleanup() {
-	err := os.RemoveAll(bcr.volumeDir)
+	err := syscall.Unmount(bcr.volumeDir,0)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = os.RemoveAll(bcr.volumeDir)
 	Expect(err).NotTo(HaveOccurred())
 }
 
@@ -138,4 +156,29 @@ func (bcr *BaggageClaimRunner) CurrentHandles() []string {
 	}
 
 	return handles
+}
+
+func writeData(volumePath string) string {
+	filename := randSeq(10)
+	newFilePath := filepath.Join(volumePath, filename)
+
+	err := ioutil.WriteFile(newFilePath, []byte(filename), 0755)
+	Expect(err).NotTo(HaveOccurred())
+
+	return filename
+}
+
+func randSeq(n int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func dataExistsInVolume(filename, volumePath string) bool {
+	_, err := os.Stat(filepath.Join(volumePath, filename))
+	return err == nil
 }
