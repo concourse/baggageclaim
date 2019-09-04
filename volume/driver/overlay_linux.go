@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type OverlayDriver struct {
@@ -14,14 +16,17 @@ type OverlayDriver struct {
 	OverlaysDir string
 }
 
-func NewOverlayDriver(volumesDir, overlaysDir string) *OverlayDriver {
+func NewOverlayDriver(volumesDir, overlaysDir string) (volume.Driver, error) {
 	driver := &OverlayDriver{
 		VolumesDir:  volumesDir,
 		OverlaysDir: overlaysDir,
 	}
-	driver.RecoverMountTable(filepath.Join(volumesDir, "live"))
 
-	return driver
+	err := driver.RecoverMountTable(filepath.Join(volumesDir, "live"))
+	if err != nil {
+		return nil, err
+	}
+	return driver, nil
 }
 
 func (driver *OverlayDriver) CreateVolume(path string) error {
@@ -44,6 +49,7 @@ func (driver *OverlayDriver) DestroyVolume(path string) error {
 	err := syscall.Unmount(path, 0)
 	// when a path is already unmounted, and unmount is called
 	// on it, syscall.EINVAL is returned as an error
+	// ignore this error and continue to clean up
 	if err != nil && err != os.ErrInvalid {
 		return err
 	}
@@ -92,7 +98,6 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 		workDir,
 	)
 
-	fmt.Println(path, opts)
 	return syscall.Mount("overlay", path, "overlay", 0, opts)
 }
 
@@ -107,6 +112,11 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 // These mounts can disappear when the system reboots (mount table cleared)
 // As a precaution we reattach mounts during startup to fix missing ones
 func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
+	// skip recovery if live dir hasn't been initialized (nothing to mount)
+	if _, err := os.Stat(liveVolumesDir); os.IsNotExist(err) {
+		return nil
+	}
+
 	liveVolumes, err := ioutil.ReadDir(liveVolumesDir)
 	if err != nil {
 		return err
@@ -119,7 +129,7 @@ func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
 		parentSymlink := filepath.Join(liveVolumePath, "parent")
 
 		// a parent symlink indicates a COW
-		if _, err := os.Stat(parentSymlink); !os.IsNotExist(err) {
+		if _, err := os.Stat(parentSymlink); err == nil {
 			parentPath, err := os.Readlink(parentSymlink)
 			if err != nil {
 				return err
@@ -135,12 +145,17 @@ func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
 			if err != nil {
 				return err
 			}
-		} else {
+		} else if os.IsNotExist(err) {
 			err := driver.applyBindMount(liveVolumeDataPath)
 			if err != nil {
 				return err
 			}
 		}
+
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
