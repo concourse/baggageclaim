@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"testing"
 	"time"
 
@@ -81,12 +80,6 @@ func NewRunner(path string, driver string) *BaggageClaimRunner {
 	volumeDir, err := ioutil.TempDir("", fmt.Sprintf("baggageclaim_volume_dir_%d", GinkgoParallelNode()))
 	Expect(err).NotTo(HaveOccurred())
 
-	// Cannot use overlay driver if the overlays/volumes dir is fstype overlay.
-	// This is because you can't nest overlay mounts ( a known limitation)
-	// Mounting the TempDir as tmpfs lets us use the overlay driver for integration
-	err = syscall.Mount("tmpfs", volumeDir, "tmpfs", 0, "")
-	Expect(err).NotTo(HaveOccurred())
-
 	err = os.Mkdir(filepath.Join(volumeDir, "overlays"), 0700)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -126,10 +119,7 @@ func (bcr *BaggageClaimRunner) Bounce() {
 }
 
 func (bcr *BaggageClaimRunner) Cleanup() {
-	err := syscall.Unmount(bcr.volumeDir,0)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = os.RemoveAll(bcr.volumeDir)
+	err := os.RemoveAll(bcr.volumeDir)
 	Expect(err).NotTo(HaveOccurred())
 }
 

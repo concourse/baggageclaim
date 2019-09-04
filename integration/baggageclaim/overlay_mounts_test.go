@@ -19,6 +19,12 @@ var _ = Describe("baggageclaim restart", func() {
 
 	BeforeEach(func() {
 		runner = NewRunner(baggageClaimPath, "overlay")
+		// Cannot use overlay driver if the overlays/volumes dir is fstype overlay.
+		// This is because you can't nest overlay mounts ( a known limitation)
+		// Mounting the TempDir as tmpfs lets us use the overlay driver for integration
+		err := syscall.Mount("tmpfs", runner.volumeDir, "tmpfs", 0, "")
+		Expect(err).NotTo(HaveOccurred())
+
 		runner.Start()
 
 		client = runner.Client()
@@ -26,6 +32,10 @@ var _ = Describe("baggageclaim restart", func() {
 
 	AfterEach(func() {
 		runner.Stop()
+
+		err := syscall.Unmount(runner.volumeDir, 0)
+		Expect(err).NotTo(HaveOccurred())
+
 		runner.Cleanup()
 	})
 
@@ -37,7 +47,7 @@ var _ = Describe("baggageclaim restart", func() {
 			createdCOWCOWVolume baggageclaim.Volume
 
 			dataInParent string
-			err error
+			err          error
 		)
 
 		BeforeEach(func() {
@@ -51,7 +61,7 @@ var _ = Describe("baggageclaim restart", func() {
 				logger,
 				"some-cow-handle",
 				baggageclaim.VolumeSpec{
-					Strategy: baggageclaim.COWStrategy{Parent: createdVolume},
+					Strategy:   baggageclaim.COWStrategy{Parent: createdVolume},
 					Properties: map[string]string{},
 					Privileged: false,
 				},
@@ -68,7 +78,7 @@ var _ = Describe("baggageclaim restart", func() {
 				logger,
 				"some-cow-cow-handle",
 				baggageclaim.VolumeSpec{
-					Strategy: baggageclaim.COWStrategy{Parent: createdCOWVolume},
+					Strategy:   baggageclaim.COWStrategy{Parent: createdCOWVolume},
 					Properties: map[string]string{},
 					Privileged: false,
 				},
@@ -82,22 +92,22 @@ var _ = Describe("baggageclaim restart", func() {
 				createdCOWCOWVolume.Handle(),
 			))
 
-			err = syscall.Unmount(createdVolume.Path(),0)
+			err = syscall.Unmount(createdVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
-			err = syscall.Unmount(createdCOWVolume.Path(),0)
+			err = syscall.Unmount(createdCOWVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
-			err = syscall.Unmount(createdCOWCOWVolume.Path(),0)
+			err = syscall.Unmount(createdCOWCOWVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
 
 			runner.Bounce()
 		})
 
 		AfterEach(func() {
-			err = syscall.Unmount(createdVolume.Path(),0)
+			err = syscall.Unmount(createdVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
-			err = syscall.Unmount(createdCOWVolume.Path(),0)
+			err = syscall.Unmount(createdCOWVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
-			err = syscall.Unmount(createdCOWCOWVolume.Path(),0)
+			err = syscall.Unmount(createdCOWCOWVolume.Path(), 0)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
