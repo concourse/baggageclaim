@@ -18,8 +18,9 @@ import (
 type BaggageclaimCommand struct {
 	Logger flag.Lager
 
-	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
-	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+	BindIP   flag.IP `long:"bind-ip"   default:"0.0.0.0"               description:"IP address on which to listen for API traffic."`
+	BindPort uint16  `long:"bind-port" default:"7788"                  description:"Port on which to listen for API traffic."`
+	PeerURL  string  `long:"peer-url"  default:"http://127.0.0.1:7777" description:"url used by peers to reach this baggageclaim server."`
 
 	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
 	DebugBindPort uint16  `long:"debug-bind-port" default:"7787"      description:"Port on which to listen for the pprof debugger endpoints."`
