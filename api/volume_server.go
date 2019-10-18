@@ -3,31 +3,24 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerctx"
 	"github.com/concourse/baggageclaim"
+	berrors "github.com/concourse/baggageclaim/errors"
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/tedsuo/rata"
+	"golang.org/x/sync/errgroup"
 )
 
 const httpUnprocessableEntity = 422
-
-var ErrListVolumesFailed = errors.New("failed to list volumes")
-var ErrGetVolumeFailed = errors.New("failed to get volume")
-var ErrCreateVolumeFailed = errors.New("failed to create volume")
-var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
-var ErrSetPropertyFailed = errors.New("failed to set property on volume")
-var ErrGetPrivilegedFailed = errors.New("failed to get privileged status of volume")
-var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of volume")
-var ErrStreamInFailed = errors.New("failed to stream in to volume")
-var ErrStreamOutFailed = errors.New("failed to stream out from volume")
-var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
 	strategerizer  volume.Strategerizer
@@ -212,10 +205,10 @@ func (vs *VolumeServer) DestroyVolume(w http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-does-not-exist")
-			RespondWithError(w, ErrDestroyVolumeFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrDestroyVolumeFailed, http.StatusNotFound)
 		} else {
 			hLog.Error("failed-to-destroy", err)
-			RespondWithError(w, ErrDestroyVolumeFailed, http.StatusInternalServerError)
+			RespondWithError(w, berrors.ErrDestroyVolumeFailed, http.StatusInternalServerError)
 		}
 
 		return
@@ -238,7 +231,7 @@ func (vs *VolumeServer) DestroyVolumes(w http.ResponseWriter, req *http.Request)
 
 	if err != nil {
 		hLog.Error("failed-to-destroy-volumes", err)
-		RespondWithError(w, ErrDestroyVolumeFailed, http.StatusBadRequest)
+		RespondWithError(w, berrors.ErrDestroyVolumeFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -272,7 +265,7 @@ func (vs *VolumeServer) DestroyVolumes(w http.ResponseWriter, req *http.Request)
 	close(errChan)
 
 	if len(errChan) > 0 {
-		RespondWithError(w, ErrDestroyVolumeFailed, http.StatusInternalServerError)
+		RespondWithError(w, berrors.ErrDestroyVolumeFailed, http.StatusInternalServerError)
 		return
 	}
 
@@ -298,7 +291,7 @@ func (vs *VolumeServer) ListVolumes(w http.ResponseWriter, req *http.Request) {
 	volumes, _, err := vs.volumeRepo.ListVolumes(ctx, properties)
 	if err != nil {
 		hLog.Error("failed-to-list-volumes", err)
-		RespondWithError(w, ErrListVolumesFailed, http.StatusInternalServerError)
+		RespondWithError(w, berrors.ErrListVolumesFailed, http.StatusInternalServerError)
 		return
 	}
 
@@ -324,13 +317,13 @@ func (vs *VolumeServer) GetVolume(w http.ResponseWriter, req *http.Request) {
 	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
 	if err != nil {
 		hLog.Error("failed-to-get-volume", err)
-		RespondWithError(w, ErrGetVolumeFailed, http.StatusInternalServerError)
+		RespondWithError(w, berrors.ErrGetVolumeFailed, http.StatusInternalServerError)
 		return
 	}
 
 	if !found {
 		hLog.Info("volume-not-found")
-		RespondWithError(w, ErrGetVolumeFailed, http.StatusNotFound)
+		RespondWithError(w, berrors.ErrGetVolumeFailed, http.StatusNotFound)
 		return
 	}
 
@@ -356,7 +349,7 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 	var request baggageclaim.PropertyRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
-		RespondWithError(w, ErrSetPropertyFailed, http.StatusBadRequest)
+		RespondWithError(w, berrors.ErrSetPropertyFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -369,9 +362,9 @@ func (vs *VolumeServer) SetProperty(w http.ResponseWriter, req *http.Request) {
 		hLog.Error("failed-to-set-property", err)
 
 		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrSetPropertyFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrSetPropertyFailed, http.StatusNotFound)
 		} else {
-			RespondWithError(w, ErrSetPropertyFailed, http.StatusInternalServerError)
+			RespondWithError(w, berrors.ErrSetPropertyFailed, http.StatusInternalServerError)
 		}
 
 		return
@@ -399,9 +392,9 @@ func (vs *VolumeServer) GetPrivileged(w http.ResponseWriter, req *http.Request) 
 		hLog.Error("failed-to-change-privileged-status", err)
 
 		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrGetPrivilegedFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrGetPrivilegedFailed, http.StatusNotFound)
 		} else {
-			RespondWithError(w, ErrGetPrivilegedFailed, http.StatusInternalServerError)
+			RespondWithError(w, berrors.ErrGetPrivilegedFailed, http.StatusInternalServerError)
 		}
 
 		return
@@ -427,7 +420,7 @@ func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) 
 	var request baggageclaim.PrivilegedRequest
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
-		RespondWithError(w, ErrSetPrivilegedFailed, http.StatusBadRequest)
+		RespondWithError(w, berrors.ErrSetPrivilegedFailed, http.StatusBadRequest)
 		return
 	}
 
@@ -440,9 +433,9 @@ func (vs *VolumeServer) SetPrivileged(w http.ResponseWriter, req *http.Request) 
 		hLog.Error("failed-to-change-privileged-status", err)
 
 		if err == volume.ErrVolumeDoesNotExist {
-			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrSetPrivilegedFailed, http.StatusNotFound)
 		} else {
-			RespondWithError(w, ErrSetPrivilegedFailed, http.StatusInternalServerError)
+			RespondWithError(w, berrors.ErrSetPrivilegedFailed, http.StatusInternalServerError)
 		}
 
 		return
@@ -472,28 +465,113 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
-			RespondWithError(w, ErrStreamInFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrStreamInFailed, http.StatusNotFound)
 			return
 		}
 
 		if err == volume.ErrUnsupportedStreamEncoding {
 			hLog.Info("unsupported-stream-encoding")
-			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
+			RespondWithError(w, berrors.ErrStreamInFailed, http.StatusBadRequest)
 			return
 		}
 
 		if badStream {
 			hLog.Info("bad-stream-payload", lager.Data{"error": err.Error()})
-			RespondWithError(w, ErrStreamInFailed, http.StatusBadRequest)
+			RespondWithError(w, berrors.ErrStreamInFailed, http.StatusBadRequest)
 			return
 		}
 
 		hLog.Error("failed-to-stream-into-volume", err)
-		RespondWithError(w, ErrStreamInFailed, http.StatusInternalServerError)
+		RespondWithError(w, berrors.ErrStreamInFailed, http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (vs *VolumeServer) StreamTo(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("stream-to", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	var payload baggageclaim.StreamToRequest
+
+	// 1. parse the body
+	//
+	err := json.NewDecoder(req.Body).Decode(&payload)
+	if err != nil {
+		hLog.Error("failed-to-decode-streamto-request", err)
+		RespondWithError(w, fmt.Errorf("failed to parse stream-to request"), http.StatusBadRequest)
+		return
+	}
+
+	// create the request
+	//
+
+	reader, writer := io.Pipe()
+
+	streamInRequest, err := streamInReq(ctx, payload.Destination, payload.Path, payload.Handle, reader)
+	if err != nil {
+		hLog.Error("failed-to-decode-streamto-request", err)
+		RespondWithError(w,
+			fmt.Errorf("failed to stream to destination %s", payload.Destination),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	var g errgroup.Group
+
+	g.Go(func() (err error) {
+		err = vs.volumeRepo.StreamOut(ctx, handle, payload.Path, string(baggageclaim.ZstdEncoding), writer)
+		return
+	})
+
+	g.Go(func() (err error) {
+		_, err = (&http.Client{}).Do(streamInRequest)
+		return
+	})
+
+	err = g.Wait()
+	if err != nil {
+		RespondWithError(w, berrors.ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	return
+}
+
+// streamInReq creates the HTTP request to perform a `stream-in` into a given
+// baggageclaim.
+//
+func streamInReq(
+	ctx context.Context, destUrl, destHandle, path string, r io.Reader,
+) (
+	req *http.Request, err error,
+) {
+
+	var reqGenerator = rata.NewRequestGenerator(destUrl, baggageclaim.Routes)
+
+	req, err = reqGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
+		"handle": destHandle,
+	}, r)
+
+	req.Header.Set("Content-Encoding", string(baggageclaim.ZstdEncoding))
+	req.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
+	if err != nil {
+		err = fmt.Errorf("failed to create query: %w", err)
+		return
+	}
+
+	req = req.WithContext(ctx)
+	return
 }
 
 func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
@@ -517,24 +595,24 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")
-			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrStreamOutFailed, http.StatusNotFound)
 			return
 		}
 
 		if err == volume.ErrUnsupportedStreamEncoding {
 			hLog.Info("unsupported-stream-encoding")
-			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+			RespondWithError(w, berrors.ErrStreamOutFailed, http.StatusBadRequest)
 			return
 		}
 
 		if os.IsNotExist(err) {
 			hLog.Info("source-path-not-found")
-			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
+			RespondWithError(w, berrors.ErrStreamOutNotFound, http.StatusNotFound)
 			return
 		}
 
 		hLog.Error("failed-to-stream-out", err)
-		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		RespondWithError(w, berrors.ErrStreamOutFailed, http.StatusInternalServerError)
 		return
 	}
 }
@@ -553,7 +631,7 @@ func (vs *VolumeServer) prepareCreate(w http.ResponseWriter, req *http.Request, 
 	err := json.NewDecoder(req.Body).Decode(&request)
 	if err != nil {
 		hLog.Error("failed-to-decode-request", err)
-		RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+		RespondWithError(w, berrors.ErrCreateVolumeFailed, http.StatusBadRequest)
 		return baggageclaim.VolumeRequest{}, "", nil, hLog, err
 	}
 
@@ -562,7 +640,7 @@ func (vs *VolumeServer) prepareCreate(w http.ResponseWriter, req *http.Request, 
 		handle, err = vs.generateHandle()
 		if err != nil {
 			hLog.Error("failed-to-generate-handle", err)
-			RespondWithError(w, ErrCreateVolumeFailed, http.StatusBadRequest)
+			RespondWithError(w, berrors.ErrCreateVolumeFailed, http.StatusBadRequest)
 			return baggageclaim.VolumeRequest{}, "", nil, hLog, err
 		}
 	}
@@ -576,7 +654,7 @@ func (vs *VolumeServer) prepareCreate(w http.ResponseWriter, req *http.Request, 
 	strategy, err := vs.strategerizer.StrategyFor(request)
 	if err != nil {
 		hLog.Error("could-not-produce-strategy", err)
-		RespondWithError(w, ErrCreateVolumeFailed, httpUnprocessableEntity)
+		RespondWithError(w, berrors.ErrCreateVolumeFailed, httpUnprocessableEntity)
 		return baggageclaim.VolumeRequest{}, "", nil, hLog, err
 	}
 
@@ -623,7 +701,7 @@ func (vs *VolumeServer) creationFailed(w http.ResponseWriter, err error) (volume
 	default:
 		code = http.StatusInternalServerError
 	}
-	RespondWithError(w, ErrCreateVolumeFailed, code)
+	RespondWithError(w, berrors.ErrCreateVolumeFailed, code)
 	return volume.Volume{}, err
 }
 

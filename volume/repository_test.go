@@ -215,7 +215,6 @@ var _ = Describe("Repository", func() {
 				})
 			})
 
-
 			Context("when storing the privileged fails", func() {
 				disaster := errors.New("nope")
 

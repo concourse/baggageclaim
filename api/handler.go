@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/tedsuo/rata"
-
 	"github.com/concourse/baggageclaim"
+	berrors "github.com/concourse/baggageclaim/errors"
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/tedsuo/rata"
 )
 
 func NewHandler(
@@ -34,15 +34,12 @@ func NewHandler(
 		baggageclaim.SetPrivileged:           http.HandlerFunc(volumeServer.SetPrivileged),
 		baggageclaim.StreamIn:                http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:               http.HandlerFunc(volumeServer.StreamOut),
+		baggageclaim.StreamTo:                http.HandlerFunc(volumeServer.StreamTo),
 		baggageclaim.DestroyVolume:           http.HandlerFunc(volumeServer.DestroyVolume),
 		baggageclaim.DestroyVolumes:          http.HandlerFunc(volumeServer.DestroyVolumes),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)
-}
-
-type ErrorResponse struct {
-	Message string `json:"error"`
 }
 
 func RespondWithError(w http.ResponseWriter, err error, statusCode ...int) {
@@ -55,6 +52,6 @@ func RespondWithError(w http.ResponseWriter, err error, statusCode ...int) {
 	}
 
 	w.WriteHeader(code)
-	errResponse := ErrorResponse{Message: err.Error()}
+	errResponse := berrors.ErrorResponse{Message: err.Error()}
 	json.NewEncoder(w).Encode(errResponse)
 }

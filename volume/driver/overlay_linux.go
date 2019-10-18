@@ -12,7 +12,7 @@ import (
 )
 
 type OverlayDriver struct {
-	VolumesDir string
+	VolumesDir  string
 	OverlaysDir string
 }
 
@@ -122,7 +122,7 @@ func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
 		return err
 	}
 
-	for _, volumeFileInfo := range(liveVolumes) {
+	for _, volumeFileInfo := range liveVolumes {
 
 		liveVolumePath := filepath.Join(liveVolumesDir, volumeFileInfo.Name())
 		liveVolumeDataPath := filepath.Join(liveVolumePath, "volume")

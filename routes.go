@@ -16,8 +16,10 @@ const (
 	SetProperty   = "SetProperty"
 	GetPrivileged = "GetPrivileged"
 	SetPrivileged = "SetPrivileged"
-	StreamIn      = "StreamIn"
-	StreamOut     = "StreamOut"
+
+	StreamIn  = "StreamIn"
+	StreamOut = "StreamOut"
+	StreamTo  = "StreamTo"
 )
 
 var Routes = rata.Routes{
@@ -28,12 +30,13 @@ var Routes = rata.Routes{
 	{Path: "/volumes-async/:handle", Method: "GET", Name: CreateVolumeAsyncCheck},
 	{Path: "/volumes-async/:handle", Method: "DELETE", Name: CreateVolumeAsyncCancel},
 
+	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
 	{Path: "/volumes/:handle", Method: "GET", Name: GetVolume},
-	{Path: "/volumes/:handle/properties/:property", Method: "PUT", Name: SetProperty},
 	{Path: "/volumes/:handle/privileged", Method: "GET", Name: GetPrivileged},
 	{Path: "/volumes/:handle/privileged", Method: "PUT", Name: SetPrivileged},
+	{Path: "/volumes/:handle/properties/:property", Method: "PUT", Name: SetProperty},
 	{Path: "/volumes/:handle/stream-in", Method: "PUT", Name: StreamIn},
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},
+	{Path: "/volumes/:handle/stream-to", Method: "PUT", Name: StreamTo},
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
-	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
 }

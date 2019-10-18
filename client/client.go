@@ -15,7 +15,7 @@ import (
 	"github.com/tedsuo/rata"
 
 	"github.com/concourse/baggageclaim"
-	"github.com/concourse/baggageclaim/api"
+	berrors "github.com/concourse/baggageclaim/errors"
 	"github.com/concourse/retryhttp"
 )
 
@@ -289,13 +289,13 @@ func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle s
 }
 
 func getError(response *http.Response) error {
-	var errorResponse *api.ErrorResponse
+	var errorResponse *berrors.ErrorResponse
 	err := json.NewDecoder(response.Body).Decode(&errorResponse)
 	if err != nil {
 		return err
 	}
 
-	if errorResponse.Message == api.ErrStreamOutNotFound.Error() {
+	if errorResponse.Message == berrors.ErrStreamOutNotFound.Error() {
 		return baggageclaim.ErrFileNotFound
 	}
 
@@ -391,7 +391,6 @@ func (c *client) getPrivileged(logger lager.Logger, handle string) (bool, error)
 
 	return privileged, nil
 }
-
 
 func (c *client) setPrivileged(logger lager.Logger, handle string, privileged bool) error {
 	buffer := &bytes.Buffer{}
