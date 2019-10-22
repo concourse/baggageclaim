@@ -47,6 +47,24 @@ func (cv *clientVolume) StreamOut(ctx context.Context, path string, encoding bag
 	return cv.bcClient.streamOut(ctx, cv.logger, cv.handle, encoding, path)
 }
 
+func (cv *clientVolume) StreamTo(ctx context.Context,
+	srcPath string,
+	dstHandle, dstPath, dstUrl string,
+	encoding baggageclaim.Encoding,
+) (io.ReadCloser, error) {
+	return cv.bcClient.streamTo(ctx, cv.logger, encoding, baggageclaim.StreamToRequest{
+		DestinationURL: dstUrl,
+		Source: baggageclaim.VolumeContents{
+			Handle: cv.handle,
+			Path:   srcPath,
+		},
+		Destination: baggageclaim.VolumeContents{
+			Handle: dstHandle,
+			Path:   dstPath,
+		},
+	})
+}
+
 func (cv *clientVolume) GetPrivileged() (bool, error) {
 	return cv.bcClient.getPrivileged(cv.logger, cv.handle)
 }

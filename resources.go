@@ -11,15 +11,7 @@ type VolumeRequest struct {
 	Privileged bool             `json:"privileged,omitempty"`
 }
 
-// StreamToRequest represents the payload to be sent by someone wanting to get
-// this baggageclaim server to stream a given volume to a differente worker.
-//
-type StreamToRequest struct {
-	// Destination is the URL of the baggageclaim that is going to be
-	// targetted at.
-	//
-	Destination string `json:"destination"`
-
+type VolumeContents struct {
 	// Handle is the handle of the volume that must exist on the destination
 	// before we start streaming to it.
 	//
@@ -29,6 +21,16 @@ type StreamToRequest struct {
 	// streamed to.
 	//
 	Path string `json:"path"`
+}
+
+// StreamToRequest represents the payload to be sent by someone wanting to get
+// this baggageclaim server to stream a given volume to a differente worker.
+//
+type StreamToRequest struct {
+	DestinationURL string `json:"destination_url"`
+
+	Source      VolumeContents `json:"source"`
+	Destination VolumeContents `json:"destination"`
 }
 
 type VolumeResponse struct {

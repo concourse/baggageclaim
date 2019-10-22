@@ -37,6 +37,6 @@ var Routes = rata.Routes{
 	{Path: "/volumes/:handle/properties/:property", Method: "PUT", Name: SetProperty},
 	{Path: "/volumes/:handle/stream-in", Method: "PUT", Name: StreamIn},
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},
-	{Path: "/volumes/:handle/stream-to", Method: "PUT", Name: StreamTo},
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
+	{Path: "/volumes/stream-to", Method: "PUT", Name: StreamTo},
 }

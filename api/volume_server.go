@@ -490,20 +490,16 @@ func (vs *VolumeServer) StreamIn(w http.ResponseWriter, req *http.Request) {
 }
 
 func (vs *VolumeServer) StreamTo(w http.ResponseWriter, req *http.Request) {
-	handle := rata.Param(req, "handle")
-
-	hLog := vs.logger.Session("stream-to", lager.Data{
-		"volume": handle,
-	})
+	var (
+		hLog    = vs.logger.Session("stream-to")
+		ctx     = lagerctx.NewContext(req.Context(), hLog)
+		payload baggageclaim.StreamToRequest
+	)
 
 	hLog.Debug("start")
 	defer hLog.Debug("done")
 
-	ctx := lagerctx.NewContext(req.Context(), hLog)
-
-	var payload baggageclaim.StreamToRequest
-
-	// 1. parse the body
+	// parse the body
 	//
 	err := json.NewDecoder(req.Body).Decode(&payload)
 	if err != nil {
@@ -514,23 +510,33 @@ func (vs *VolumeServer) StreamTo(w http.ResponseWriter, req *http.Request) {
 
 	// create the request
 	//
-
 	reader, writer := io.Pipe()
 
-	streamInRequest, err := streamInReq(ctx, payload.Destination, payload.Path, payload.Handle, reader)
+	streamInRequest, err := streamInReq(ctx,
+		payload.DestinationURL, payload.Destination.Path, payload.Destination.Handle,
+		reader,
+	)
 	if err != nil {
-		hLog.Error("failed-to-decode-streamto-request", err)
+		hLog.Error("failed-to-create-streamin-req", err)
+
 		RespondWithError(w,
-			fmt.Errorf("failed to stream to destination %s", payload.Destination),
+			fmt.Errorf("failed to create streamin-in req %s", payload.Destination),
 			http.StatusInternalServerError,
 		)
+
 		return
 	}
+
+	// perform the streaming
+	//
 
 	var g errgroup.Group
 
 	g.Go(func() (err error) {
-		err = vs.volumeRepo.StreamOut(ctx, handle, payload.Path, string(baggageclaim.ZstdEncoding), writer)
+		err = vs.volumeRepo.StreamOut(ctx,
+			payload.Source.Handle, payload.Source.Path, string(baggageclaim.ZstdEncoding),
+			writer,
+		)
 		return
 	})
 

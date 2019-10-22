@@ -288,6 +288,38 @@ func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle s
 	return response.Body, nil
 }
 
+func (c *client) streamTo(
+	ctx context.Context, logger lager.Logger,
+	encoding baggageclaim.Encoding,
+	payload baggageclaim.StreamToRequest,
+) (io.ReadCloser, error) {
+	var buf bytes.Buffer
+
+	err := json.NewEncoder(&buf).Encode(&payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating payload encoder: %w", err)
+	}
+
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamTo, nil, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed creating request: %w", err)
+	}
+
+	request.Header.Set("Accept-Encoding", string(encoding))
+	request = request.WithContext(ctx)
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, getError(response)
+	}
+
+	return response.Body, nil
+}
+
 func getError(response *http.Response) error {
 	var errorResponse *berrors.ErrorResponse
 	err := json.NewDecoder(response.Body).Decode(&errorResponse)
