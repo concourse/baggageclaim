@@ -4,16 +4,15 @@ jobs:
   public: true
   plan:
   - in_parallel:
-    - get: baggageclaim-dockerfile
+    - get: baggageclaim-image-building
       trigger: true
     - get: golang-1.x
       trigger: true
-    - get: baggageclaim
     - get: oci-build-task
   - task: build
     image: oci-build-task
     privileged: true
-    file: baggageclaim/ci/build-image.yml
+    file: baggageclaim-image-building/ci/build-image.yml
   - put: baggageclaim-ci-image
     params: {image: image/image.tar}
 - name: baggageclaim
@@ -40,13 +39,15 @@ resources:
   type: git
   source:
     uri: https://github.com/concourse/baggageclaim.git
-    branch: add-image-building
-- name: baggageclaim-dockerfile
+    branch: master
+- name: baggageclaim-image-building
   type: git
   source:
     uri: https://github.com/concourse/baggageclaim.git
-    branch: add-image-building
-    paths: [Dockerfile]
+    branch: master
+    paths:
+    - Dockerfile
+    - ci/build-image.yml
 - name: baggageclaim-ci-image
   type: registry-image
   source:
