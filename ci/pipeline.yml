@@ -1,4 +1,9 @@
 ---
+resource_types:
+- name: slack-notifier
+  type: registry-image
+  source: {repository: mockersf/concourse-slack-notifier}
+
 jobs:
 - name: build-image
   public: true
@@ -8,6 +13,7 @@ jobs:
       trigger: true
     - get: golang-1.x
       trigger: true
+    - get: ci
     - get: oci-build-task
   - task: build
     image: oci-build-task
@@ -15,6 +21,20 @@ jobs:
     file: baggageclaim-image-building/ci/build-image.yml
   - put: baggageclaim-ci-image
     params: {image: image/image.tar}
+  on_failure:
+    do:
+    - task: format-slack-message
+      file: ci/tasks/format-slack-message.yml
+      input_mapping: {src: baggageclaim-image-building}
+      params:
+        GITHUB_TOKEN: ((concourse_github_dummy.access_token))
+        SLACK_TOKEN: ((slack_token))
+        GITHUB_REPO: baggageclaim
+    - put: notify
+      params:
+        message_file: message/message
+        mode: normal
+        alert_type: failed
 - name: baggageclaim
   public: true
   serial: true
@@ -24,6 +44,7 @@ jobs:
       trigger: true
     - get: baggageclaim-ci-image
       passed: [build-image]
+    - get: ci
   - in_parallel:
     - task: unit-linux
       image: baggageclaim-ci-image
@@ -33,6 +54,20 @@ jobs:
       file: baggageclaim/ci/unit-darwin.yml
     - task: unit-windows
       file: baggageclaim/ci/unit-windows.yml
+  on_failure:
+    do:
+    - task: format-slack-message
+      file: ci/tasks/format-slack-message.yml
+      input_mapping: {src: baggageclaim}
+      params:
+        GITHUB_TOKEN: ((concourse_github_dummy.access_token))
+        SLACK_TOKEN: ((slack_token))
+        GITHUB_REPO: baggageclaim
+    - put: notify
+      params:
+        message_file: message/message
+        mode: normal
+        alert_type: failed
 
 resources:
 - name: baggageclaim
@@ -50,6 +85,12 @@ resources:
     - Dockerfile
     - ci/build-image.yml
   icon: *git-icon
+- name: ci
+  type: git
+  icon: *git-icon
+  source:
+    uri: https://github.com/concourse/ci.git
+    branch: master
 - name: baggageclaim-ci-image
   type: registry-image
   source:
@@ -67,3 +108,8 @@ resources:
   type: registry-image
   icon: docker
   source: {repository: vito/oci-build-task}
+- name: notify
+  type: slack-notifier
+  icon: slack
+  source:
+    url: ((slack_hook))
