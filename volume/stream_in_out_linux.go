@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/DataDog/zstd"
 	"github.com/concourse/baggageclaim/uidgid"
+	"github.com/klauspost/compress/zstd"
 )
 
 func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged bool) (bool, error) {
@@ -18,7 +18,10 @@ func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged
 
 	defer dirFd.Close()
 
-	zstdDecompressedStream := zstd.NewReader(tzstInput)
+	zstdDecompressedStream, err := zstd.NewReader(tzstInput)
+	if err != nil {
+		return false, err
+	}
 
 	tarCommand.Stdin = zstdDecompressedStream
 	tarCommand.Stdout = os.Stderr
@@ -35,10 +38,7 @@ func (streamer *tarZstdStreamer) In(tzstInput io.Reader, dest string, privileged
 		return false, err
 	}
 
-	err = zstdDecompressedStream.Close()
-	if err != nil {
-		return true, err
-	}
+	zstdDecompressedStream.Close()
 
 	return false, nil
 }
@@ -66,14 +66,17 @@ func (streamer *tarZstdStreamer) Out(tzstOutput io.Writer, src string, privilege
 
 	defer dirFd.Close()
 
-	zstdCompressor := zstd.NewWriter(tzstOutput)
+	zstdCompressor, err := zstd.NewWriter(tzstOutput)
+	if err != nil {
+		return err
+	}
 
 	tarCommand.Stdout = zstdCompressor
 	tarCommand.Stderr = os.Stderr
 
 	err = tarCommand.Run()
 	if err != nil {
-		zstdCompressor.Close()
+		_ = zstdCompressor.Close()
 		return err
 	}
 

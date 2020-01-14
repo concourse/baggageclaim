@@ -10,6 +10,7 @@ require (
 	github.com/concourse/retryhttp v0.0.0-20170802173037-937335fd9545
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/jessevdk/go-flags v1.4.0
+	github.com/klauspost/compress v1.9.7
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0

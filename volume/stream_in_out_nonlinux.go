@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/DataDog/zstd"
 	"github.com/concourse/go-archive/tarfs"
 	"github.com/concourse/go-archive/tgzfs"
+	"github.com/klauspost/compress/zstd"
 )
 
 func (streamer *tarGzipStreamer) In(stream io.Reader, dest string, privileged bool) (bool, error) {
@@ -41,18 +41,18 @@ func (streamer *tarGzipStreamer) Out(w io.Writer, src string, privileged bool) e
 }
 
 func (streamer *tarZstdStreamer) In(stream io.Reader, dest string, privileged bool) (bool, error) {
-	zstdStreamReader := zstd.NewReader(stream)
+	zstdStreamReader, err := zstd.NewReader(stream)
+	if err != nil {
+		return true, err
+	}
 
-	err := tarfs.Extract(zstdStreamReader, dest)
+	err = tarfs.Extract(zstdStreamReader, dest)
 	if err != nil {
 		zstdStreamReader.Close()
 		return true, err
 	}
 
-	err = zstdStreamReader.Close()
-	if err != nil {
-		return true, err
-	}
+	zstdStreamReader.Close()
 
 	return false, nil
 }
@@ -73,7 +73,10 @@ func (streamer *tarZstdStreamer) Out(w io.Writer, src string, privileged bool) e
 		tarPath = filepath.Base(src)
 	}
 
-	zstdStreamWriter := zstd.NewWriter(w)
+	zstdStreamWriter, err := zstd.NewWriter(w)
+	if err != nil {
+		return err
+	}
 
 	err = tarfs.Compress(zstdStreamWriter, tarDir, tarPath)
 	if err != nil {
