@@ -12,7 +12,7 @@ import (
 )
 
 type OverlayDriver struct {
-	VolumesDir string
+	VolumesDir  string
 	OverlaysDir string
 }
 
@@ -68,15 +68,10 @@ func (driver *OverlayDriver) DestroyVolume(path string) error {
 }
 
 func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	ancestry, err := driver.ancestry(parent)
-	if err != nil {
-		return err
-	}
-
 	childDir := driver.layerDir(path)
 	workDir := driver.workDir(path)
 
-	err = os.MkdirAll(childDir, 0755)
+	err := os.MkdirAll(childDir, 0755)
 	if err != nil {
 		return err
 	}
@@ -93,7 +88,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 
 	opts := fmt.Sprintf(
 		"lowerdir=%s,upperdir=%s,workdir=%s",
-		strings.Join(ancestry, ":"),
+		parent,
 		childDir,
 		workDir,
 	)
@@ -122,7 +117,7 @@ func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
 		return err
 	}
 
-	for _, volumeFileInfo := range(liveVolumes) {
+	for _, volumeFileInfo := range liveVolumes {
 
 		liveVolumePath := filepath.Join(liveVolumesDir, volumeFileInfo.Name())
 		liveVolumeDataPath := filepath.Join(liveVolumePath, "volume")
