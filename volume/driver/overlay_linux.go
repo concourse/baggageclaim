@@ -5,11 +5,22 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/concourse/baggageclaim/volume"
 )
+
+//go:generate counterfeiter . Mounter
+
+type LiveVolume struct {
+	Path   string
+	Parent *LiveVolume
+}
+
+type Mounter interface {
+	BindMount(datapath string) error
+	OverlayMount(parent, datapath string) error
+}
 
 type OverlayDriver struct {
 	VolumesDir  string
@@ -22,10 +33,12 @@ func NewOverlayDriver(volumesDir, overlaysDir string) (volume.Driver, error) {
 		OverlaysDir: overlaysDir,
 	}
 
-	err := driver.RecoverMountTable(filepath.Join(volumesDir, "live"))
+	err := RecoverMountTable(filepath.Join(volumesDir, "live"), driver)
 	if err != nil {
+		err = fmt.Errorf("recover mount table: %w", err)
 		return nil, err
 	}
+
 	return driver, nil
 }
 
@@ -96,67 +109,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 	return syscall.Mount("overlay", path, "overlay", 0, opts)
 }
 
-// We apply 2 types of mounts when using the overlay driver
-//
-// 1. For any new volume, we create its root in the overlaysDir and
-// 	  issue a bind mount of that root into the liveVolumesDir
-// 2. For COW volumes, we create upper and work dirs and use
-// 	  ancestry to determine the lower dir. These dirs are
-//	  used to create an overlay mount.
-//
-// These mounts can disappear when the system reboots (mount table cleared)
-// As a precaution we reattach mounts during startup to fix missing ones
-func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
-	// skip recovery if live dir hasn't been initialized (nothing to mount)
-	if _, err := os.Stat(liveVolumesDir); os.IsNotExist(err) {
-		return nil
-	}
-
-	liveVolumes, err := ioutil.ReadDir(liveVolumesDir)
-	if err != nil {
-		return err
-	}
-
-	for _, volumeFileInfo := range liveVolumes {
-
-		liveVolumePath := filepath.Join(liveVolumesDir, volumeFileInfo.Name())
-		liveVolumeDataPath := filepath.Join(liveVolumePath, "volume")
-		parentSymlink := filepath.Join(liveVolumePath, "parent")
-
-		// a parent symlink indicates a COW
-		if _, err := os.Stat(parentSymlink); err == nil {
-			parentPath, err := os.Readlink(parentSymlink)
-			if err != nil {
-				return err
-			}
-			parentDataPath := filepath.Join(parentPath, "volume")
-
-			ancestry, err := driver.ancestry(parentDataPath)
-			if err != nil {
-				return err
-			}
-
-			err = driver.applyOverlayMount(ancestry, liveVolumeDataPath)
-			if err != nil {
-				return err
-			}
-		} else if os.IsNotExist(err) {
-			err := driver.applyBindMount(liveVolumeDataPath)
-			if err != nil {
-				return err
-			}
-		}
-
-		if err != nil {
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (driver *OverlayDriver) applyBindMount(datapath string) error {
+func (driver *OverlayDriver) BindMount(datapath string) error {
 	layerDir := driver.layerDir(datapath)
 
 	err := syscall.Mount(layerDir, datapath, "", syscall.MS_BIND, "")
@@ -167,15 +120,15 @@ func (driver *OverlayDriver) applyBindMount(datapath string) error {
 	return nil
 }
 
-func (driver *OverlayDriver) applyOverlayMount(ancestry []string, datapath string) error {
+func (driver *OverlayDriver) OverlayMount(mountpoint, parent string) error {
 	opts := fmt.Sprintf(
 		"lowerdir=%s,upperdir=%s,workdir=%s",
-		strings.Join(ancestry, ":"),
-		driver.layerDir(datapath),
-		driver.workDir(datapath),
+		parent,
+		driver.layerDir(mountpoint),
+		driver.workDir(mountpoint),
 	)
 
-	err := syscall.Mount("overlay", datapath, "overlay", 0, opts)
+	err := syscall.Mount("overlay", mountpoint, "overlay", 0, opts)
 	if err != nil {
 		return err
 	}
@@ -191,28 +144,149 @@ func (driver *OverlayDriver) workDir(datapath string) string {
 	return filepath.Join(driver.OverlaysDir, "work", driver.getGUID(datapath))
 }
 
-func (driver *OverlayDriver) ancestry(datapath string) ([]string, error) {
-	ancestry := []string{}
-
-	currentPath := datapath
-	for {
-		ancestry = append(ancestry, driver.layerDir(currentPath))
-
-		parentVolume, err := os.Readlink(filepath.Join(filepath.Dir(currentPath), "parent"))
-		if err != nil {
-			if _, ok := err.(*os.PathError); ok {
-				break
-			}
-
-			return nil, err
-		}
-
-		currentPath = filepath.Join(parentVolume, "volume")
-	}
-
-	return ancestry, nil
-}
-
 func (driver *OverlayDriver) getGUID(datapath string) string {
 	return filepath.Base(filepath.Dir(datapath))
+}
+
+// NewLiveVolume creates the representation of a volume under the `live`
+// directory.
+//
+// It captures the filepath to the volume, as well as its parents (in a singly
+// linked list).
+//
+// ps.: it DOES NOT protect itself against circular dependencies.
+//
+func NewLiveVolume(root, vol string) (*LiveVolume, error) {
+	volDir := filepath.Join(root, vol)
+	parentSymlink := filepath.Join(volDir, "parent")
+	liveVol := &LiveVolume{Path: volDir}
+
+	_, err := os.Stat(volDir)
+	if err != nil {
+		return nil, err
+	}
+
+	parentDir, err := readlink(parentSymlink)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return liveVol, nil
+		}
+
+		return nil, err
+	}
+
+	liveVol.Parent, err = NewLiveVolume(root, filepath.Base(parentDir))
+	if err != nil {
+		return nil, err
+	}
+
+	return liveVol, nil
+}
+
+// Ancestry traverses LiveVolume linked list producing a list of LiveVolumes
+// from "no dependencies" to "with dependencies".
+//
+func Ancestry(vol LiveVolume) []LiveVolume {
+	res := []LiveVolume{}
+
+	for current := &vol; current != nil; current = current.Parent {
+		res = append([]LiveVolume{*current}, res...)
+	}
+
+	return res
+}
+
+// RecoverMountTable takes care of mounting volumes that exist under `live`, but
+// are not yet mounted due to a system shutdown.
+//
+// It takes care of finding out the dependencies between volumes (represented by
+// symbolic links at `live/<vol>/parent`), and making sure that:
+// - dependencies are mounted first
+// - mounpoints are not mounted more than once
+//
+//  e.g, given the following `live` dir:
+//
+//		.
+//		└── live
+//		    ├── vol1
+//		    ├── vol2
+//		    │   └── parent -> ./vol3
+//		    ├── vol3
+//		    │   └── parent -> ./vol1
+//		    └── vol4
+//			└── parent -> ./vol1
+//
+//
+// it figures out an acceptable mounting order is `vol1`, `vol3`, `vol2`,
+// `vol4`, issuing precisely only 4 `mount`s.
+//
+func RecoverMountTable(root string, mounter Mounter) error {
+	dirs, err := ioutil.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		err = fmt.Errorf("readdir %s: %w", root, err)
+		return err
+	}
+
+	mounted := map[string]interface{}{}
+
+	for _, dir := range dirs {
+		vol, err := NewLiveVolume(root, dir.Name())
+		if err != nil {
+			return err
+		}
+
+		ancestry := Ancestry(*vol)
+		for idx, ancestor := range ancestry {
+			_, isAlreadyMounted := mounted[ancestor.Path]
+			if isAlreadyMounted {
+				continue
+			}
+
+			datapath := filepath.Join(ancestor.Path, "volume")
+
+			if idx == 0 { // volume with no parents (regular vol)
+				err = mounter.BindMount(datapath)
+				if err != nil {
+					err = fmt.Errorf("bind mount %s: %w", ancestor.Path, err)
+					return err
+				}
+			} else { // volume w/ at least one parent (cow)
+				parentDatapath := filepath.Join(ancestor.Parent.Path, "volume")
+
+				err = mounter.OverlayMount(datapath, parentDatapath)
+				if err != nil {
+					err = fmt.Errorf("overlay mount %s - %s: %w",
+						ancestor.Path, ancestor.Parent.Path, err,
+					)
+					return err
+				}
+			}
+
+			mounted[ancestor.Path] = nil
+		}
+	}
+
+	return nil
+}
+
+func readlink(path string) (target string, err error) {
+	finfo, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if finfo.Mode()&os.ModeSymlink != os.ModeSymlink {
+		return "", fmt.Errorf("not a symlink")
+	}
+
+	target, err = os.Readlink(path)
+	if err != nil {
+		return "", err
+	}
+
+	return target, nil
 }

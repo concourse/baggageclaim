@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/concourse/baggageclaim"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
