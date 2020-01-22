@@ -107,6 +107,11 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 // These mounts can disappear when the system reboots (mount table cleared)
 // As a precaution we reattach mounts during startup to fix missing ones
 func (driver *OverlayDriver) RecoverMountTable(liveVolumesDir string) error {
+
+	// 1. detect if we need to do any recovery at all
+	// 2. figure out the volume dependency tree
+	// 3. perform the mounts
+
 	// skip recovery if live dir hasn't been initialized (nothing to mount)
 	if _, err := os.Stat(liveVolumesDir); os.IsNotExist(err) {
 		return nil
