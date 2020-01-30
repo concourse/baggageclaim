@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Overlay", func() {
+var _ = FDescribe("Overlay", func() {
 
 	Describe("Ancestry", func() {
 

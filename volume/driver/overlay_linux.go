@@ -231,45 +231,79 @@ func RecoverMountTable(root string, mounter Mounter) error {
 		return err
 	}
 
-	mounted := map[string]interface{}{}
+	table := NewMountTable(mounter)
 
 	for _, dir := range dirs {
-		vol, err := NewLiveVolume(root, dir.Name())
+		liveVol, err := NewLiveVolume(root, dir.Name())
 		if err != nil {
 			return err
 		}
 
-		ancestry := Ancestry(*vol)
-		for idx, ancestor := range ancestry {
-			_, isAlreadyMounted := mounted[ancestor.Path]
-			if isAlreadyMounted {
-				continue
+		ancestry := Ancestry(*liveVol)
+		for _, vol := range ancestry {
+			err = table.Mount(vol)
+			if err != nil {
+				return fmt.Errorf("table mount %+v: %w", vol, err)
 			}
-
-			datapath := filepath.Join(ancestor.Path, "volume")
-
-			if idx == 0 { // volume with no parents (regular vol)
-				err = mounter.BindMount(datapath)
-				if err != nil {
-					err = fmt.Errorf("bind mount %s: %w", ancestor.Path, err)
-					return err
-				}
-			} else { // volume w/ at least one parent (cow)
-				parentDatapath := filepath.Join(ancestor.Parent.Path, "volume")
-
-				err = mounter.OverlayMount(datapath, parentDatapath)
-				if err != nil {
-					err = fmt.Errorf("overlay mount %s - %s: %w",
-						ancestor.Path, ancestor.Parent.Path, err,
-					)
-					return err
-				}
-			}
-
-			mounted[ancestor.Path] = nil
 		}
 	}
 
+	return nil
+}
+
+// mountTable is responsible for keeping track of places that have already been
+// mounted, as well as applying the mounts when neeeded.
+//
+type mountTable struct {
+	mounter Mounter
+	mounted map[string]interface{}
+}
+
+func NewMountTable(mounter Mounter) mountTable {
+	return mountTable{
+		mounter: mounter,
+		mounted: make(map[string]interface{}),
+	}
+}
+
+func (m mountTable) isAlreadyMounted(vol LiveVolume) bool {
+	_, found := m.mounted[vol.Path]
+	return found
+}
+
+func (m mountTable) markMounted(vol LiveVolume) {
+	m.mounted[vol.Path] = nil
+}
+
+// Mount mounts a live volume if necessary.
+//
+func (m mountTable) Mount(vol LiveVolume) error {
+	var (
+		err      error
+		datapath = filepath.Join(vol.Path, "volume")
+	)
+
+	if m.isAlreadyMounted(vol) {
+		return nil
+	}
+
+	if vol.Parent == nil {
+		err = m.mounter.BindMount(datapath)
+		if err != nil {
+			return err
+		}
+
+		m.markMounted(vol)
+		return nil
+	}
+
+	parentDatapath := filepath.Join(vol.Parent.Path, "volume")
+	err = m.mounter.OverlayMount(datapath, parentDatapath)
+	if err != nil {
+		return err
+	}
+
+	m.markMounted(vol)
 	return nil
 }
 
