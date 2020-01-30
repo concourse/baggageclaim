@@ -184,7 +184,7 @@ func NewLiveVolume(root, vol string) (*LiveVolume, error) {
 }
 
 // Ancestry traverses LiveVolume linked list producing a list of LiveVolumes
-// from "no dependencies" to "with dependencies".
+// from "no dependencies" (oldest) to "with dependencies" (youngest).
 //
 func Ancestry(vol LiveVolume) []LiveVolume {
 	res := []LiveVolume{}
@@ -202,7 +202,7 @@ func Ancestry(vol LiveVolume) []LiveVolume {
 // It takes care of finding out the dependencies between volumes (represented by
 // symbolic links at `live/<vol>/parent`), and making sure that:
 // - dependencies are mounted first
-// - mounpoints are not mounted more than once
+// - mountpoints are not mounted more than once
 //
 //  e.g, given the following `live` dir:
 //
