@@ -8,13 +8,12 @@ import (
 
 	"github.com/concourse/baggageclaim/volume/driver/driverfakes"
 
-	. "github.com/concourse/baggageclaim/volume/driver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Overlay", func() {
+var _ = Describe("Overlay", func() {
 
 	Describe("Ancestry", func() {
 
