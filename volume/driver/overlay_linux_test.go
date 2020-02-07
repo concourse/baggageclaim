@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/concourse/baggageclaim/volume/driver"
 	"github.com/concourse/baggageclaim/volume/driver/driverfakes"
 
 	. "github.com/onsi/ginkgo"
@@ -18,46 +19,46 @@ var _ = Describe("Overlay", func() {
 	Describe("Ancestry", func() {
 
 		type Case struct {
-			input    LiveVolume
-			expected []LiveVolume
+			input    driver.LiveVolume
+			expected []driver.LiveVolume
 		}
 
 		DescribeTable("cases",
 			func(c Case) {
-				Expect(Ancestry(c.input)).To(Equal(c.expected))
+				Expect(driver.Ancestry(c.input)).To(Equal(c.expected))
 			},
 			Entry("orphan", Case{
-				input: LiveVolume{Path: "vol1"},
-				expected: []LiveVolume{
+				input: driver.LiveVolume{Path: "vol1"},
+				expected: []driver.LiveVolume{
 					{Path: "vol1"},
 				},
 			}),
 			Entry("w/ parent", Case{
-				input: LiveVolume{
+				input: driver.LiveVolume{
 					Path: "vol1",
-					Parent: &LiveVolume{
+					Parent: &driver.LiveVolume{
 						Path: "vol2",
 					},
 				},
-				expected: []LiveVolume{
+				expected: []driver.LiveVolume{
 					{Path: "vol2"},
-					{Path: "vol1", Parent: &LiveVolume{Path: "vol2"}},
+					{Path: "vol1", Parent: &driver.LiveVolume{Path: "vol2"}},
 				},
 			}),
 			Entry("w/ granparent", Case{
-				input: LiveVolume{
+				input: driver.LiveVolume{
 					Path: "vol1",
-					Parent: &LiveVolume{
+					Parent: &driver.LiveVolume{
 						Path: "vol2",
-						Parent: &LiveVolume{
+						Parent: &driver.LiveVolume{
 							Path: "vol3",
 						},
 					},
 				},
-				expected: []LiveVolume{
+				expected: []driver.LiveVolume{
 					{Path: "vol3"},
-					{Path: "vol2", Parent: &LiveVolume{Path: "vol3"}},
-					{Path: "vol1", Parent: &LiveVolume{Path: "vol2", Parent: &LiveVolume{Path: "vol3"}}},
+					{Path: "vol2", Parent: &driver.LiveVolume{Path: "vol3"}},
+					{Path: "vol1", Parent: &driver.LiveVolume{Path: "vol2", Parent: &driver.LiveVolume{Path: "vol3"}}},
 				},
 			}),
 		)
@@ -73,7 +74,7 @@ var _ = Describe("Overlay", func() {
 		)
 
 		JustBeforeEach(func() {
-			err = RecoverMountTable(root, mounter)
+			err = driver.RecoverMountTable(root, mounter)
 		})
 
 		BeforeEach(func() {
@@ -203,16 +204,16 @@ var _ = Describe("Overlay", func() {
 		})
 	})
 
-	Describe("NewLiveVolume", func() {
+	Describe("Newdriver.LiveVolume", func() {
 
 		var (
-			res       *LiveVolume
+			res       *driver.LiveVolume
 			root, vol string
 			err       error
 		)
 
 		JustBeforeEach(func() {
-			res, err = NewLiveVolume(root, vol)
+			res, err = driver.NewLiveVolume(root, vol)
 		})
 
 		Context("with inexistent root", func() {
@@ -289,7 +290,7 @@ var _ = Describe("Overlay", func() {
 					})
 
 					It("fills Parent", func() {
-						Expect(res.Parent).To(Equal(&LiveVolume{
+						Expect(res.Parent).To(Equal(&driver.LiveVolume{
 							Path:   filepath.Join(root, "parent-vol"),
 							Parent: nil,
 						}))
@@ -312,9 +313,9 @@ var _ = Describe("Overlay", func() {
 						})
 
 						It("fills both parent and parent's parent", func() {
-							Expect(res.Parent).To(Equal(&LiveVolume{
+							Expect(res.Parent).To(Equal(&driver.LiveVolume{
 								Path: filepath.Join(root, "parent-vol"),
-								Parent: &LiveVolume{
+								Parent: &driver.LiveVolume{
 									Path:   filepath.Join(root, "parent-parent-vol"),
 									Parent: nil,
 								},
