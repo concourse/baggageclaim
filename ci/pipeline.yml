@@ -19,6 +19,7 @@ jobs:
     image: oci-build-task
     privileged: true
     file: baggageclaim-image-building/ci/build-image.yml
+    input_mapping: {baggageclaim-dockerfile: baggageclaim-image-building}
   - put: baggageclaim-ci-image
     params: {image: image/image.tar}
   on_failure:
