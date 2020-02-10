@@ -15,8 +15,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/DataDog/zstd"
 	"github.com/concourse/go-archive/tarfs"
+	"github.com/klauspost/compress/zstd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -238,13 +238,14 @@ var _ = Describe("Volume Server", func() {
 			Context("when using zstd encoding", func() {
 				BeforeEach(func() {
 					tgzBuffer = new(bytes.Buffer)
-					zstdWriter := zstd.NewWriter(tgzBuffer)
+					zstdWriter, err := zstd.NewWriter(tgzBuffer)
+					Expect(err).ToNot(HaveOccurred())
 					defer zstdWriter.Close()
 
 					tarWriter := tar.NewWriter(zstdWriter)
 					defer tarWriter.Close()
 
-					err := tarWriter.WriteHeader(&tar.Header{
+					err = tarWriter.WriteHeader(&tar.Header{
 						Name: "some-file",
 						Mode: 0600,
 						Size: int64(len("file-content")),
@@ -427,13 +428,14 @@ var _ = Describe("Volume Server", func() {
 
 			Context("when using zstd encoding", func() {
 				BeforeEach(func() {
-					zstdWriter := zstd.NewWriter(tarBuffer)
+					zstdWriter, err := zstd.NewWriter(tarBuffer)
+					Expect(err).NotTo(HaveOccurred())
 					defer zstdWriter.Close()
 
 					tarWriter := tar.NewWriter(zstdWriter)
 					defer tarWriter.Close()
 
-					err := tarWriter.WriteHeader(&tar.Header{
+					err = tarWriter.WriteHeader(&tar.Header{
 						Name: "some-file",
 						Mode: 0600,
 						Size: int64(len("file-content")),
@@ -456,9 +458,9 @@ var _ = Describe("Volume Server", func() {
 					Expect(err).NotTo(HaveOccurred())
 					defer os.RemoveAll(unpackedDir)
 
-					tarBytes, err := zstd.Decompress(nil, recorder.Body.Bytes())
+					zstdReader, err := zstd.NewReader(recorder.Body)
 					Expect(err).NotTo(HaveOccurred())
-					err = tarfs.Extract(bytes.NewReader(tarBytes), unpackedDir)
+					err = tarfs.Extract(zstdReader, unpackedDir)
 					Expect(err).NotTo(HaveOccurred())
 
 					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "some-file"))
@@ -550,8 +552,11 @@ var _ = Describe("Volume Server", func() {
 
 			Context("when using zstd encoding", func() {
 				BeforeEach(func() {
-					err := tarfs.Compress(zstd.NewWriter(tarBuffer), tarDir, ".")
+					zstdWriter, err := zstd.NewWriter(tarBuffer)
+					Expect(err).ToNot(HaveOccurred())
+					err = tarfs.Compress(zstdWriter, tarDir, ".")
 					Expect(err).NotTo(HaveOccurred())
+					zstdWriter.Close()
 					encoding = string(baggageclaim.ZstdEncoding)
 				})
 
@@ -567,11 +572,11 @@ var _ = Describe("Volume Server", func() {
 					Expect(err).NotTo(HaveOccurred())
 					defer os.RemoveAll(unpackedDir)
 
-					tarByteReader := zstd.NewReader(recorder.Body)
+					tarByteReader, err := zstd.NewReader(recorder.Body)
 					Expect(err).NotTo(HaveOccurred())
 					err = tarfs.Extract(tarByteReader, unpackedDir)
 					Expect(err).NotTo(HaveOccurred())
-
+					tarByteReader.Close()
 					fileInfo, err := os.Stat(filepath.Join(unpackedDir, "other-file"))
 					Expect(err).NotTo(HaveOccurred())
 					Expect(fileInfo.IsDir()).To(BeFalse())
