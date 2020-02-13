@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"io"
 	"net/http"
 	"os"
+	"regexp"
+	"strconv"
 	"sync"
 
 	"code.cloudfoundry.org/lager"
@@ -14,20 +16,10 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/tedsuo/rata"
+
+	"github.com/docker/distribution/registry/api/errcode"
+	v2 "github.com/docker/distribution/registry/api/v2"
 )
-
-const httpUnprocessableEntity = 422
-
-var ErrListVolumesFailed = errors.New("failed to list volumes")
-var ErrGetVolumeFailed = errors.New("failed to get volume")
-var ErrCreateVolumeFailed = errors.New("failed to create volume")
-var ErrDestroyVolumeFailed = errors.New("failed to destroy volume")
-var ErrSetPropertyFailed = errors.New("failed to set property on volume")
-var ErrGetPrivilegedFailed = errors.New("failed to get privileged status of volume")
-var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of volume")
-var ErrStreamInFailed = errors.New("failed to stream in to volume")
-var ErrStreamOutFailed = errors.New("failed to stream out from volume")
-var ErrStreamOutNotFound = errors.New("no such file or directory")
 
 type VolumeServer struct {
 	strategerizer  volume.Strategerizer
@@ -48,6 +40,152 @@ func NewVolumeServer(
 		volumePromises: volume.NewPromiseList(),
 		logger:         logger,
 	}
+}
+
+const (
+	RegistryHeaderKey   = "docker-distribution-api-version"
+	RegistryHeaderValue = "registry/2.0"
+
+	httpUnprocessableEntity = 422
+)
+
+var (
+	handleRegexp = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
+)
+
+func (vs *VolumeServer) GetBase(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+
+	return
+}
+
+func (vs *VolumeServer) GetManifest(w http.ResponseWriter, req *http.Request) {
+	var (
+		ctx  = context.Background()
+		errs = errcode.Errors{}
+
+		ref    = rata.Param(req, "reference")
+		handle = rata.Param(req, "handle")
+	)
+
+	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+
+	if ref != "latest" {
+		errs = append(errs, v2.ErrorCodeTagInvalid.WithDetail(
+			"only `latest` is supported",
+		))
+
+		errcode.ServeJSON(w, errs)
+		return
+	}
+
+	if !handleRegexp.MatchString(handle) {
+		errs = append(errs, v2.ErrorCodeNameInvalid.WithDetail(
+			"only `latest` is supported",
+		))
+
+		errcode.ServeJSON(w, errs)
+		return
+	}
+
+	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	if !found {
+		errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail(
+			"couldn't find volume",
+		))
+
+		errcode.ServeJSON(w, errs)
+		return
+	}
+
+	img, err := volume.NewImage(ctx, vol)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	b, desc, err := img.GetManifest(ctx)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("content-type", desc.MediaType)
+	w.Header().Set("content-length", strconv.Itoa(int(desc.Size)))
+	w.Header().Set("docker-content-digest", desc.Digest.String())
+
+	_, err = w.Write(b)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	return
+}
+
+func (vs *VolumeServer) GetBlob(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+
+	var (
+		ctx  = context.Background()
+		errs = errcode.Errors{}
+
+		handle = rata.Param(req, "handle")
+		digest = rata.Param(req, "digest")
+	)
+
+	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+
+	if !handleRegexp.MatchString(handle) {
+		errs = append(errs, v2.ErrorCodeNameInvalid.WithDetail(
+			"only `latest` is supported",
+		))
+
+		errcode.ServeJSON(w, errs)
+		return
+	}
+
+	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	if !found {
+		errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail(
+			"couldn't find volume",
+		))
+
+		errcode.ServeJSON(w, errs)
+		return
+	}
+
+	img, err := volume.NewImage(ctx, vol)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	rc, err := img.GetBlob(ctx, digest)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	defer rc.Close()
+
+	_, err = io.Copy(w, rc)
+	if err != nil {
+		RespondWithError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	return
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {

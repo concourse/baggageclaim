@@ -15,19 +15,18 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/concourse/go-archive/tarfs"
-	"github.com/klauspost/compress/zstd"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
 	"code.cloudfoundry.org/lager/lagertest"
-	"github.com/concourse/go-archive/tgzfs"
-
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/driver"
+	"github.com/concourse/go-archive/tarfs"
+	"github.com/concourse/go-archive/tgzfs"
+	"github.com/klauspost/compress/zstd"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Volume Server", func() {
@@ -93,6 +92,133 @@ var _ = Describe("Volume Server", func() {
 		Eventually(func() error {
 			return os.RemoveAll(tempDir)
 		}, time.Minute).ShouldNot(HaveOccurred())
+	})
+
+	FDescribe("GetBase", func() {
+		var recorder *httptest.ResponseRecorder
+
+		JustBeforeEach(func() {
+			recorder = httptest.NewRecorder()
+			request, _ := http.NewRequest("GET", "/v2/", nil)
+
+			handler.ServeHTTP(recorder, request)
+		})
+
+		It("succeeds", func() {
+			res := recorder.Result()
+			Expect(res.StatusCode).To(Equal(200))
+		})
+
+		It("returns sets the header", func() {
+			h := recorder.Header().Get("docker-distribution-api-version")
+			Expect(h).To(Equal("registry/2.0"))
+		})
+	})
+
+	FDescribe("GetManifest", func() {
+		var (
+			recorder *httptest.ResponseRecorder
+			path     string
+		)
+
+		JustBeforeEach(func() {
+			recorder = httptest.NewRecorder()
+			request, _ := http.NewRequest("GET", path, nil)
+
+			handler.ServeHTTP(recorder, request)
+		})
+
+		Context("reference not being latest", func() {
+			BeforeEach(func() {
+				path = "/v2/concourse/handle/manifests/reference"
+			})
+
+			It("sets the header", func() {
+				h := recorder.Header().Get("docker-distribution-api-version")
+				Expect(h).To(Equal("registry/2.0"))
+			})
+
+			It("fails w/ bad request", func() {
+				res := recorder.Result()
+				Expect(res.StatusCode).To(Equal(400))
+
+				bodyBytes, err := ioutil.ReadAll(res.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(bodyBytes)).To(ContainSubstring("TAG_INVALID"))
+			})
+		})
+
+		Context("reference being latest", func() {
+			BeforeEach(func() {
+				path = "/v2/concourse/handle/manifests/latest"
+			})
+
+			It("sets the header", func() {
+				h := recorder.Header().Get("docker-distribution-api-version")
+				Expect(h).To(Equal("registry/2.0"))
+			})
+
+			Context("with the volume not existing", func() {
+				It("404s", func() {
+					res := recorder.Result()
+					Expect(res.StatusCode).To(Equal(404))
+				})
+			})
+
+			Context("with the volume existing", func() {
+				BeforeEach(func() {
+					// create an empty volume
+				})
+
+				Context("not having image.tar", func() {
+					// error
+				})
+
+				Context("having an image.tar that is not an image", func() {
+					BeforeEacun(func() {
+						// setup an `image.tar` that's
+						// just a file with "stuff"
+					})
+
+					// error
+				})
+
+				Context("having an image.tar that is an image", func() {
+					BeforeEach(func() {
+						// actually get an image in there
+					})
+
+					// 200 with etc etc
+					//
+					It("succeeds", func() {
+
+					})
+				})
+			})
+		})
+	})
+
+	FDescribe("GetBlob", func() {
+		var recorder *httptest.ResponseRecorder
+
+		JustBeforeEach(func() {
+			recorder = httptest.NewRecorder()
+			request, _ := http.NewRequest("GET", "/v2/concourse/handle/blobs/digest", nil)
+
+			handler.ServeHTTP(recorder, request)
+		})
+
+		Context("with the volume not existing", func() {
+			It("404s", func() {
+				res := recorder.Result()
+				Expect(res.StatusCode).To(Equal(404))
+			})
+		})
+
+		It("returns sets the header", func() {
+			h := recorder.Header().Get("docker-distribution-api-version")
+			Expect(h).To(Equal("registry/2.0"))
+		})
 	})
 
 	Describe("listing the volumes", func() {

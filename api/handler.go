@@ -5,10 +5,9 @@ import (
 	"net/http"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/tedsuo/rata"
-
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/tedsuo/rata"
 )
 
 func NewHandler(
@@ -36,6 +35,10 @@ func NewHandler(
 		baggageclaim.StreamOut:               http.HandlerFunc(volumeServer.StreamOut),
 		baggageclaim.DestroyVolume:           http.HandlerFunc(volumeServer.DestroyVolume),
 		baggageclaim.DestroyVolumes:          http.HandlerFunc(volumeServer.DestroyVolumes),
+
+		baggageclaim.GetBase:     http.HandlerFunc(volumeServer.GetBase),
+		baggageclaim.GetManifest: http.HandlerFunc(volumeServer.GetManifest),
+		baggageclaim.GetBlob:     http.HandlerFunc(volumeServer.GetBlob),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)

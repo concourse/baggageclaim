@@ -18,6 +18,10 @@ const (
 	SetPrivileged = "SetPrivileged"
 	StreamIn      = "StreamIn"
 	StreamOut     = "StreamOut"
+
+	GetBase     = "GetBase"
+	GetManifest = "GetManifest"
+	GetBlob     = "GetBlob"
 )
 
 var Routes = rata.Routes{
@@ -36,4 +40,8 @@ var Routes = rata.Routes{
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
 	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
+
+	{Path: "/v2/concourse/:handle/manifests/:reference", Method: "GET", Name: GetManifest},
+	{Path: "/v2/concourse/:handle/blobs/:digest", Method: "GET", Name: GetBlob},
+	{Path: "/v2/", Method: "GET", Name: GetBase},
 }
