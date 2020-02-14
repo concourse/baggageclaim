@@ -1,6 +1,10 @@
-FROM golang:1
+FROM golang
 
-RUN apt-get update -qq && \
-    apt-get install -yqq \
-          file \
-          btrfs-progs
+WORKDIR /src
+COPY . .
+
+RUN go build -v -a \
+	-tags "netgo osusergo" \
+	-ldflags '-extldflags "-static"' \
+	-o /usr/local/concourse/bin/baggageclaim \
+	./cmd/baggageclaim
