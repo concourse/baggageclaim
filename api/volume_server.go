@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 
 	"code.cloudfoundry.org/lager"
@@ -15,6 +16,7 @@ import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
+	"github.com/prometheus/common/log"
 	"github.com/tedsuo/rata"
 
 	"github.com/docker/distribution/registry/api/errcode"
@@ -59,133 +61,105 @@ func (vs *VolumeServer) GetBase(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (vs *VolumeServer) GetManifest(w http.ResponseWriter, req *http.Request) {
-	var (
-		ctx  = context.Background()
-		errs = errcode.Errors{}
+func (vs *VolumeServer) GetBlob(img volume.Image) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rc, size, err := img.GetBlob(context.Background(), rata.Param(r, "ref"))
+		if err != nil {
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
 
-		ref    = rata.Param(req, "reference")
-		handle = rata.Param(req, "handle")
-	)
+		defer rc.Close()
 
-	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+		w.Header().Set("content-length", strconv.Itoa(int(size)))
 
-	if ref != "latest" {
-		errs = append(errs, v2.ErrorCodeTagInvalid.WithDetail(
-			"only `latest` is supported",
-		))
+		if strings.ToLower(r.Method) == "head" {
+			return
+		}
 
-		errcode.ServeJSON(w, errs)
-		return
-	}
-
-	if !handleRegexp.MatchString(handle) {
-		errs = append(errs, v2.ErrorCodeNameInvalid.WithDetail(
-			"only `latest` is supported",
-		))
-
-		errcode.ServeJSON(w, errs)
-		return
-	}
-
-	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail(
-			"couldn't find volume",
-		))
-
-		errcode.ServeJSON(w, errs)
-		return
-	}
-
-	img, err := volume.NewImage(ctx, vol)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	b, desc, err := img.GetManifest(ctx)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("content-type", desc.MediaType)
-	w.Header().Set("content-length", strconv.Itoa(int(desc.Size)))
-	w.Header().Set("docker-content-digest", desc.Digest.String())
-
-	_, err = w.Write(b)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	return
+		_, err = io.Copy(w, rc)
+		if err != nil {
+			vs.logger.Error("copy-blob", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+	})
 }
 
-func (vs *VolumeServer) GetBlob(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+func (vs *VolumeServer) GetManifest(img volume.Image) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, desc, err := img.GetManifest(context.Background())
+		if err != nil {
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
 
-	var (
-		ctx  = context.Background()
-		errs = errcode.Errors{}
+		w.Header().Set("content-type", desc.MediaType)
+		w.Header().Set("content-length", strconv.Itoa(int(desc.Size)))
+		w.Header().Set("docker-content-digest", desc.Digest.String())
 
-		handle = rata.Param(req, "handle")
-		digest = rata.Param(req, "digest")
-	)
+		if strings.ToLower(r.Method) == "head" {
+			return
+		}
 
-	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+		_, err = w.Write(b)
+		if err != nil {
+			vs.logger.Error("writing-manifest", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
 
-	if !handleRegexp.MatchString(handle) {
-		errs = append(errs, v2.ErrorCodeNameInvalid.WithDetail(
-			"only `latest` is supported",
-		))
-
-		errcode.ServeJSON(w, errs)
 		return
+	})
+}
+
+func (vs *VolumeServer) VolumeImageHandlerFor(
+	handler func(volume.Image) http.Handler,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var (
+			ctx    = context.Background()
+			errs   = errcode.Errors{}
+			handle = rata.Param(r, "handle")
+		)
+
+		w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
+
+		if !handleRegexp.MatchString(handle) {
+			errs = append(errs, v2.ErrorCodeNameInvalid.WithDetail(
+				"only `latest` is supported",
+			))
+
+			errcode.ServeJSON(w, errs)
+			return
+		}
+
+		vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
+		if err != nil {
+			log.Error("get-volume", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		if !found {
+			errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail(
+				"couldn't find volume",
+			))
+
+			log.Info("volume-not-found")
+			errcode.ServeJSON(w, errs)
+			return
+		}
+
+		img, err := volume.NewImage(ctx, vol)
+		if err != nil {
+			log.Error("new-image", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		handler(img).ServeHTTP(w, r)
 	}
-
-	vol, found, err := vs.volumeRepo.GetVolume(ctx, handle)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	if !found {
-		errs = append(errs, v2.ErrorCodeManifestUnknown.WithDetail(
-			"couldn't find volume",
-		))
-
-		errcode.ServeJSON(w, errs)
-		return
-	}
-
-	img, err := volume.NewImage(ctx, vol)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	rc, err := img.GetBlob(ctx, digest)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	defer rc.Close()
-
-	_, err = io.Copy(w, rc)
-	if err != nil {
-		RespondWithError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	return
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {

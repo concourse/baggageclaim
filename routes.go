@@ -19,9 +19,11 @@ const (
 	StreamIn      = "StreamIn"
 	StreamOut     = "StreamOut"
 
-	GetBase     = "GetBase"
-	GetManifest = "GetManifest"
-	GetBlob     = "GetBlob"
+	GetBase      = "GetBase"
+	GetManifest  = "GetManifest"
+	HeadManifest = "HeadManifest"
+	GetBlob      = "GetBlob"
+	HeadBlob     = "HeadBlob"
 )
 
 var Routes = rata.Routes{
@@ -41,7 +43,9 @@ var Routes = rata.Routes{
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
 	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
 
-	{Path: "/v2/concourse/:handle/manifests/:reference", Method: "GET", Name: GetManifest},
-	{Path: "/v2/concourse/:handle/blobs/:digest", Method: "GET", Name: GetBlob},
+	{Path: "/v2/concourse/:handle/manifests/:ref", Method: "GET", Name: GetManifest},
+	{Path: "/v2/concourse/:handle/manifests/:ref", Method: "HEAD", Name: HeadManifest},
+	{Path: "/v2/concourse/:handle/blobs/:ref", Method: "GET", Name: GetBlob},
+	{Path: "/v2/concourse/:handle/blobs/:ref", Method: "HEAD", Name: HeadBlob},
 	{Path: "/v2/", Method: "GET", Name: GetBase},
 }

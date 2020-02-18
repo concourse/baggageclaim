@@ -392,7 +392,6 @@ func (c *client) getPrivileged(logger lager.Logger, handle string) (bool, error)
 	return privileged, nil
 }
 
-
 func (c *client) setPrivileged(logger lager.Logger, handle string, privileged bool) error {
 	buffer := &bytes.Buffer{}
 	json.NewEncoder(buffer).Encode(baggageclaim.PrivilegedRequest{

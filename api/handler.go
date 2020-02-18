@@ -36,9 +36,11 @@ func NewHandler(
 		baggageclaim.DestroyVolume:           http.HandlerFunc(volumeServer.DestroyVolume),
 		baggageclaim.DestroyVolumes:          http.HandlerFunc(volumeServer.DestroyVolumes),
 
-		baggageclaim.GetBase:     http.HandlerFunc(volumeServer.GetBase),
-		baggageclaim.GetManifest: http.HandlerFunc(volumeServer.GetManifest),
-		baggageclaim.GetBlob:     http.HandlerFunc(volumeServer.GetBlob),
+		baggageclaim.GetBase:      http.HandlerFunc(volumeServer.GetBase),
+		baggageclaim.GetManifest:  http.HandlerFunc(volumeServer.VolumeImageHandlerFor(volumeServer.GetManifest)),
+		baggageclaim.HeadManifest: http.HandlerFunc(volumeServer.VolumeImageHandlerFor(volumeServer.GetManifest)),
+		baggageclaim.GetBlob:      http.HandlerFunc(volumeServer.VolumeImageHandlerFor(volumeServer.GetBlob)),
+		baggageclaim.HeadBlob:     http.HandlerFunc(volumeServer.VolumeImageHandlerFor(volumeServer.GetBlob)),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)

@@ -1,8 +1,12 @@
 package baggageclaimcmd
 
 import (
-	"code.cloudfoundry.org/lager"
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"os"
+
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
@@ -11,8 +15,6 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"net/http"
-	"os"
 )
 
 type BaggageclaimCommand struct {
@@ -20,6 +22,10 @@ type BaggageclaimCommand struct {
 
 	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
 	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
+
+	TLSBindPort uint16    `long:"tls-bind-port" description:"Port on which to listen for HTTPS traffic."`
+	TLSCert     flag.File `long:"tls-cert"      description:"File containing an SSL certificate."`
+	TLSKey      flag.File `long:"tls-key"       description:"File containing an RSA private key, used to encrypt HTTPS traffic."`
 
 	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
 	DebugBindPort uint16  `long:"debug-bind-port" default:"7787"      description:"Port on which to listen for the pprof debugger endpoints."`
@@ -49,6 +55,7 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	logger, _ := cmd.constructLogger()
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP, cmd.BindPort)
+	listenAddrTls := fmt.Sprintf("%s:%d", cmd.BindIP.IP, cmd.TLSBindPort)
 
 	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
 
@@ -103,6 +110,26 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 			cmd.debugBindAddr(),
 			http.DefaultServeMux,
 		)},
+	}
+
+	if cmd.TLSCert.Path() != "" {
+		cert, err := tls.LoadX509KeyPair(cmd.TLSCert.Path(), cmd.TLSKey.Path())
+		if err != nil {
+			logger.Fatal("loading certs", err)
+		}
+
+		config := tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+
+		members = append(members, grouper.Member{
+			Name: "api-tls",
+			Runner: http_server.NewTLSServer(
+				listenAddrTls,
+				apiHandler,
+				&config,
+			),
+		})
 	}
 
 	return onReady(grouper.NewParallel(os.Interrupt, members), func() {

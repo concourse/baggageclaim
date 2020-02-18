@@ -479,20 +479,20 @@ func (repo *repository) VolumeParent(ctx context.Context, handle string) (Volume
 }
 
 func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, error) {
-	properties, err := liveVolume.LoadProperties()
-	if err != nil {
-		return Volume{}, err
-	}
+	// properties, err := liveVolume.LoadProperties()
+	// if err != nil {
+	// 	return Volume{}, err
+	// }
 
-	isPrivileged, err := liveVolume.LoadPrivileged()
-	if err != nil {
-		return Volume{}, err
-	}
+	// isPrivileged, err := liveVolume.LoadPrivileged()
+	// if err != nil {
+	// 	return Volume{}, err
+	// }
 
 	return Volume{
-		Handle:     liveVolume.Handle(),
-		Path:       liveVolume.DataPath(),
-		Properties: properties,
-		Privileged: isPrivileged,
+		Handle: liveVolume.Handle(),
+		Path:   liveVolume.DataPath(),
+		// Properties: properties,
+		// Privileged: isPrivileged,
 	}, nil
 }

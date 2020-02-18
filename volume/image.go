@@ -7,8 +7,8 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/tarball"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -27,7 +27,7 @@ type Image interface {
 	// GetBlob retrieves a reader that when read, gives the contents of a
 	// blob.
 	//
-	GetBlob(ctx context.Context, digest string) (blob io.ReadCloser, err error)
+	GetBlob(ctx context.Context, digest string) (blob io.ReadCloser, size int64, err error)
 }
 
 // TODO detect if we're dealing with OCI layout, or with a plain `tarball`
@@ -36,7 +36,7 @@ type Image interface {
 func NewImage(ctx context.Context, vol Volume) (i Image, err error) {
 	tarballPath := filepath.Join(vol.Path, "image.tar")
 
-	ref, err := tarball.NewReference([]string{tarballPath}, nil)
+	ref, err := archive.NewReference(tarballPath, nil)
 	if err != nil {
 		err = fmt.Errorf("new ref: %w", err)
 		return
@@ -91,8 +91,8 @@ func (i tarballVolumeImage) GetManifest(ctx context.Context) (b []byte, desc img
 	return
 }
 
-func (i tarballVolumeImage) GetBlob(ctx context.Context, d string) (blob io.ReadCloser, err error) {
-	blob, _, err = i.src.GetBlob(ctx, types.BlobInfo{
+func (i tarballVolumeImage) GetBlob(ctx context.Context, d string) (blob io.ReadCloser, size int64, err error) {
+	blob, size, err = i.src.GetBlob(ctx, types.BlobInfo{
 		Digest: digest.Digest(d),
 	}, nil)
 	if err != nil {

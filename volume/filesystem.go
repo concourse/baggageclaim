@@ -213,7 +213,8 @@ func (base *baseVolume) DataPath() string {
 }
 
 func (base *baseVolume) LoadProperties() (Properties, error) {
-	return (&Metadata{base.dir}).Properties()
+	return nil, nil
+	// return (&Metadata{base.dir}).Properties()
 }
 
 func (base *baseVolume) StoreProperties(newProperties Properties) error {
@@ -221,7 +222,8 @@ func (base *baseVolume) StoreProperties(newProperties Properties) error {
 }
 
 func (base *baseVolume) LoadPrivileged() (bool, error) {
-	return (&Metadata{base.dir}).IsPrivileged()
+	return true, nil
+	// return (&Metadata{base.dir}).IsPrivileged()
 }
 
 func (base *baseVolume) StorePrivileged(isPrivileged bool) error {
