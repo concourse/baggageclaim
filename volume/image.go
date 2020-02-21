@@ -48,7 +48,7 @@ func NewImage(ctx context.Context, vol Volume) (i Image, err error) {
 		return
 	}
 
-	i = &tarballVolumeImage{
+	i = &dockerArchiveVolumeImage{
 		vol: vol,
 		src: src,
 	}
@@ -56,12 +56,12 @@ func NewImage(ctx context.Context, vol Volume) (i Image, err error) {
 	return
 }
 
-type tarballVolumeImage struct {
+type dockerArchiveVolumeImage struct {
 	vol Volume
 	src types.ImageSource
 }
 
-func (i tarballVolumeImage) GetManifest(ctx context.Context) (b []byte, desc imgspecv1.Descriptor, err error) {
+func (i dockerArchiveVolumeImage) GetManifest(ctx context.Context) (b []byte, desc imgspecv1.Descriptor, err error) {
 	b, _, err = i.src.GetManifest(ctx, nil)
 	if err != nil {
 		err = fmt.Errorf("get manifest: %w", err)
@@ -91,7 +91,7 @@ func (i tarballVolumeImage) GetManifest(ctx context.Context) (b []byte, desc img
 	return
 }
 
-func (i tarballVolumeImage) GetBlob(ctx context.Context, d string) (blob io.ReadCloser, size int64, err error) {
+func (i dockerArchiveVolumeImage) GetBlob(ctx context.Context, d string) (blob io.ReadCloser, size int64, err error) {
 	blob, size, err = i.src.GetBlob(ctx, types.BlobInfo{
 		Digest: digest.Digest(d),
 	}, nil)
@@ -103,6 +103,6 @@ func (i tarballVolumeImage) GetBlob(ctx context.Context, d string) (blob io.Read
 	return
 }
 
-func (i tarballVolumeImage) Close() error {
+func (i dockerArchiveVolumeImage) Close() error {
 	return i.src.Close()
 }
