@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 
-	"github.com/containers/image/v5/docker/archive"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -26,27 +24,23 @@ type Image interface {
 	GetBlob(ctx context.Context, digest string) (blob io.ReadCloser, size int64, err error)
 }
 
-// TODO detect if we're dealing with OCI layout, or with a plain `tarball`
-// extracted image.
-//
 func NewImage(ctx context.Context, vol Volume) (i Image, err error) {
-	tarballPath := filepath.Join(vol.Path, "image.tar")
-
-	ref, err := archive.NewReference(tarballPath, nil)
-	if err != nil {
-		err = fmt.Errorf("new ref: %w", err)
+	switch {
+	case IsDockerArchiveImage(vol):
+		i, err = NewDockerArchiveVolumeImage(ctx, vol)
+		if err != nil {
+			err = fmt.Errorf("new docker archive image: %w", err)
+			return
+		}
+	case IsConcourseImage(vol):
+		i, err = NewConcourseVolumeImage(ctx, vol)
+		if err != nil {
+			err = fmt.Errorf("new concourse volume image: %w", err)
+			return
+		}
+	default:
+		err = fmt.Errorf("not a known image type")
 		return
-	}
-
-	src, err := ref.NewImageSource(ctx, nil)
-	if err != nil {
-		err = fmt.Errorf("new image source: %w", err)
-		return
-	}
-
-	i = &dockerArchiveVolumeImage{
-		vol: vol,
-		src: src,
 	}
 
 	return

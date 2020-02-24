@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
+	"github.com/containers/image/v5/docker/archive"
 	"github.com/containers/image/v5/manifest"
 	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
@@ -15,6 +18,36 @@ import (
 type dockerArchiveVolumeImage struct {
 	vol Volume
 	src types.ImageSource
+}
+
+func IsDockerArchiveImage(vol Volume) bool {
+	fpath := filepath.Join(vol.Path, "image.tar")
+
+	_, err := os.Stat(fpath)
+	return err == nil
+}
+
+func NewDockerArchiveVolumeImage(ctx context.Context, vol Volume) (i *dockerArchiveVolumeImage, err error) {
+	tarballPath := filepath.Join(vol.Path, "image.tar")
+
+	ref, err := archive.NewReference(tarballPath, nil)
+	if err != nil {
+		err = fmt.Errorf("new ref: %w", err)
+		return
+	}
+
+	src, err := ref.NewImageSource(ctx, nil)
+	if err != nil {
+		err = fmt.Errorf("new image source: %w", err)
+		return
+	}
+
+	i = &dockerArchiveVolumeImage{
+		vol: vol,
+		src: src,
+	}
+
+	return
 }
 
 func (i dockerArchiveVolumeImage) GetManifest(ctx context.Context) (b []byte, desc imgspecv1.Descriptor, err error) {

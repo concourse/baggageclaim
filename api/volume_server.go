@@ -16,7 +16,7 @@ import (
 	"github.com/concourse/baggageclaim"
 	"github.com/concourse/baggageclaim/volume"
 	uuid "github.com/nu7hatch/gouuid"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/tedsuo/rata"
 
 	"github.com/docker/distribution/registry/api/errcode"
@@ -51,66 +51,12 @@ const (
 	httpUnprocessableEntity = 422
 )
 
-var (
-	handleRegexp = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
-)
+var handleRegexp = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
 
 func (vs *VolumeServer) GetBase(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
 
 	return
-}
-
-func (vs *VolumeServer) GetBlob(img volume.Image) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rc, size, err := img.GetBlob(context.Background(), rata.Param(r, "ref"))
-		if err != nil {
-			RespondWithError(w, err, http.StatusInternalServerError)
-			return
-		}
-
-		defer rc.Close()
-
-		w.Header().Set("content-length", strconv.Itoa(int(size)))
-
-		if strings.ToLower(r.Method) == "head" {
-			return
-		}
-
-		_, err = io.Copy(w, rc)
-		if err != nil {
-			vs.logger.Error("copy-blob", err)
-			RespondWithError(w, err, http.StatusInternalServerError)
-			return
-		}
-	})
-}
-
-func (vs *VolumeServer) GetManifest(img volume.Image) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, desc, err := img.GetManifest(context.Background())
-		if err != nil {
-			RespondWithError(w, err, http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("content-type", desc.MediaType)
-		w.Header().Set("content-length", strconv.Itoa(int(desc.Size)))
-		w.Header().Set("docker-content-digest", desc.Digest.String())
-
-		if strings.ToLower(r.Method) == "head" {
-			return
-		}
-
-		_, err = w.Write(b)
-		if err != nil {
-			vs.logger.Error("writing-manifest", err)
-			RespondWithError(w, err, http.StatusInternalServerError)
-			return
-		}
-
-		return
-	})
 }
 
 func (vs *VolumeServer) VolumeImageHandlerFor(
@@ -122,6 +68,10 @@ func (vs *VolumeServer) VolumeImageHandlerFor(
 			errs   = errcode.Errors{}
 			handle = rata.Param(r, "handle")
 		)
+
+		sess := log.WithFields(log.Fields{"handle": handle})
+		sess.Info("start")
+		defer sess.Info("end")
 
 		w.Header().Set(RegistryHeaderKey, RegistryHeaderValue)
 
@@ -160,6 +110,69 @@ func (vs *VolumeServer) VolumeImageHandlerFor(
 
 		handler(img).ServeHTTP(w, r)
 	}
+}
+
+func (vs *VolumeServer) GetBlob(img volume.Image) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ref := rata.Param(r, "ref")
+		sess := log.WithFields(log.Fields{"type": "blob", "ref": ref})
+		sess.Info("start")
+		defer sess.Info("end")
+
+		rc, size, err := img.GetBlob(context.Background(), ref)
+		if err != nil {
+			sess.Error("get blob", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		defer rc.Close()
+
+		w.Header().Set("content-length", strconv.Itoa(int(size)))
+
+		if strings.ToLower(r.Method) == "head" {
+			return
+		}
+
+		_, err = io.Copy(w, rc)
+		if err != nil {
+			sess.Error("copy blob", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+func (vs *VolumeServer) GetManifest(img volume.Image) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sess := log.WithFields(log.Fields{"type": "manifest"})
+		sess.Info("start")
+		defer sess.Info("end")
+
+		b, desc, err := img.GetManifest(context.Background())
+		if err != nil {
+			sess.Error("get manifest", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("content-type", desc.MediaType)
+		w.Header().Set("content-length", strconv.Itoa(int(desc.Size)))
+		w.Header().Set("docker-content-digest", desc.Digest.String())
+
+		if strings.ToLower(r.Method) == "head" {
+			return
+		}
+
+		_, err = w.Write(b)
+		if err != nil {
+			sess.Error("manifest write", err)
+			RespondWithError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		return
+	})
 }
 
 func (vs *VolumeServer) CreateVolume(w http.ResponseWriter, req *http.Request) {

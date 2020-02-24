@@ -19,11 +19,12 @@ require (
 	github.com/onsi/gomega v1.5.0
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6
-	github.com/prometheus/common v0.9.1
+	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.4.0
 	github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc
 	github.com/tedsuo/rata v1.0.1-0.20170830210128-07d200713958
 	golang.org/x/sys v0.0.0-20191127021746-63cb32ae39b2
+	gopkg.in/yaml.v2 v2.2.4 // indirect
 )
 
 go 1.13
