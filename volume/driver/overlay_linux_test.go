@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Overlay", func() {
+var _ = Describe("Overlay", func() {
 	Describe("Driver", func() {
 		var tmpdir string
 		var fs volume.Filesystem

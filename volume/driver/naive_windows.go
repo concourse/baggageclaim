@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"os/exec"
 	"syscall"
+
+	"github.com/concourse/baggageclaim/volume"
 )
 
-func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	_, err := robocopy("/e", "/nfl", "/ndl", parent, path)
+func (driver *NaiveDriver) CreateCopyOnWriteLayer(
+	childVol volume.FilesystemInitVolume,
+	parentVol volume.FilesystemLiveVolume,
+) error {
+	_, err := robocopy("/e", "/nfl", "/ndl", parentVol.DataPath(), childVol.DataPath())
 	return err
 }
 

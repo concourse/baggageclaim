@@ -43,14 +43,14 @@ func NewOverlayDriver(volumesDir, overlaysDir string) (volume.Driver, error) {
 	return driver, nil
 }
 
-func (driver *OverlayDriver) CreateVolume(path string) error {
-	layerDir := driver.layerDir(path)
-
+func (driver *OverlayDriver) CreateVolume(vol volume.FilesystemInitVolume) error {
+	layerDir := driver.layerDir(vol)
 	err := os.MkdirAll(layerDir, 0755)
 	if err != nil {
 		return err
 	}
 
+	path := vol.DataPath()
 	err = os.Mkdir(path, 0755)
 	if err != nil {
 		return err
@@ -59,7 +59,9 @@ func (driver *OverlayDriver) CreateVolume(path string) error {
 	return syscall.Mount(layerDir, path, "", syscall.MS_BIND, "")
 }
 
-func (driver *OverlayDriver) DestroyVolume(path string) error {
+func (driver *OverlayDriver) DestroyVolume(vol volume.FilesystemVolume) error {
+	path := vol.DataPath()
+
 	err := syscall.Unmount(path, 0)
 	// when a path is already unmounted, and unmount is called
 	// on it, syscall.EINVAL is returned as an error
@@ -68,12 +70,12 @@ func (driver *OverlayDriver) DestroyVolume(path string) error {
 		return err
 	}
 
-	err = os.RemoveAll(driver.workDir(path))
+	err = os.RemoveAll(driver.workDir(vol))
 	if err != nil {
 		return err
 	}
 
-	err = os.RemoveAll(driver.layerDir(path))
+	err = os.RemoveAll(driver.layerDir(vol))
 	if err != nil {
 		return err
 	}
@@ -81,25 +83,30 @@ func (driver *OverlayDriver) DestroyVolume(path string) error {
 	return os.RemoveAll(path)
 }
 
-func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	childDir := driver.layerDir(path)
-	workDir := driver.workDir(path)
+func (driver *OverlayDriver) CreateCopyOnWriteLayer(
+	childVol volume.FilesystemInitVolume,
+	parentVol volume.FilesystemLiveVolume,
+) error {
+	path := childVol.DataPath()
+	childDir := driver.layerDir(childVol)
+	workDir := driver.workDir(childVol)
 
-	parentGUID := driver.getGUID(parent)
-	root := filepath.Dir(filepath.Dir(parent))
-	parentVol, err := NewLiveVolume(root, parentGUID)
+	grandparentVol, hasGrandparent, err := parentVol.Parent()
 	if err != nil {
 		return err
 	}
 
-	if parentVol.Parent != nil {
-		parentDir := driver.layerDir(parent)
+	var lowerDir string
+	if hasGrandparent {
+		parentDir := driver.layerDir(parentVol)
 		err := copy.Cp(false, parentDir, childDir)
 		if err != nil {
 			return fmt.Errorf("copy parent data to child: %w", err)
 		}
 
-		parent = filepath.Join(parentVol.Parent.Path, "volume")
+		lowerDir = grandparentVol.DataPath()
+	} else {
+		lowerDir = parentVol.DataPath()
 	}
 
 	err = os.MkdirAll(childDir, 0755)
@@ -119,7 +126,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 
 	opts := fmt.Sprintf(
 		"lowerdir=%s,upperdir=%s,workdir=%s",
-		parent,
+		lowerDir,
 		childDir,
 		workDir,
 	)
@@ -128,7 +135,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 }
 
 func (driver *OverlayDriver) BindMount(datapath string) error {
-	layerDir := driver.layerDir(datapath)
+	layerDir := driver.layerDirOld(datapath)
 
 	err := syscall.Mount(layerDir, datapath, "", syscall.MS_BIND, "")
 	if err != nil {
@@ -142,8 +149,8 @@ func (driver *OverlayDriver) OverlayMount(mountpoint, parent string) error {
 	opts := fmt.Sprintf(
 		"lowerdir=%s,upperdir=%s,workdir=%s",
 		parent,
-		driver.layerDir(mountpoint),
-		driver.workDir(mountpoint),
+		driver.layerDirOld(mountpoint),
+		driver.workDirOld(mountpoint),
 	)
 
 	err := syscall.Mount("overlay", mountpoint, "overlay", 0, opts)
@@ -154,14 +161,25 @@ func (driver *OverlayDriver) OverlayMount(mountpoint, parent string) error {
 	return nil
 }
 
-func (driver *OverlayDriver) layerDir(datapath string) string {
+func (driver *OverlayDriver) layerDir(vol volume.FilesystemVolume) string {
+	return filepath.Join(driver.OverlaysDir, vol.Handle())
+}
+
+func (driver *OverlayDriver) workDir(vol volume.FilesystemVolume) string {
+	return filepath.Join(driver.OverlaysDir, "work", vol.Handle())
+}
+
+// XXX: remove
+func (driver *OverlayDriver) layerDirOld(datapath string) string {
 	return filepath.Join(driver.OverlaysDir, driver.getGUID(datapath))
 }
 
-func (driver *OverlayDriver) workDir(datapath string) string {
+// XXX: remove
+func (driver *OverlayDriver) workDirOld(datapath string) string {
 	return filepath.Join(driver.OverlaysDir, "work", driver.getGUID(datapath))
 }
 
+// XXX: remove
 func (driver *OverlayDriver) getGUID(datapath string) string {
 	return filepath.Base(filepath.Dir(datapath))
 }

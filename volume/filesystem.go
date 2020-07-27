@@ -101,7 +101,7 @@ func (fs *filesystem) NewVolume(handle string) (FilesystemInitVolume, error) {
 		return nil, err
 	}
 
-	err = fs.driver.CreateVolume(volume.DataPath())
+	err = fs.driver.CreateVolume(volume)
 	if err != nil {
 		volume.cleanup()
 		return nil, err
@@ -308,7 +308,7 @@ func (vol *liveVolume) NewSubvolume(handle string) (FilesystemInitVolume, error)
 		return nil, err
 	}
 
-	err = vol.fs.driver.CreateCopyOnWriteLayer(child.DataPath(), vol.DataPath())
+	err = vol.fs.driver.CreateCopyOnWriteLayer(child, vol)
 	if err != nil {
 		child.cleanup()
 		return nil, err
@@ -328,7 +328,7 @@ type deadVolume struct {
 }
 
 func (vol *deadVolume) Destroy() error {
-	err := vol.fs.driver.DestroyVolume(vol.DataPath())
+	err := vol.fs.driver.DestroyVolume(vol)
 	if err != nil {
 		return err
 	}

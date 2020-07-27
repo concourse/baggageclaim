@@ -8,11 +8,11 @@ import (
 )
 
 type FakeDriver struct {
-	CreateCopyOnWriteLayerStub        func(string, string) error
+	CreateCopyOnWriteLayerStub        func(volume.FilesystemInitVolume, volume.FilesystemLiveVolume) error
 	createCopyOnWriteLayerMutex       sync.RWMutex
 	createCopyOnWriteLayerArgsForCall []struct {
-		arg1 string
-		arg2 string
+		arg1 volume.FilesystemInitVolume
+		arg2 volume.FilesystemLiveVolume
 	}
 	createCopyOnWriteLayerReturns struct {
 		result1 error
@@ -20,10 +20,10 @@ type FakeDriver struct {
 	createCopyOnWriteLayerReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CreateVolumeStub        func(string) error
+	CreateVolumeStub        func(volume.FilesystemInitVolume) error
 	createVolumeMutex       sync.RWMutex
 	createVolumeArgsForCall []struct {
-		arg1 string
+		arg1 volume.FilesystemInitVolume
 	}
 	createVolumeReturns struct {
 		result1 error
@@ -31,10 +31,10 @@ type FakeDriver struct {
 	createVolumeReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DestroyVolumeStub        func(string) error
+	DestroyVolumeStub        func(volume.FilesystemVolume) error
 	destroyVolumeMutex       sync.RWMutex
 	destroyVolumeArgsForCall []struct {
-		arg1 string
+		arg1 volume.FilesystemVolume
 	}
 	destroyVolumeReturns struct {
 		result1 error
@@ -46,12 +46,12 @@ type FakeDriver struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeDriver) CreateCopyOnWriteLayer(arg1 string, arg2 string) error {
+func (fake *FakeDriver) CreateCopyOnWriteLayer(arg1 volume.FilesystemInitVolume, arg2 volume.FilesystemLiveVolume) error {
 	fake.createCopyOnWriteLayerMutex.Lock()
 	ret, specificReturn := fake.createCopyOnWriteLayerReturnsOnCall[len(fake.createCopyOnWriteLayerArgsForCall)]
 	fake.createCopyOnWriteLayerArgsForCall = append(fake.createCopyOnWriteLayerArgsForCall, struct {
-		arg1 string
-		arg2 string
+		arg1 volume.FilesystemInitVolume
+		arg2 volume.FilesystemLiveVolume
 	}{arg1, arg2})
 	fake.recordInvocation("CreateCopyOnWriteLayer", []interface{}{arg1, arg2})
 	fake.createCopyOnWriteLayerMutex.Unlock()
@@ -71,13 +71,13 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerCallCount() int {
 	return len(fake.createCopyOnWriteLayerArgsForCall)
 }
 
-func (fake *FakeDriver) CreateCopyOnWriteLayerCalls(stub func(string, string) error) {
+func (fake *FakeDriver) CreateCopyOnWriteLayerCalls(stub func(volume.FilesystemInitVolume, volume.FilesystemLiveVolume) error) {
 	fake.createCopyOnWriteLayerMutex.Lock()
 	defer fake.createCopyOnWriteLayerMutex.Unlock()
 	fake.CreateCopyOnWriteLayerStub = stub
 }
 
-func (fake *FakeDriver) CreateCopyOnWriteLayerArgsForCall(i int) (string, string) {
+func (fake *FakeDriver) CreateCopyOnWriteLayerArgsForCall(i int) (volume.FilesystemInitVolume, volume.FilesystemLiveVolume) {
 	fake.createCopyOnWriteLayerMutex.RLock()
 	defer fake.createCopyOnWriteLayerMutex.RUnlock()
 	argsForCall := fake.createCopyOnWriteLayerArgsForCall[i]
@@ -107,11 +107,11 @@ func (fake *FakeDriver) CreateCopyOnWriteLayerReturnsOnCall(i int, result1 error
 	}{result1}
 }
 
-func (fake *FakeDriver) CreateVolume(arg1 string) error {
+func (fake *FakeDriver) CreateVolume(arg1 volume.FilesystemInitVolume) error {
 	fake.createVolumeMutex.Lock()
 	ret, specificReturn := fake.createVolumeReturnsOnCall[len(fake.createVolumeArgsForCall)]
 	fake.createVolumeArgsForCall = append(fake.createVolumeArgsForCall, struct {
-		arg1 string
+		arg1 volume.FilesystemInitVolume
 	}{arg1})
 	fake.recordInvocation("CreateVolume", []interface{}{arg1})
 	fake.createVolumeMutex.Unlock()
@@ -131,13 +131,13 @@ func (fake *FakeDriver) CreateVolumeCallCount() int {
 	return len(fake.createVolumeArgsForCall)
 }
 
-func (fake *FakeDriver) CreateVolumeCalls(stub func(string) error) {
+func (fake *FakeDriver) CreateVolumeCalls(stub func(volume.FilesystemInitVolume) error) {
 	fake.createVolumeMutex.Lock()
 	defer fake.createVolumeMutex.Unlock()
 	fake.CreateVolumeStub = stub
 }
 
-func (fake *FakeDriver) CreateVolumeArgsForCall(i int) string {
+func (fake *FakeDriver) CreateVolumeArgsForCall(i int) volume.FilesystemInitVolume {
 	fake.createVolumeMutex.RLock()
 	defer fake.createVolumeMutex.RUnlock()
 	argsForCall := fake.createVolumeArgsForCall[i]
@@ -167,11 +167,11 @@ func (fake *FakeDriver) CreateVolumeReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDriver) DestroyVolume(arg1 string) error {
+func (fake *FakeDriver) DestroyVolume(arg1 volume.FilesystemVolume) error {
 	fake.destroyVolumeMutex.Lock()
 	ret, specificReturn := fake.destroyVolumeReturnsOnCall[len(fake.destroyVolumeArgsForCall)]
 	fake.destroyVolumeArgsForCall = append(fake.destroyVolumeArgsForCall, struct {
-		arg1 string
+		arg1 volume.FilesystemVolume
 	}{arg1})
 	fake.recordInvocation("DestroyVolume", []interface{}{arg1})
 	fake.destroyVolumeMutex.Unlock()
@@ -191,13 +191,13 @@ func (fake *FakeDriver) DestroyVolumeCallCount() int {
 	return len(fake.destroyVolumeArgsForCall)
 }
 
-func (fake *FakeDriver) DestroyVolumeCalls(stub func(string) error) {
+func (fake *FakeDriver) DestroyVolumeCalls(stub func(volume.FilesystemVolume) error) {
 	fake.destroyVolumeMutex.Lock()
 	defer fake.destroyVolumeMutex.Unlock()
 	fake.DestroyVolumeStub = stub
 }
 
-func (fake *FakeDriver) DestroyVolumeArgsForCall(i int) string {
+func (fake *FakeDriver) DestroyVolumeArgsForCall(i int) volume.FilesystemVolume {
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
 	argsForCall := fake.destroyVolumeArgsForCall[i]
