@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/concourse/baggageclaim/volume"
+	"github.com/concourse/baggageclaim/volume/copy"
 )
 
 //go:generate counterfeiter . Mounter
@@ -84,7 +85,24 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(path string, parent string) 
 	childDir := driver.layerDir(path)
 	workDir := driver.workDir(path)
 
-	err := os.MkdirAll(childDir, 0755)
+	parentGUID := driver.getGUID(parent)
+	root := filepath.Dir(filepath.Dir(parent))
+	parentVol, err := NewLiveVolume(root, parentGUID)
+	if err != nil {
+		return err
+	}
+
+	if parentVol.Parent != nil {
+		parentDir := driver.layerDir(parent)
+		err := copy.Cp(false, parentDir, childDir)
+		if err != nil {
+			return fmt.Errorf("copy parent data to child: %w", err)
+		}
+
+		parent = filepath.Join(parentVol.Parent.Path, "volume")
+	}
+
+	err = os.MkdirAll(childDir, 0755)
 	if err != nil {
 		return err
 	}
