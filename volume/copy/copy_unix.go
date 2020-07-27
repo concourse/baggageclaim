@@ -1,12 +1,12 @@
 //+build !windows
 
-package volume
+package copy
 
 import (
 	"os/exec"
 )
 
-func cp(followSymlinks bool, src, dest string) error {
+func Cp(followSymlinks bool, src, dest string) error {
 	cpFlags := "-a"
 	if followSymlinks {
 		cpFlags = "-Lr"
