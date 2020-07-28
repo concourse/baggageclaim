@@ -111,3 +111,8 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 
 	return stdout.String(), stderr.String(), nil
 }
+
+func (driver *BtrFSDriver) Recover(volume.Filesystem) error {
+	// nothing to do
+	return nil
+}

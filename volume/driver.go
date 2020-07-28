@@ -7,4 +7,6 @@ type Driver interface {
 	DestroyVolume(FilesystemVolume) error
 
 	CreateCopyOnWriteLayer(FilesystemInitVolume, FilesystemLiveVolume) error
+
+	Recover(Filesystem) error
 }

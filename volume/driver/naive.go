@@ -15,3 +15,8 @@ func (driver *NaiveDriver) CreateVolume(vol volume.FilesystemInitVolume) error {
 func (driver *NaiveDriver) DestroyVolume(vol volume.FilesystemVolume) error {
 	return os.RemoveAll(vol.DataPath())
 }
+
+func (driver *NaiveDriver) Recover(volume.Filesystem) error {
+	// nothing to do
+	return nil
+}

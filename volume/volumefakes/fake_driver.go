@@ -42,6 +42,17 @@ type FakeDriver struct {
 	destroyVolumeReturnsOnCall map[int]struct {
 		result1 error
 	}
+	RecoverStub        func(volume.Filesystem) error
+	recoverMutex       sync.RWMutex
+	recoverArgsForCall []struct {
+		arg1 volume.Filesystem
+	}
+	recoverReturns struct {
+		result1 error
+	}
+	recoverReturnsOnCall map[int]struct {
+		result1 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -227,6 +238,66 @@ func (fake *FakeDriver) DestroyVolumeReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeDriver) Recover(arg1 volume.Filesystem) error {
+	fake.recoverMutex.Lock()
+	ret, specificReturn := fake.recoverReturnsOnCall[len(fake.recoverArgsForCall)]
+	fake.recoverArgsForCall = append(fake.recoverArgsForCall, struct {
+		arg1 volume.Filesystem
+	}{arg1})
+	fake.recordInvocation("Recover", []interface{}{arg1})
+	fake.recoverMutex.Unlock()
+	if fake.RecoverStub != nil {
+		return fake.RecoverStub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.recoverReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeDriver) RecoverCallCount() int {
+	fake.recoverMutex.RLock()
+	defer fake.recoverMutex.RUnlock()
+	return len(fake.recoverArgsForCall)
+}
+
+func (fake *FakeDriver) RecoverCalls(stub func(volume.Filesystem) error) {
+	fake.recoverMutex.Lock()
+	defer fake.recoverMutex.Unlock()
+	fake.RecoverStub = stub
+}
+
+func (fake *FakeDriver) RecoverArgsForCall(i int) volume.Filesystem {
+	fake.recoverMutex.RLock()
+	defer fake.recoverMutex.RUnlock()
+	argsForCall := fake.recoverArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeDriver) RecoverReturns(result1 error) {
+	fake.recoverMutex.Lock()
+	defer fake.recoverMutex.Unlock()
+	fake.RecoverStub = nil
+	fake.recoverReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeDriver) RecoverReturnsOnCall(i int, result1 error) {
+	fake.recoverMutex.Lock()
+	defer fake.recoverMutex.Unlock()
+	fake.RecoverStub = nil
+	if fake.recoverReturnsOnCall == nil {
+		fake.recoverReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.recoverReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeDriver) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -236,6 +307,8 @@ func (fake *FakeDriver) Invocations() map[string][][]interface{} {
 	defer fake.createVolumeMutex.RUnlock()
 	fake.destroyVolumeMutex.RLock()
 	defer fake.destroyVolumeMutex.RUnlock()
+	fake.recoverMutex.RLock()
+	defer fake.recoverMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
