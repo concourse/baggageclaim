@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/volume"
 )
 
 type BtrFSDriver struct {
@@ -25,8 +26,8 @@ func NewBtrFSDriver(
 	}
 }
 
-func (driver *BtrFSDriver) CreateVolume(path string) error {
-	_, _, err := driver.run(driver.btrfsBin, "subvolume", "create", path)
+func (driver *BtrFSDriver) CreateVolume(vol volume.FilesystemInitVolume) error {
+	_, _, err := driver.run(driver.btrfsBin, "subvolume", "create", vol.DataPath())
 	if err != nil {
 		return err
 	}
@@ -34,7 +35,7 @@ func (driver *BtrFSDriver) CreateVolume(path string) error {
 	return nil
 }
 
-func (driver *BtrFSDriver) DestroyVolume(path string) error {
+func (driver *BtrFSDriver) DestroyVolume(vol volume.FilesystemVolume) error {
 	volumePathsToDelete := []string{}
 
 	findSubvolumes := func(p string, f os.FileInfo, err error) error {
@@ -58,8 +59,8 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 		return nil
 	}
 
-	if err := filepath.Walk(path, findSubvolumes); err != nil {
-		return fmt.Errorf("recursively walking subvolumes for %s failed: %v", path, err)
+	if err := filepath.Walk(vol.DataPath(), findSubvolumes); err != nil {
+		return fmt.Errorf("recursively walking subvolumes for %s failed: %v", vol.DataPath(), err)
 	}
 
 	for i := len(volumePathsToDelete) - 1; i >= 0; i-- {
@@ -72,8 +73,11 @@ func (driver *BtrFSDriver) DestroyVolume(path string) error {
 	return nil
 }
 
-func (driver *BtrFSDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	_, _, err := driver.run(driver.btrfsBin, "subvolume", "snapshot", parent, path)
+func (driver *BtrFSDriver) CreateCopyOnWriteLayer(
+	childVol volume.FilesystemInitVolume,
+	parentVol volume.FilesystemLiveVolume,
+) error {
+	_, _, err := driver.run(driver.btrfsBin, "subvolume", "snapshot", parentVol.DataPath(), childVol.DataPath())
 	return err
 }
 
@@ -106,4 +110,9 @@ func (driver *BtrFSDriver) run(command string, args ...string) (string, string, 
 	logger.Debug("ran", loggerData)
 
 	return stdout.String(), stderr.String(), nil
+}
+
+func (driver *BtrFSDriver) Recover(volume.Filesystem) error {
+	// nothing to do
+	return nil
 }

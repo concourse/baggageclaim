@@ -1,8 +1,11 @@
 package baggageclaimcmd
 
 import (
-	"code.cloudfoundry.org/lager"
 	"fmt"
+	"net/http"
+	"os"
+
+	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
 	"github.com/concourse/baggageclaim/uidgid"
 	"github.com/concourse/baggageclaim/volume"
@@ -11,8 +14,6 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"net/http"
-	"os"
 )
 
 type BaggageclaimCommand struct {
@@ -78,6 +79,12 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 	filesystem, err := volume.NewFilesystem(driver, cmd.VolumesDir.Path())
 	if err != nil {
 		logger.Error("failed-to-initialize-filesystem", err)
+		return nil, err
+	}
+
+	err = driver.Recover(filesystem)
+	if err != nil {
+		logger.Error("failed-to-recover-volume-driver", err)
 		return nil, err
 	}
 

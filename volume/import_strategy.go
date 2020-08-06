@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
+	"github.com/concourse/baggageclaim/volume/copy"
 )
 
 type ImportStrategy struct {
@@ -26,7 +27,7 @@ func (strategy ImportStrategy) Materialize(logger lager.Logger, handle string, f
 	}
 
 	if info.IsDir() {
-		err = cp(strategy.FollowSymlinks, filepath.Clean(strategy.Path), destination)
+		err = copy.Cp(strategy.FollowSymlinks, filepath.Clean(strategy.Path), destination)
 		if err != nil {
 			return nil, err
 		}

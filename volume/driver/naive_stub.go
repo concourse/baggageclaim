@@ -4,8 +4,13 @@ package driver
 
 import (
 	"os/exec"
+
+	"github.com/concourse/baggageclaim/volume"
 )
 
-func (driver *NaiveDriver) CreateCopyOnWriteLayer(path string, parent string) error {
-	return exec.Command("cp", "-rp", parent, path).Run()
+func (driver *NaiveDriver) CreateCopyOnWriteLayer(
+	childVol volume.FilesystemInitVolume,
+	parentVol volume.FilesystemLiveVolume,
+) error {
+	return exec.Command("cp", "-rp", parentVol.DataPath(), childVol.DataPath()).Run()
 }

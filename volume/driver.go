@@ -3,8 +3,10 @@ package volume
 //go:generate counterfeiter . Driver
 
 type Driver interface {
-	CreateVolume(path string) error
-	DestroyVolume(path string) error
+	CreateVolume(FilesystemInitVolume) error
+	DestroyVolume(FilesystemVolume) error
 
-	CreateCopyOnWriteLayer(path string, parent string) error
+	CreateCopyOnWriteLayer(FilesystemInitVolume, FilesystemLiveVolume) error
+
+	Recover(Filesystem) error
 }
