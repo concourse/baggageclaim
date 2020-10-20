@@ -1,9 +1,12 @@
 package volume
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -34,6 +37,8 @@ type Repository interface {
 
 	StreamIn(ctx context.Context, handle string, path string, encoding string, stream io.Reader) (bool, error)
 	StreamOut(ctx context.Context, handle string, path string, encoding string, dest io.Writer) error
+
+	StreamP2pOut(ctx context.Context, handle string, path string, encoding string, destUrl string) error
 
 	VolumeParent(ctx context.Context, handle string) (Volume, bool, error)
 }
@@ -359,6 +364,7 @@ func (repo *repository) StreamIn(ctx context.Context, handle string, path string
 	logger := lagerctx.FromContext(ctx).Session("stream-in", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
+		"encoding": encoding,
 	})
 
 	volume, found, err := repo.filesystem.LookupVolume(handle)
@@ -443,6 +449,78 @@ func (repo *repository) StreamOut(ctx context.Context, handle string, path strin
 	}
 
 	return ErrUnsupportedStreamEncoding
+}
+
+func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path string, encoding string, destUrl string) error {
+	logger := lagerctx.FromContext(ctx).Session("stream-p2p-out", lager.Data{
+		"volume":   handle,
+		"sub-path": path,
+		"encoding": encoding,
+	})
+
+	logger.Debug("start")
+	defer logger.Debug("done")
+
+	volume, found, err := repo.filesystem.LookupVolume(handle)
+	if err != nil {
+		logger.Error("failed-to-lookup-volume", err)
+		return err
+	}
+
+	if !found {
+		logger.Info("volume-not-found")
+		return ErrVolumeDoesNotExist
+	}
+
+	srcPath := filepath.Join(volume.DataPath(), path)
+
+	logger = logger.WithData(lager.Data{
+		"full-path": srcPath,
+	})
+
+	isPrivileged, err := volume.LoadPrivileged()
+	if err != nil {
+		logger.Error("failed-to-check-if-volume-is-privileged", err)
+		return err
+	}
+
+	buffer := new(bytes.Buffer)
+	switch encoding {
+	case ZstdEncoding:
+		err = repo.zstdStreamer.Out(buffer, srcPath, isPrivileged)
+	case GzipEncoding:
+		err = repo.gzipStreamer.Out(buffer, srcPath, isPrivileged)
+	default:
+		return ErrUnsupportedStreamEncoding
+	}
+	if err != nil {
+		logger.Error("failed-to-compress-volume", err)
+		return err
+	}
+
+	logger.Debug("p2p-streaming-start", lager.Data{"destUrl": destUrl})
+
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPut, destUrl, buffer)
+	if err != nil {
+		logger.Error("failed-to-create-p2p-request", err)
+		return err
+	}
+
+	req.Header.Set("Content-Encoding", encoding)
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Error("failed-to-streaming-to-peer", err)
+		return err
+	}
+
+	logger.Debug("p2p-streaming-end", lager.Data{"code": resp.StatusCode})
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	return fmt.Errorf("p2p streaming error %d", resp.StatusCode)
 }
 
 func (repo *repository) VolumeParent(ctx context.Context, handle string) (Volume, bool, error) {

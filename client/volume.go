@@ -62,3 +62,11 @@ func (cv *clientVolume) Destroy() error {
 func (cv *clientVolume) SetProperty(name string, value string) error {
 	return cv.bcClient.setProperty(cv.logger, cv.handle, name, value)
 }
+
+func (cv *clientVolume) GetStreamP2pUrl(ctx context.Context, path string) (string, error) {
+	return cv.bcClient.getStreamP2pUrl(ctx, cv.logger, cv.handle, path)
+}
+
+func (cv *clientVolume) StreamP2pOut(ctx context.Context, path, url string, encoding baggageclaim.Encoding) error {
+	return cv.bcClient.streamP2pOut(ctx, cv.logger, cv.handle, encoding, path, url)
+}

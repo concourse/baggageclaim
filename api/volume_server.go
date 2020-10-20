@@ -4,8 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 	"sync"
 
 	"code.cloudfoundry.org/lager"
@@ -34,6 +38,10 @@ type VolumeServer struct {
 	volumeRepo     volume.Repository
 	volumePromises volume.PromiseList
 
+	p2pInterfacePattern *regexp.Regexp
+	p2pInterfaceFamily  int
+	p2pStreamPort       int
+
 	logger lager.Logger
 }
 
@@ -41,12 +49,18 @@ func NewVolumeServer(
 	logger lager.Logger,
 	strategerizer volume.Strategerizer,
 	volumeRepo volume.Repository,
+	p2pInterfacePattern *regexp.Regexp,
+	p2pInterfaceFamily int,
+	p2pStreamPort int,
 ) *VolumeServer {
 	return &VolumeServer{
-		strategerizer:  strategerizer,
-		volumeRepo:     volumeRepo,
-		volumePromises: volume.NewPromiseList(),
-		logger:         logger,
+		strategerizer:       strategerizer,
+		volumeRepo:          volumeRepo,
+		volumePromises:      volume.NewPromiseList(),
+		p2pInterfacePattern: p2pInterfacePattern,
+		p2pInterfaceFamily:  p2pInterfaceFamily,
+		p2pStreamPort:       p2pStreamPort,
+		logger:              logger,
 	}
 }
 
@@ -514,6 +528,103 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 	}
 
 	err := vs.volumeRepo.StreamOut(ctx, handle, subPath, req.Header.Get("Accept-Encoding"), w)
+	if err != nil {
+		if err == volume.ErrVolumeDoesNotExist {
+			hLog.Info("volume-not-found")
+			RespondWithError(w, ErrStreamOutFailed, http.StatusNotFound)
+			return
+		}
+
+		if err == volume.ErrUnsupportedStreamEncoding {
+			hLog.Info("unsupported-stream-encoding")
+			RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+			return
+		}
+
+		if os.IsNotExist(err) {
+			hLog.Info("source-path-not-found")
+			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
+			return
+		}
+
+		hLog.Error("failed-to-stream-out", err)
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+}
+
+func (vs *VolumeServer) GetStreamP2pUrl(w http.ResponseWriter, req *http.Request) {
+	hLog := vs.logger.Session("get-stream-p2p-url")
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+
+	for _, i := range ifaces {
+		if !vs.p2pInterfacePattern.MatchString(i.Name) {
+			continue
+		}
+
+		addrs, err := i.Addrs()
+		if err != nil {
+			RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+			return
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if vs.p2pInterfaceFamily == 6 {
+				if strings.Contains(ip.String(), ".") {
+					continue
+				}
+			} else { // Default to use IPv4
+				if strings.Contains(ip.String(), ":") {
+					continue
+				}
+			}
+			hLog.Debug("found-ip", lager.Data{"ip": ip.String()})
+
+			fmt.Fprintf(w, "http://%s:%d", ip.String(), vs.p2pStreamPort)
+			return
+		}
+	}
+}
+
+func (vs *VolumeServer) StreamP2pOut(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("stream-p2p-out", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	var subPath, destUrl, encoding string
+	if queryPath, ok := req.URL.Query()["path"]; ok {
+		subPath = queryPath[0]
+	}
+	if queryPath, ok := req.URL.Query()["destUrl"]; ok {
+		destUrl = queryPath[0]
+	}
+	if queryPath, ok := req.URL.Query()["encoding"]; ok {
+		encoding = queryPath[0]
+	}
+
+	err := vs.volumeRepo.StreamP2pOut(ctx, handle, subPath, encoding, destUrl)
 	if err != nil {
 		if err == volume.ErrVolumeDoesNotExist {
 			hLog.Info("volume-not-found")

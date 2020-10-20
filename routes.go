@@ -18,6 +18,9 @@ const (
 	SetPrivileged = "SetPrivileged"
 	StreamIn      = "StreamIn"
 	StreamOut     = "StreamOut"
+	StreamP2pOut  = "StreamP2pOut"
+
+	GetStreamP2pUrl = "GetStreamP2pUrl"
 )
 
 var Routes = rata.Routes{
@@ -34,6 +37,9 @@ var Routes = rata.Routes{
 	{Path: "/volumes/:handle/privileged", Method: "PUT", Name: SetPrivileged},
 	{Path: "/volumes/:handle/stream-in", Method: "PUT", Name: StreamIn},
 	{Path: "/volumes/:handle/stream-out", Method: "PUT", Name: StreamOut},
+	{Path: "/volumes/:handle/stream-p2p-out", Method: "PUT", Name: StreamP2pOut},
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
 	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
+
+	{Path: "/stream-p2p-url", Method: "GET", Name: GetStreamP2pUrl},
 }

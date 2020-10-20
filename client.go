@@ -106,6 +106,16 @@ type Volume interface {
 	// Destroy removes the volume and its contents. Note that it does not
 	// safeguard against child volumes being present.
 	Destroy() error
+
+	// GetStreamP2pUrl should be called against volume streaming dest worker. It
+	// returns P2P streaming URL where the other worker can access. This URL will
+	// be sent to source worker by ATC, then source worker can streaming volume
+	// directly to dest worker at the URL.
+	GetStreamP2pUrl(ctx context.Context, path string) (string, error)
+
+	// StreamP2pOut should be called against volume streaming source worker. It
+	// tells source worker to directly stream a volume to dest worker at destUrl.
+	StreamP2pOut(ctx context.Context, path string, destUrl string, encoding Encoding) error
 }
 
 //go:generate counterfeiter . VolumeFuture

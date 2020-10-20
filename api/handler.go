@@ -34,6 +34,8 @@ func NewHandler(
 		baggageclaim.SetPrivileged:           http.HandlerFunc(volumeServer.SetPrivileged),
 		baggageclaim.StreamIn:                http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:               http.HandlerFunc(volumeServer.StreamOut),
+		baggageclaim.GetStreamP2pUrl:         http.HandlerFunc(volumeServer.GetStreamP2pUrl),
+		baggageclaim.StreamP2pOut:            http.HandlerFunc(volumeServer.StreamP2pOut),
 		baggageclaim.DestroyVolume:           http.HandlerFunc(volumeServer.DestroyVolume),
 		baggageclaim.DestroyVolumes:          http.HandlerFunc(volumeServer.DestroyVolumes),
 	}
