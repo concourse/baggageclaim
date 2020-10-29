@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"time"
 
@@ -83,7 +84,8 @@ var _ = Describe("Volume Server", func() {
 
 		strategerizer := volume.NewStrategerizer()
 
-		handler, err = api.NewHandler(logger, strategerizer, repo)
+		re := regexp.MustCompile("eth0")
+		handler, err = api.NewHandler(logger, strategerizer, repo, re, 4, 7766)
 		Expect(err).NotTo(HaveOccurred())
 	})
 

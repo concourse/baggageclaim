@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 
 	"code.cloudfoundry.org/lager"
 	"github.com/concourse/baggageclaim/api"
@@ -24,6 +25,9 @@ type BaggageclaimCommand struct {
 
 	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
 	DebugBindPort uint16  `long:"debug-bind-port" default:"7787"      description:"Port on which to listen for the pprof debugger endpoints."`
+
+	P2pInterfaceNamePattern string `long:"p2p-interface-name-pattern" default:"eth0" description:"Regular expression to match a network interface for p2p streaming"`
+	P2pInterfaceFamily int `long:"p2p-interface-family" default:"4" choice:"4" choice:"6" description:"4 for IPv4 and 6 for IPv6"`
 
 	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
 
@@ -95,10 +99,18 @@ func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
 		unprivilegedNamespacer,
 	)
 
+	re, err := regexp.Compile(cmd.P2pInterfaceNamePattern)
+	if err != nil {
+		logger.Error("failed-to-compile-p2p-interface-name-pattern", err)
+		return nil, err
+	}
 	apiHandler, err := api.NewHandler(
 		logger.Session("api"),
 		volume.NewStrategerizer(),
 		volumeRepo,
+		re,
+		cmd.P2pInterfaceFamily,
+		cmd.BindPort,
 	)
 	if err != nil {
 		logger.Fatal("failed-to-create-handler", err)

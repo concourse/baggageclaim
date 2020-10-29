@@ -279,7 +279,7 @@ func (c *client) getStreamP2pUrl(ctx context.Context, logger lager.Logger, destH
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		err := fmt.Errorf("failed to get stream p2p url: %d", response.Status)
+		err := fmt.Errorf("failed to get stream p2p url: %d", response.StatusCode)
 		return "", err
 	}
 

@@ -1,8 +1,16 @@
 package volume_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"github.com/concourse/go-archive/tgzfs"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 
 	"github.com/concourse/baggageclaim/uidgid/uidgidfakes"
 	"github.com/concourse/baggageclaim/volume"
@@ -214,7 +222,6 @@ var _ = Describe("Repository", func() {
 					Expect(createErr).To(Equal(disaster))
 				})
 			})
-
 
 			Context("when storing the privileged fails", func() {
 				disaster := errors.New("nope")
@@ -1083,6 +1090,133 @@ var _ = Describe("Repository", func() {
 
 			It("returns the error", func() {
 				Expect(parentErr).To(Equal(disaster))
+			})
+		})
+	})
+
+	Describe("StreamP2pOut", func() {
+		var (
+			server             *httptest.Server
+			streamErr          error
+			serverCalled       bool
+			serverResponseCode int
+			serverReadBytes    []byte
+			tempFile           *os.File
+		)
+		BeforeEach(func() {
+			var err error
+			tempFile, err = ioutil.TempFile("", "StreamP2pOutTest")
+			Expect(err).ToNot(HaveOccurred())
+		})
+		AfterEach(func() {
+			if server != nil {
+				server.Close()
+			}
+			if tempFile != nil {
+				os.Remove(tempFile.Name())
+			}
+		})
+
+		JustBeforeEach(func() {
+			serverCalled = false
+			serverReadBytes = nil
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(serverResponseCode)
+				serverCalled = true
+
+				var err error
+				serverReadBytes, err = ioutil.ReadAll(r.Body)
+				Expect(err).ToNot(HaveOccurred())
+			}))
+			streamErr = repository.StreamP2pOut(context.Background(), "some-handle", filepath.Base(tempFile.Name()), volume.GzipEncoding, server.URL)
+		})
+
+		Context("when lookup volume fails", func() {
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, true, errors.New("some-error"))
+			})
+			It("should fail", func() {
+				Expect(streamErr).To(HaveOccurred())
+				Expect(streamErr).To(Equal(errors.New("some-error")))
+			})
+			It("should not http request", func() {
+				Expect(serverCalled).To(BeFalse())
+			})
+		})
+
+		Context("when volume not found", func() {
+			BeforeEach(func() {
+				fakeFilesystem.LookupVolumeReturns(nil, false, nil)
+			})
+			It("should fail", func() {
+				Expect(streamErr).To(HaveOccurred())
+				Expect(streamErr).To(Equal(volume.ErrVolumeDoesNotExist))
+			})
+			It("should not http request", func() {
+				Expect(serverCalled).To(BeFalse())
+			})
+		})
+
+		Context("when volume found", func() {
+			var (
+				fakeVolume *volumefakes.FakeFilesystemLiveVolume
+			)
+			BeforeEach(func() {
+				tempFile.WriteString("hello-world")
+				tempFile.Close()
+
+				fakeVolume = new(volumefakes.FakeFilesystemLiveVolume)
+				fakeVolume.DataPathReturns(filepath.Dir(tempFile.Name()))
+				fakeFilesystem.LookupVolumeReturns(fakeVolume, true, nil)
+			})
+
+			Context("when load privileged fails", func() {
+				BeforeEach(func() {
+					fakeVolume.LoadPrivilegedReturns(false, errors.New("some-error"))
+				})
+				It("should fail", func() {
+					Expect(streamErr).To(HaveOccurred())
+					Expect(streamErr).To(Equal(errors.New("some-error")))
+				})
+				It("should not http request", func() {
+					Expect(serverCalled).To(BeFalse())
+				})
+			})
+
+			Context("when load privileged ok", func() {
+				BeforeEach(func() {
+					fakeVolume.LoadPrivilegedReturns(false, nil)
+				})
+
+				Context("remote returns error", func() {
+					BeforeEach(func() {
+						serverResponseCode = http.StatusInternalServerError
+					})
+					It("should fail", func() {
+						Expect(streamErr).To(HaveOccurred())
+						Expect(streamErr).To(Equal(fmt.Errorf("p2p streaming error %d", http.StatusInternalServerError)))
+					})
+					It("should http request", func() {
+						Expect(serverCalled).To(BeTrue())
+					})
+				})
+
+				Context("remote returns ok", func() {
+					BeforeEach(func() {
+						serverResponseCode = http.StatusNoContent
+					})
+					It("should fail", func() {
+						Expect(streamErr).ToNot(HaveOccurred())
+					})
+					It("should http request", func() {
+						Expect(serverCalled).To(BeTrue())
+					})
+					It("remote should receive bytes", func() {
+						b := new(bytes.Buffer)
+						tgzfs.Compress(b, filepath.Dir(tempFile.Name()), filepath.Base(tempFile.Name()))
+						Expect(serverReadBytes).To(Equal(b.Bytes()))
+					})
+				})
 			})
 		})
 	})

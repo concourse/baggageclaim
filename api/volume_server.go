@@ -40,7 +40,7 @@ type VolumeServer struct {
 
 	p2pInterfacePattern *regexp.Regexp
 	p2pInterfaceFamily  int
-	p2pStreamPort       int
+	p2pStreamPort       uint16
 
 	logger lager.Logger
 }
@@ -51,7 +51,7 @@ func NewVolumeServer(
 	volumeRepo volume.Repository,
 	p2pInterfacePattern *regexp.Regexp,
 	p2pInterfaceFamily int,
-	p2pStreamPort int,
+	p2pStreamPort uint16,
 ) *VolumeServer {
 	return &VolumeServer{
 		strategerizer:       strategerizer,
