@@ -362,5 +362,118 @@ var _ = Describe("Baggage Claim Client", func() {
 				})
 			})
 		})
+
+		Describe("Get p2p stream url", func() {
+			var vol baggageclaim.Volume
+			BeforeEach(func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
+							Handle:     "some-handle",
+							Path:       "some-path",
+							Properties: volume.Properties{},
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+						ghttp.RespondWith(http.StatusNoContent, nil),
+					),
+				)
+				var err error
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			Context("when api ok", func() {
+				BeforeEach(func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("GET", "/stream-p2p-url"),
+							ghttp.RespondWith(http.StatusOK, "http://some-url"),
+						),
+					)
+				})
+				It("should get the url", func() {
+
+					url, err := vol.GetStreamP2pUrl(context.TODO(), "some-path")
+					Expect(err).ToNot(HaveOccurred())
+					Expect(url).To(Equal("http://some-url/volumes/some-handle/stream-in?path=some-path"))
+				})
+			})
+
+			Context("when error occurs", func() {
+				BeforeEach(func() {
+					mockErrorResponse("GET", "/stream-p2p-url", "failed to get p2p stream url", http.StatusInternalServerError)
+				})
+				It("returns API error message", func() {
+					url, err := vol.GetStreamP2pUrl(context.TODO(), "some-path")
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal("failed to get stream p2p url: 500"))
+					Expect(url).To(BeEmpty())
+				})
+			})
+		})
+
+		Describe("P2P stream out a volume", func() {
+			var vol baggageclaim.Volume
+			BeforeEach(func() {
+				bcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/volumes-async"),
+						ghttp.RespondWithJSONEncoded(http.StatusCreated, baggageclaim.VolumeFutureResponse{
+							Handle: "some-handle",
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", "/volumes-async/some-handle"),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, volume.Volume{
+							Handle:     "some-handle",
+							Path:       "some-path",
+							Properties: volume.Properties{},
+						}),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("DELETE", "/volumes-async/some-handle"),
+						ghttp.RespondWith(http.StatusNoContent, nil),
+					),
+				)
+				var err error
+				vol, err = bcClient.CreateVolume(logger, "some-handle", baggageclaim.VolumeSpec{})
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			Context("when api succeeds", func() {
+				BeforeEach(func() {
+					bcServer.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-p2p-out"),
+							ghttp.RespondWith(http.StatusNoContent, ""),
+						),
+					)
+				})
+				It("should succeed", func() {
+					err := vol.StreamP2pOut(context.TODO(), "some-dest-path", "http://some-url", "gzip")
+					Expect(err).ToNot(HaveOccurred())
+				})
+			})
+
+			Context("when error occurs", func() {
+				BeforeEach(func() {
+					mockErrorResponse("PUT", "/volumes/some-handle/stream-p2p-out", "failed to p2p stream out", http.StatusInternalServerError)
+				})
+				It("returns API error message", func() {
+					err := vol.StreamP2pOut(context.TODO(), "some-dest-path", "http://some-url", "gzip")
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal("failed to p2p stream out"))
+				})
+			})
+		})
 	})
 })

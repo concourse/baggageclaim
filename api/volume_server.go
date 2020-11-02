@@ -32,6 +32,7 @@ var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of v
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
 var ErrStreamOutNotFound = errors.New("no such file or directory")
+var ErrGetStreamP2pUrlFailed = errors.New("failed to get p2p stream url")
 
 type VolumeServer struct {
 	strategerizer  volume.Strategerizer
@@ -571,7 +572,7 @@ func (vs *VolumeServer) GetStreamP2pUrl(w http.ResponseWriter, req *http.Request
 
 		addrs, err := i.Addrs()
 		if err != nil {
-			RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+			RespondWithError(w, ErrGetStreamP2pUrlFailed, http.StatusInternalServerError)
 			return
 		}
 
@@ -617,11 +618,26 @@ func (vs *VolumeServer) StreamP2pOut(w http.ResponseWriter, req *http.Request) {
 	if queryPath, ok := req.URL.Query()["path"]; ok {
 		subPath = queryPath[0]
 	}
+	if subPath == "" {
+		hLog.Info("missing-param-path")
+		RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+		return
+	}
 	if queryPath, ok := req.URL.Query()["destUrl"]; ok {
 		destUrl = queryPath[0]
 	}
+	if destUrl == "" {
+		hLog.Info("missing-param-destUrl")
+		RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+		return
+	}
 	if queryPath, ok := req.URL.Query()["encoding"]; ok {
 		encoding = queryPath[0]
+	}
+	if encoding == "" {
+		hLog.Info("missing-param-encoding")
+		RespondWithError(w, ErrStreamOutFailed, http.StatusBadRequest)
+		return
 	}
 
 	err := vs.volumeRepo.StreamP2pOut(ctx, handle, subPath, encoding, destUrl)
