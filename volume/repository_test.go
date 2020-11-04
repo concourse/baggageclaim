@@ -1214,7 +1214,9 @@ var _ = Describe("Repository", func() {
 					It("remote should receive bytes", func() {
 						b := new(bytes.Buffer)
 						tgzfs.Compress(b, filepath.Dir(tempFile.Name()), filepath.Base(tempFile.Name()))
-						Expect(serverReadBytes).To(Equal(b.Bytes()))
+						Expect(len(serverReadBytes)).To(Equal(len(b.Bytes())))
+						n := len(serverReadBytes)
+						Expect(serverReadBytes[:n]).To(Equal(b.Bytes()[:n]))
 					})
 				})
 			})

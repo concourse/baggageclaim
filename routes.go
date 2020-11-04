@@ -20,7 +20,7 @@ const (
 	StreamOut     = "StreamOut"
 	StreamP2pOut  = "StreamP2pOut"
 
-	GetStreamP2pUrl = "GetStreamP2pUrl"
+	GetP2pUrl = "GetP2pUrl"
 )
 
 var Routes = rata.Routes{
@@ -41,5 +41,5 @@ var Routes = rata.Routes{
 	{Path: "/volumes/destroy", Method: "DELETE", Name: DestroyVolumes},
 	{Path: "/volumes/:handle", Method: "DELETE", Name: DestroyVolume},
 
-	{Path: "/stream-p2p-url", Method: "GET", Name: GetStreamP2pUrl},
+	{Path: "/p2p-url", Method: "GET", Name: GetP2pUrl},
 }

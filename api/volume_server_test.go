@@ -1130,7 +1130,7 @@ var _ = Describe("Volume Server", func() {
 		})
 
 		It("returns 404 when source path is invalid", func() {
-			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&destUrl=some-url&encoding=gzip", myVolume.Handle, "bogus-path"), nil)
+			request, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&streamInURL=some-url&encoding=gzip", myVolume.Handle, "bogus-path"), nil)
 			request.Header.Set("Accept-Encoding", string(baggageclaim.GzipEncoding))
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
@@ -1144,61 +1144,79 @@ var _ = Describe("Volume Server", func() {
 
 		Context("when streaming a file", func() {
 			JustBeforeEach(func() {
-				destUrl := fmt.Sprintf("%s/volumes/%s/stream-in?path=dest=path", otherWorker.URL, myVolume.Handle)
-				streamP2pOutRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&destUrl=%s&encoding=%s", myVolume.Handle, "some-file", destUrl, encoding), nil)
-				streamInRecorder := httptest.NewRecorder()
-				handler.ServeHTTP(streamInRecorder, streamP2pOutRequest)
-				Expect(streamInRecorder.Code).To(Equal(204))
+				// Create a file in the volume.
+				filePath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "some-file")
+				err := ioutil.WriteFile(filePath, []byte("some-file-content"), os.ModePerm)
+				Expect(err).ToNot(HaveOccurred())
 
-				tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
-				Expect(tarContentsPath).To(BeAnExistingFile())
+				streamInP2pURL := fmt.Sprintf("%s/volumes/%s/stream-in?path=dest-path", otherWorker.URL, myVolume.Handle)
+				streamP2pOutRequest, _ := http.NewRequest(
+					"PUT",
+					fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&streamInURL=%s&encoding=%s",
+						myVolume.Handle, "some-file", streamInP2pURL, encoding),
+					nil)
+				streamP2pOutRecorder := httptest.NewRecorder()
+				handler.ServeHTTP(streamP2pOutRecorder, streamP2pOutRequest)
+				Expect(streamP2pOutRecorder.Code).To(Equal(200))
 
-				Expect(ioutil.ReadFile(tarContentsPath)).To(Equal([]byte("file-content")))
+				destContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "some-file")
+				Expect(destContentsPath).To(BeAnExistingFile())
+				Expect(ioutil.ReadFile(destContentsPath)).To(Equal([]byte("some-file-content")))
 			})
 
 			Context("when using gzip encoding", func() {
 				BeforeEach(func() {
 					encoding = string(baggageclaim.GzipEncoding)
 				})
+
+				It("should succeed", func() {
+					// tests are in JustBeforeEach
+				})
 			})
 
 			Context("when using zstd encoding", func() {
 				BeforeEach(func() {
 					encoding = string(baggageclaim.ZstdEncoding)
+				})
+
+				It("should succeed", func() {
+					// tests are in JustBeforeEach
 				})
 			})
 		})
 
 		Context("when streaming a directory", func() {
-			var tarDir string
-
-			BeforeEach(func() {
-				tarDir = filepath.Join(tempDir, "tar-dir")
-
-				err := os.MkdirAll(filepath.Join(tarDir, "sub"), os.ModePerm)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = ioutil.WriteFile(filepath.Join(tarDir, "sub", "some-file"), []byte("some-file-content"), os.ModePerm)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = ioutil.WriteFile(filepath.Join(tarDir, "other-file"), []byte("other-file-content"), os.ModePerm)
-				Expect(err).NotTo(HaveOccurred())
-			})
-
 			JustBeforeEach(func() {
-				destUrl := fmt.Sprintf("%s/volumes/%s/stream-in?path=dest=path", otherWorker.URL, myVolume.Handle)
-				streamP2pOutRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&destUrl=%s&encoding=%s", myVolume.Handle, tarDir, destUrl, encoding), nil)
-				recorder := httptest.NewRecorder()
-				handler.ServeHTTP(recorder, streamP2pOutRequest)
-				Expect(recorder.Code).To(Equal(204))
+				// Create a dir and a few files under the dir in the volume.
+				path := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "some-dir")
+				err := os.MkdirAll(filepath.Join(path, "sub"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+				err = ioutil.WriteFile(filepath.Join(path, "sub", "some-file"), []byte("some-file-content"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
+				err = ioutil.WriteFile(filepath.Join(path, "other-file"), []byte("other-file-content"), os.ModePerm)
+				Expect(err).NotTo(HaveOccurred())
 
-				tarContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path")
-				Expect(tarContentsPath).To(BeADirectory())
+				streamInP2pURL := fmt.Sprintf("%s/volumes/%s/stream-in?path=dest-path", otherWorker.URL, myVolume.Handle)
+				streamP2pOutRequest, _ := http.NewRequest("PUT", fmt.Sprintf("/volumes/%s/stream-p2p-out?path=%s&streamInURL=%s&encoding=%s", myVolume.Handle, "some-dir", streamInP2pURL, encoding), nil)
+				streamP2pOutRecorder := httptest.NewRecorder()
+				handler.ServeHTTP(streamP2pOutRecorder, streamP2pOutRequest)
+				Expect(streamP2pOutRecorder.Code).To(Equal(200))
+
+				someContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "sub", "some-file")
+				Expect(someContentsPath).To(BeAnExistingFile())
+				Expect(ioutil.ReadFile(someContentsPath)).To(Equal([]byte("some-file-content")))
+
+				otherContentsPath := filepath.Join(volumeDir, "live", myVolume.Handle, "volume", "dest-path", "other-file")
+				Expect(otherContentsPath).To(BeAnExistingFile())
+				Expect(ioutil.ReadFile(otherContentsPath)).To(Equal([]byte("other-file-content")))
 			})
 
 			Context("when using gzip encoding", func() {
 				BeforeEach(func() {
 					encoding = string(baggageclaim.GzipEncoding)
+				})
+				It("should succeed", func() {
+					// real tests are in JustBeforeEach
 				})
 			})
 
@@ -1206,20 +1224,10 @@ var _ = Describe("Volume Server", func() {
 				BeforeEach(func() {
 					encoding = string(baggageclaim.ZstdEncoding)
 				})
+				It("should succeed", func() {
+					// real tests are in JustBeforeEach
+				})
 			})
-		})
-	})
-
-	Describe("get p2p stream url", func() {
-		It("returns url", func() {
-			request, err := http.NewRequest("GET", "/stream-p2p-url", nil)
-			Expect(err).NotTo(HaveOccurred())
-
-			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, request)
-			Expect(recorder.Code).To(Equal(200))
-
-			Expect(recorder.Body.String()).To(Equal("http://127.0.0.1:7766"))
 		})
 	})
 })

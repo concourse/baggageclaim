@@ -107,15 +107,16 @@ type Volume interface {
 	// safeguard against child volumes being present.
 	Destroy() error
 
-	// GetStreamP2pUrl should be called against volume streaming dest worker. It
-	// returns P2P streaming URL where the other worker can access. This URL will
-	// be sent to source worker by ATC, then source worker can streaming volume
-	// directly to dest worker at the URL.
-	GetStreamP2pUrl(ctx context.Context, path string) (string, error)
+	// GetStreamInP2pUrl returns a modified StreamIn URL for this volume. The
+	// returned URL contains a hostname that is reachable by other baggageclaim
+	// servers on the same network. The URL can be passed to another
+	// baggageclaim server to stream the contents of its source volume into
+	// this target volume.
+	GetStreamInP2pUrl(ctx context.Context, path string) (string, error)
 
-	// StreamP2pOut should be called against volume streaming source worker. It
-	// tells source worker to directly stream a volume to dest worker at destUrl.
-	StreamP2pOut(ctx context.Context, path string, destUrl string, encoding Encoding) error
+	// StreamP2pOut streams the contents of this volume directly to another
+	// baggageclaim server on the same network.
+	StreamP2pOut(ctx context.Context, path string, streamInURL string, encoding Encoding) error
 }
 
 //go:generate counterfeiter . VolumeFuture

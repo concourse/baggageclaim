@@ -363,7 +363,7 @@ var _ = Describe("Baggage Claim Client", func() {
 			})
 		})
 
-		Describe("Get p2p stream url", func() {
+		Describe("Get p2p stream-in url", func() {
 			var vol baggageclaim.Volume
 			BeforeEach(func() {
 				bcServer.AppendHandlers(
@@ -395,14 +395,13 @@ var _ = Describe("Baggage Claim Client", func() {
 				BeforeEach(func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
-							ghttp.VerifyRequest("GET", "/stream-p2p-url"),
+							ghttp.VerifyRequest("GET", "/p2p-url"),
 							ghttp.RespondWith(http.StatusOK, "http://some-url"),
 						),
 					)
 				})
 				It("should get the url", func() {
-
-					url, err := vol.GetStreamP2pUrl(context.TODO(), "some-path")
+					url, err := vol.GetStreamInP2pUrl(context.TODO(), "some-path")
 					Expect(err).ToNot(HaveOccurred())
 					Expect(url).To(Equal("http://some-url/volumes/some-handle/stream-in?path=some-path"))
 				})
@@ -410,12 +409,12 @@ var _ = Describe("Baggage Claim Client", func() {
 
 			Context("when error occurs", func() {
 				BeforeEach(func() {
-					mockErrorResponse("GET", "/stream-p2p-url", "failed to get p2p stream url", http.StatusInternalServerError)
+					mockErrorResponse("GET", "/p2p-url", "failed to get p2p url", http.StatusInternalServerError)
 				})
 				It("returns API error message", func() {
-					url, err := vol.GetStreamP2pUrl(context.TODO(), "some-path")
+					url, err := vol.GetStreamInP2pUrl(context.TODO(), "some-path")
 					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(Equal("failed to get stream p2p url: 500"))
+					Expect(err.Error()).To(Equal("failed to get p2p url: 500"))
 					Expect(url).To(BeEmpty())
 				})
 			})

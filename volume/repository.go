@@ -38,7 +38,7 @@ type Repository interface {
 	StreamIn(ctx context.Context, handle string, path string, encoding string, stream io.Reader) (bool, error)
 	StreamOut(ctx context.Context, handle string, path string, encoding string, dest io.Writer) error
 
-	StreamP2pOut(ctx context.Context, handle string, path string, encoding string, destUrl string) error
+	StreamP2pOut(ctx context.Context, handle string, path string, encoding string, streamInURL string) error
 
 	VolumeParent(ctx context.Context, handle string) (Volume, bool, error)
 }
@@ -451,7 +451,7 @@ func (repo *repository) StreamOut(ctx context.Context, handle string, path strin
 	return ErrUnsupportedStreamEncoding
 }
 
-func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path string, encoding string, destUrl string) error {
+func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path string, encoding string, streamInURL string) error {
 	logger := lagerctx.FromContext(ctx).Session("stream-p2p-out", lager.Data{
 		"volume":   handle,
 		"sub-path": path,
@@ -498,10 +498,10 @@ func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path st
 		return err
 	}
 
-	logger.Debug("p2p-streaming-start", lager.Data{"destUrl": destUrl})
+	logger.Debug("p2p-streaming-start", lager.Data{"streamInURL": streamInURL})
 
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPut, destUrl, buffer)
+	req, err := http.NewRequest(http.MethodPut, streamInURL, buffer)
 	if err != nil {
 		logger.Error("failed-to-create-p2p-request", err)
 		return err

@@ -24,6 +24,10 @@ func NewHandler(
 		logger.Session("volume-server"),
 		strategerizer,
 		volumeRepo,
+	)
+
+	p2pServer := NewP2pServer(
+		logger.Session("p2p-server"),
 		p2pInterfacePattern,
 		p2pInterfaceFamily,
 		p2pStreamPort,
@@ -41,10 +45,11 @@ func NewHandler(
 		baggageclaim.SetPrivileged:           http.HandlerFunc(volumeServer.SetPrivileged),
 		baggageclaim.StreamIn:                http.HandlerFunc(volumeServer.StreamIn),
 		baggageclaim.StreamOut:               http.HandlerFunc(volumeServer.StreamOut),
-		baggageclaim.GetStreamP2pUrl:         http.HandlerFunc(volumeServer.GetStreamP2pUrl),
 		baggageclaim.StreamP2pOut:            http.HandlerFunc(volumeServer.StreamP2pOut),
 		baggageclaim.DestroyVolume:           http.HandlerFunc(volumeServer.DestroyVolume),
 		baggageclaim.DestroyVolumes:          http.HandlerFunc(volumeServer.DestroyVolumes),
+
+		baggageclaim.GetP2pUrl: http.HandlerFunc(p2pServer.GetP2pUrl),
 	}
 
 	return rata.NewRouter(baggageclaim.Routes, handlers)

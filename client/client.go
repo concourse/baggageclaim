@@ -263,9 +263,9 @@ func (c *client) streamIn(ctx context.Context, logger lager.Logger, destHandle s
 	return getError(response)
 }
 
-func (c *client) getStreamP2pUrl(ctx context.Context, logger lager.Logger, destHandle string, path string) (string, error) {
+func (c *client) getStreamInP2pUrl(ctx context.Context, logger lager.Logger, destHandle string, path string) (string, error) {
 	// First, get dest worker's p2p url.
-	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetStreamP2pUrl, rata.Params{}, nil)
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetP2pUrl, rata.Params{}, nil)
 	if err != nil {
 		return "", err
 	}
@@ -279,7 +279,7 @@ func (c *client) getStreamP2pUrl(ctx context.Context, logger lager.Logger, destH
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		err := fmt.Errorf("failed to get stream p2p url: %d", response.StatusCode)
+		err := fmt.Errorf("failed to get p2p url: %d", response.StatusCode)
 		return "", err
 	}
 
@@ -308,7 +308,7 @@ func (c *client) getStreamP2pUrl(ctx context.Context, logger lager.Logger, destH
 	streamInRequest.URL.Scheme = destUrl.Scheme
 	streamInRequest.URL.Host = destUrl.Host
 
-	logger.Debug("get-stream-p2p-url", lager.Data{"url": streamInRequest.URL.String()})
+	logger.Debug("get-stream-in-p2p-url", lager.Data{"url": streamInRequest.URL.String()})
 
 	return streamInRequest.URL.String(), nil
 }
@@ -338,15 +338,15 @@ func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle s
 	return response.Body, nil
 }
 
-func (c *client) streamP2pOut(ctx context.Context, logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string, destUrl string) error {
+func (c *client) streamP2pOut(ctx context.Context, logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string, streamInURL string) error {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamP2pOut, rata.Params{
 		"handle": srcHandle,
 	}, nil)
 
 	request.URL.RawQuery = url.Values{
-		"path":     []string{path},
-		"destUrl":  []string{destUrl},
-		"encoding": []string{string(encoding)},
+		"path":        []string{path},
+		"streamInURL": []string{streamInURL},
+		"encoding":    []string{string(encoding)},
 	}.Encode()
 	if err != nil {
 		return err
