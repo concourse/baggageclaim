@@ -263,6 +263,56 @@ func (c *client) streamIn(ctx context.Context, logger lager.Logger, destHandle s
 	return getError(response)
 }
 
+func (c *client) getStreamInP2pUrl(ctx context.Context, logger lager.Logger, destHandle string, path string) (string, error) {
+	// First, get dest worker's p2p url.
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.GetP2pUrl, rata.Params{}, nil)
+	if err != nil {
+		return "", err
+	}
+
+	request = request.WithContext(ctx)
+
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		err := fmt.Errorf("failed to get p2p url: %d", response.StatusCode)
+		return "", err
+	}
+
+	respBytes := make([]byte, 1024)
+	n, err := response.Body.Read(respBytes)
+	if err != nil && !(n > 0 && err == io.EOF) {
+		return "", err
+	}
+	respBytes = respBytes[:n]
+
+	destUrl, err := url.Parse(string(respBytes))
+	if err != nil {
+		return "", err
+	}
+
+	// Then build a StreamIn URL and replace with dest worker's host.
+	streamInRequest, err := c.requestGenerator.CreateRequest(baggageclaim.StreamIn, rata.Params{
+		"handle": destHandle,
+	}, nil)
+
+	streamInRequest.URL.RawQuery = url.Values{"path": []string{path}}.Encode()
+	if err != nil {
+		return "", err
+	}
+
+	streamInRequest.URL.Scheme = destUrl.Scheme
+	streamInRequest.URL.Host = destUrl.Host
+
+	logger.Debug("get-stream-in-p2p-url", lager.Data{"url": streamInRequest.URL.String()})
+
+	return streamInRequest.URL.String(), nil
+}
+
 func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string) (io.ReadCloser, error) {
 	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamOut, rata.Params{
 		"handle": srcHandle,
@@ -286,6 +336,33 @@ func (c *client) streamOut(ctx context.Context, logger lager.Logger, srcHandle s
 	}
 
 	return response.Body, nil
+}
+
+func (c *client) streamP2pOut(ctx context.Context, logger lager.Logger, srcHandle string, encoding baggageclaim.Encoding, path string, streamInURL string) error {
+	request, err := c.requestGenerator.CreateRequest(baggageclaim.StreamP2pOut, rata.Params{
+		"handle": srcHandle,
+	}, nil)
+
+	request.URL.RawQuery = url.Values{
+		"path":        []string{path},
+		"streamInURL": []string{streamInURL},
+		"encoding":    []string{string(encoding)},
+	}.Encode()
+	if err != nil {
+		return err
+	}
+
+	request = request.WithContext(ctx)
+	response, err := c.httpClient(logger).Do(request)
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != http.StatusNoContent {
+		return getError(response)
+	}
+
+	return nil
 }
 
 func getError(response *http.Response) error {
@@ -391,7 +468,6 @@ func (c *client) getPrivileged(logger lager.Logger, handle string) (bool, error)
 
 	return privileged, nil
 }
-
 
 func (c *client) setPrivileged(logger lager.Logger, handle string, privileged bool) error {
 	buffer := &bytes.Buffer{}

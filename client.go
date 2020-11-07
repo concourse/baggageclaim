@@ -106,6 +106,17 @@ type Volume interface {
 	// Destroy removes the volume and its contents. Note that it does not
 	// safeguard against child volumes being present.
 	Destroy() error
+
+	// GetStreamInP2pUrl returns a modified StreamIn URL for this volume. The
+	// returned URL contains a hostname that is reachable by other baggageclaim
+	// servers on the same network. The URL can be passed to another
+	// baggageclaim server to stream the contents of its source volume into
+	// this target volume.
+	GetStreamInP2pUrl(ctx context.Context, path string) (string, error)
+
+	// StreamP2pOut streams the contents of this volume directly to another
+	// baggageclaim server on the same network.
+	StreamP2pOut(ctx context.Context, path string, streamInURL string, encoding Encoding) error
 }
 
 //go:generate counterfeiter . VolumeFuture

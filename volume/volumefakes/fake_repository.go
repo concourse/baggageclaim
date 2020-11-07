@@ -156,6 +156,21 @@ type FakeRepository struct {
 	streamOutReturnsOnCall map[int]struct {
 		result1 error
 	}
+	StreamP2pOutStub        func(context.Context, string, string, string, string) error
+	streamP2pOutMutex       sync.RWMutex
+	streamP2pOutArgsForCall []struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+		arg5 string
+	}
+	streamP2pOutReturns struct {
+		result1 error
+	}
+	streamP2pOutReturnsOnCall map[int]struct {
+		result1 error
+	}
 	VolumeParentStub        func(context.Context, string) (volume.Volume, bool, error)
 	volumeParentMutex       sync.RWMutex
 	volumeParentArgsForCall []struct {
@@ -819,6 +834,70 @@ func (fake *FakeRepository) StreamOutReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
+func (fake *FakeRepository) StreamP2pOut(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 string) error {
+	fake.streamP2pOutMutex.Lock()
+	ret, specificReturn := fake.streamP2pOutReturnsOnCall[len(fake.streamP2pOutArgsForCall)]
+	fake.streamP2pOutArgsForCall = append(fake.streamP2pOutArgsForCall, struct {
+		arg1 context.Context
+		arg2 string
+		arg3 string
+		arg4 string
+		arg5 string
+	}{arg1, arg2, arg3, arg4, arg5})
+	fake.recordInvocation("StreamP2pOut", []interface{}{arg1, arg2, arg3, arg4, arg5})
+	fake.streamP2pOutMutex.Unlock()
+	if fake.StreamP2pOutStub != nil {
+		return fake.StreamP2pOutStub(arg1, arg2, arg3, arg4, arg5)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	fakeReturns := fake.streamP2pOutReturns
+	return fakeReturns.result1
+}
+
+func (fake *FakeRepository) StreamP2pOutCallCount() int {
+	fake.streamP2pOutMutex.RLock()
+	defer fake.streamP2pOutMutex.RUnlock()
+	return len(fake.streamP2pOutArgsForCall)
+}
+
+func (fake *FakeRepository) StreamP2pOutCalls(stub func(context.Context, string, string, string, string) error) {
+	fake.streamP2pOutMutex.Lock()
+	defer fake.streamP2pOutMutex.Unlock()
+	fake.StreamP2pOutStub = stub
+}
+
+func (fake *FakeRepository) StreamP2pOutArgsForCall(i int) (context.Context, string, string, string, string) {
+	fake.streamP2pOutMutex.RLock()
+	defer fake.streamP2pOutMutex.RUnlock()
+	argsForCall := fake.streamP2pOutArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
+}
+
+func (fake *FakeRepository) StreamP2pOutReturns(result1 error) {
+	fake.streamP2pOutMutex.Lock()
+	defer fake.streamP2pOutMutex.Unlock()
+	fake.StreamP2pOutStub = nil
+	fake.streamP2pOutReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeRepository) StreamP2pOutReturnsOnCall(i int, result1 error) {
+	fake.streamP2pOutMutex.Lock()
+	defer fake.streamP2pOutMutex.Unlock()
+	fake.StreamP2pOutStub = nil
+	if fake.streamP2pOutReturnsOnCall == nil {
+		fake.streamP2pOutReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.streamP2pOutReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
+}
+
 func (fake *FakeRepository) VolumeParent(arg1 context.Context, arg2 string) (volume.Volume, bool, error) {
 	fake.volumeParentMutex.Lock()
 	ret, specificReturn := fake.volumeParentReturnsOnCall[len(fake.volumeParentArgsForCall)]
@@ -909,6 +988,8 @@ func (fake *FakeRepository) Invocations() map[string][][]interface{} {
 	defer fake.streamInMutex.RUnlock()
 	fake.streamOutMutex.RLock()
 	defer fake.streamOutMutex.RUnlock()
+	fake.streamP2pOutMutex.RLock()
+	defer fake.streamP2pOutMutex.RUnlock()
 	fake.volumeParentMutex.RLock()
 	defer fake.volumeParentMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

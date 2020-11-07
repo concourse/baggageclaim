@@ -28,6 +28,7 @@ var ErrSetPrivilegedFailed = errors.New("failed to change privileged status of v
 var ErrStreamInFailed = errors.New("failed to stream in to volume")
 var ErrStreamOutFailed = errors.New("failed to stream out from volume")
 var ErrStreamOutNotFound = errors.New("no such file or directory")
+var ErrStreamP2pOutFailed = errors.New("failed to stream p2p out from volume")
 
 type VolumeServer struct {
 	strategerizer  volume.Strategerizer
@@ -535,6 +536,70 @@ func (vs *VolumeServer) StreamOut(w http.ResponseWriter, req *http.Request) {
 
 		hLog.Error("failed-to-stream-out", err)
 		RespondWithError(w, ErrStreamOutFailed, http.StatusInternalServerError)
+		return
+	}
+}
+
+func (vs *VolumeServer) StreamP2pOut(w http.ResponseWriter, req *http.Request) {
+	handle := rata.Param(req, "handle")
+
+	hLog := vs.logger.Session("stream-p2p-out", lager.Data{
+		"volume": handle,
+	})
+
+	hLog.Debug("start")
+	defer hLog.Debug("done")
+
+	ctx := lagerctx.NewContext(req.Context(), hLog)
+
+	var subPath, streamInURL, encoding string
+	if queryPath, ok := req.URL.Query()["path"]; ok {
+		subPath = queryPath[0]
+	}
+	if subPath == "" {
+		hLog.Info("missing-param-path")
+		RespondWithError(w, ErrStreamP2pOutFailed, http.StatusBadRequest)
+		return
+	}
+	if queryPath, ok := req.URL.Query()["streamInURL"]; ok {
+		streamInURL = queryPath[0]
+	}
+	if streamInURL == "" {
+		hLog.Info("missing-param-streamInURL")
+		RespondWithError(w, ErrStreamP2pOutFailed, http.StatusBadRequest)
+		return
+	}
+	if queryPath, ok := req.URL.Query()["encoding"]; ok {
+		encoding = queryPath[0]
+	}
+	if encoding == "" {
+		hLog.Info("missing-param-encoding")
+		RespondWithError(w, ErrStreamP2pOutFailed, http.StatusBadRequest)
+		return
+	}
+
+	err := vs.volumeRepo.StreamP2pOut(ctx, handle, subPath, encoding, streamInURL)
+	if err != nil {
+		if err == volume.ErrVolumeDoesNotExist {
+			hLog.Info("volume-not-found")
+			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
+			return
+		}
+
+		if err == volume.ErrUnsupportedStreamEncoding {
+			hLog.Info("unsupported-stream-encoding")
+			RespondWithError(w, ErrStreamP2pOutFailed, http.StatusBadRequest)
+			return
+		}
+
+		if os.IsNotExist(err) {
+			hLog.Info("source-path-not-found")
+			RespondWithError(w, ErrStreamOutNotFound, http.StatusNotFound)
+			return
+		}
+
+		hLog.Error("failed-to-stream-out", err)
+		RespondWithError(w, ErrStreamP2pOutFailed, http.StatusInternalServerError)
 		return
 	}
 }
