@@ -358,7 +358,7 @@ func (c *client) streamP2pOut(ctx context.Context, logger lager.Logger, srcHandl
 		return err
 	}
 
-	if response.StatusCode != http.StatusNoContent {
+	if response.StatusCode != http.StatusOK {
 		return getError(response)
 	}
 
