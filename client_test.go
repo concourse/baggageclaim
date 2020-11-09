@@ -453,7 +453,7 @@ var _ = Describe("Baggage Claim Client", func() {
 					bcServer.AppendHandlers(
 						ghttp.CombineHandlers(
 							ghttp.VerifyRequest("PUT", "/volumes/some-handle/stream-p2p-out"),
-							ghttp.RespondWith(http.StatusNoContent, ""),
+							ghttp.RespondWith(http.StatusOK, ""),
 						),
 					)
 				})
