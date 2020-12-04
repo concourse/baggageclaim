@@ -23,19 +23,10 @@ jobs:
   - put: baggageclaim-ci-image
     params: {image: image/image.tar}
   on_failure:
-    do:
-    - task: format-slack-message
-      file: ci/tasks/format-slack-message.yml
-      input_mapping: {src: baggageclaim-image-building}
-      params:
-        GITHUB_TOKEN: ((concourse_github_dummy.access_token))
-        SLACK_TOKEN: ((slack_token))
-        GITHUB_REPO: baggageclaim
-    - put: notify
-      params:
-        message_file: message/message
-        mode: normal
-        alert_type: failed
+    put: notify
+    params:
+      mode: normal
+      alert_type: failed
 
 - name: baggageclaim
   public: true
@@ -57,19 +48,10 @@ jobs:
     - task: unit-windows
       file: baggageclaim/ci/unit-windows.yml
   on_failure:
-    do:
-    - task: format-slack-message
-      file: ci/tasks/format-slack-message.yml
-      input_mapping: {src: baggageclaim}
-      params:
-        GITHUB_TOKEN: ((concourse_github_dummy.access_token))
-        SLACK_TOKEN: ((slack_token))
-        GITHUB_REPO: baggageclaim
-    - put: notify
-      params:
-        message_file: message/message
-        mode: normal
-        alert_type: failed
+    put: notify
+    params:
+      mode: normal
+      alert_type: failed
 
 resources:
 - name: baggageclaim
