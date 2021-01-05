@@ -69,8 +69,8 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(
 		return err
 	}
 
-	childDir := driver.layerDir(child)
 	if hasGrandparent {
+		childDir := driver.layerDir(child)
 		parentDir := driver.layerDir(parent)
 		err := copy.Cp(false, parentDir, childDir)
 		if err != nil {
@@ -78,6 +78,20 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(
 		}
 
 		parent = grandparent
+
+		// resolve to root volume
+		for {
+			grandparent, hasGrandparent, err := parent.Parent()
+			if err != nil {
+				return err
+			}
+
+			if !hasGrandparent {
+				break
+			}
+
+			parent = grandparent
+		}
 	}
 
 	return driver.overlayMount(child, parent)

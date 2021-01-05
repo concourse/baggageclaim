@@ -1,6 +1,7 @@
 package driver_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -39,13 +40,15 @@ var _ = Describe("Overlay", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// write to file under rootVolData
-			rootFile := filepath.Join(rootVolInit.DataPath(), "rootFile")
-			err = ioutil.WriteFile(rootFile, []byte("root"), 0644)
+			rootFile := filepath.Join(rootVolInit.DataPath(), "updated-file")
+			err = ioutil.WriteFile(rootFile, []byte("depth-0"), 0644)
 			Expect(err).ToNot(HaveOccurred())
 
-			doomedFile := filepath.Join(rootVolInit.DataPath(), "doomedFile")
-			err = ioutil.WriteFile(doomedFile, []byte("im doomed"), 0644)
-			Expect(err).ToNot(HaveOccurred())
+			for depth := 1; depth <= 10; depth++ {
+				doomedFile := filepath.Join(rootVolInit.DataPath(), fmt.Sprintf("doomed-file-%d", depth))
+				err := ioutil.WriteFile(doomedFile, []byte(fmt.Sprintf("i will be removed at depth %d", depth)), 0644)
+				Expect(err).ToNot(HaveOccurred())
+			}
 
 			rootVolLive, err := rootVolInit.Initialize()
 			Expect(err).ToNot(HaveOccurred())
@@ -55,53 +58,47 @@ var _ = Describe("Overlay", func() {
 				Expect(err).ToNot(HaveOccurred())
 			}()
 
-			childVolInit, err := rootVolLive.NewSubvolume("child-vol")
-			Expect(err).ToNot(HaveOccurred())
+			nest := rootVolLive
+			for depth := 1; depth <= 10; depth++ {
+				By(fmt.Sprintf("creating a child nested %d levels deep", depth))
 
-			// write to file under rootVolData
-			chileFilePath := filepath.Join(childVolInit.DataPath(), "rootFile")
-			err = ioutil.WriteFile(chileFilePath, []byte("child"), 0644)
-			Expect(err).ToNot(HaveOccurred())
-
-			err = os.Remove(filepath.Join(childVolInit.DataPath(), "doomedFile"))
-			Expect(err).ToNot(HaveOccurred())
-
-			childVolLive, err := childVolInit.Initialize()
-			Expect(err).ToNot(HaveOccurred())
-
-			defer func() {
-				err := childVolLive.Destroy()
+				childInit, err := nest.NewSubvolume(fmt.Sprintf("child-vol-%d", depth))
 				Expect(err).ToNot(HaveOccurred())
-			}()
 
-			childVol2Init, err := childVolLive.NewSubvolume("child-vol-2")
-			Expect(err).ToNot(HaveOccurred())
-
-			childVol2Live, err := childVol2Init.Initialize()
-			Expect(err).ToNot(HaveOccurred())
-
-			defer func() {
-				err := childVol2Live.Destroy()
+				childLive, err := childInit.Initialize()
 				Expect(err).ToNot(HaveOccurred())
-			}()
 
-			childVol3Init, err := childVol2Live.NewSubvolume("child-vol-3")
-			Expect(err).ToNot(HaveOccurred())
+				defer func() {
+					err := childLive.Destroy()
+					Expect(err).ToNot(HaveOccurred())
+				}()
 
-			childVol3Live, err := childVol3Init.Initialize()
-			Expect(err).ToNot(HaveOccurred())
+				for i := 1; i <= 10; i++ {
+					doomedFilePath := filepath.Join(childLive.DataPath(), fmt.Sprintf("doomed-file-%d", i))
 
-			defer func() {
-				err := childVol3Live.Destroy()
+					_, statErr := os.Stat(doomedFilePath)
+					if i < depth {
+						Expect(statErr).To(HaveOccurred())
+					} else {
+						Expect(statErr).ToNot(HaveOccurred())
+
+						if i == depth {
+							err := os.Remove(doomedFilePath)
+							Expect(err).ToNot(HaveOccurred())
+						}
+					}
+				}
+
+				updateFilePath := filepath.Join(childLive.DataPath(), "updated-file")
+
+				content, err := ioutil.ReadFile(updateFilePath)
+				Expect(string(content)).To(Equal(fmt.Sprintf("depth-%d", depth-1)))
+
+				err = ioutil.WriteFile(updateFilePath, []byte(fmt.Sprintf("depth-%d", depth)), 0644)
 				Expect(err).ToNot(HaveOccurred())
-			}()
 
-			child3FilePath := filepath.Join(childVol3Live.DataPath(), "rootFile")
-			content, err := ioutil.ReadFile(child3FilePath)
-			Expect(string(content)).To(Equal("child"))
-
-			_, err = os.Stat(filepath.Join(childVol3Live.DataPath(), "doomedFile"))
-			Expect(err).To(HaveOccurred())
+				nest = childLive
+			}
 		})
 	})
 })
