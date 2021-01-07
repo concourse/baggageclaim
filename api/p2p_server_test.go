@@ -1,19 +1,21 @@
 package api_test
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"regexp"
+	"runtime"
+
 	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/concourse/baggageclaim/api"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"net/http"
-	"net/http/httptest"
-	"regexp"
 )
 
 var _ = Describe("P2P Server", func() {
 	var (
 		handler http.Handler
-		infc string
+		infc    string
 	)
 
 	JustBeforeEach(func() {
@@ -26,10 +28,10 @@ var _ = Describe("P2P Server", func() {
 
 	Describe("get p2p url", func() {
 		var (
-			request *http.Request
+			request  *http.Request
 			recorder *httptest.ResponseRecorder
 		)
-		JustBeforeEach(func(){
+		JustBeforeEach(func() {
 			var err error
 			request, err = http.NewRequest("GET", "/p2p-url", nil)
 			Expect(err).NotTo(HaveOccurred())
@@ -38,9 +40,12 @@ var _ = Describe("P2P Server", func() {
 			handler.ServeHTTP(recorder, request)
 		})
 
-		Context("when a valid interface name is given", func(){
-			BeforeEach(func(){
+		Context("when a valid interface name is given", func() {
+			BeforeEach(func() {
 				infc = "lo"
+				if runtime.GOOS == "windows" {
+					infc = "Loopback"
+				}
 			})
 
 			It("returns a url successfully", func() {
@@ -49,8 +54,8 @@ var _ = Describe("P2P Server", func() {
 			})
 		})
 
-		Context("when an invalid interface name is given", func(){
-			BeforeEach(func(){
+		Context("when an invalid interface name is given", func() {
+			BeforeEach(func() {
 				infc = "dummy_interface"
 			})
 
