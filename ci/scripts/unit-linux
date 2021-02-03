@@ -60,6 +60,11 @@ trap salt_earth EXIT
 
 cd baggageclaim
 
+# /tmp is sometimes overlay (it doesn't have a dedicated mountpoint so it's
+# whatever / is), so point $TMPDIR to /scratch which we can trust to be
+# non-overlay for the overlay driver tests
+export TMPDIR=/scratch
+
 go mod download
 
 go install github.com/onsi/ginkgo/ginkgo
