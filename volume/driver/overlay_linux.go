@@ -10,6 +10,24 @@ import (
 	"github.com/concourse/baggageclaim/volume/copy"
 )
 
+var mountOpts string
+
+func init() {
+	metacopyEnabled()
+}
+
+// Metacopy is an overlayfs feature. If all you're doing is chown/chmod'ing a
+// file then it will not create a copy of the file. Files will only be copied
+// when they are written to.
+func metacopyEnabled() {
+	if _, err := os.Stat("/sys/module/overlay/parameters/metacopy"); os.IsNotExist(err) {
+		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s"
+		return
+	}
+
+	mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s,metacopy=on"
+}
+
 type OverlayDriver struct {
 	OverlaysDir string
 }
@@ -168,10 +186,10 @@ func (driver *OverlayDriver) overlayMount(child volume.FilesystemVolume, parent 
 	}
 
 	opts := fmt.Sprintf(
-		"lowerdir=%s,upperdir=%s,workdir=%s",
-		parent.DataPath(),
-		childDir,
-		workDir,
+		mountOpts,
+		parent.DataPath(), //lowerdir
+		childDir,          //upperdir
+		workDir,           //workdir
 	)
 
 	err = syscall.Mount("overlay", child.DataPath(), "overlay", 0, opts)
