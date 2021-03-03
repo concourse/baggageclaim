@@ -13,19 +13,19 @@ import (
 var mountOpts string
 
 func init() {
-	metacopyEnabled()
+	if metacopySupported() {
+		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s,metacopy=on"
+	} else {
+		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s"
+	}
 }
 
 // Metacopy is an overlayfs feature. If all you're doing is chown/chmod'ing a
 // file then it will not create a copy of the file. Files will only be copied
 // when they are written to.
-func metacopyEnabled() {
-	if _, err := os.Stat("/sys/module/overlay/parameters/metacopy"); os.IsNotExist(err) {
-		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s"
-		return
-	}
-
-	mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s,metacopy=on"
+func metacopySupported() bool {
+	_, err := os.Stat("/sys/module/overlay/parameters/metacopy")
+	return !os.IsNotExist(err)
 }
 
 type OverlayDriver struct {
@@ -83,7 +83,7 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(
 	}
 
 	rootParent, err := driver.findRootParent(child, parent)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -124,7 +124,7 @@ func (driver *OverlayDriver) Recover(fs volume.Filesystem) error {
 
 	for _, cow := range cows {
 		rootParent, err := driver.findRootParent(cow.child, cow.parent)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 
