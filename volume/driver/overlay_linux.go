@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,7 +26,10 @@ func init() {
 // when they are written to.
 func metacopySupported() bool {
 	_, err := os.Stat("/sys/module/overlay/parameters/metacopy")
-	return !os.IsNotExist(err)
+	if err != nil {
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	return true
 }
 
 type OverlayDriver struct {
