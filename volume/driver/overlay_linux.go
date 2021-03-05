@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,27 @@ import (
 	"github.com/concourse/baggageclaim/volume"
 	"github.com/concourse/baggageclaim/volume/copy"
 )
+
+var mountOpts string
+
+func init() {
+	if metacopySupported() {
+		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s,metacopy=on"
+	} else {
+		mountOpts = "lowerdir=%s,upperdir=%s,workdir=%s"
+	}
+}
+
+// Metacopy is an overlayfs feature. If all you're doing is chown/chmod'ing a
+// file then it will not create a copy of the file. Files will only be copied
+// when they are written to.
+func metacopySupported() bool {
+	_, err := os.Stat("/sys/module/overlay/parameters/metacopy")
+	if err != nil {
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	return true
+}
 
 type OverlayDriver struct {
 	OverlaysDir string
@@ -64,37 +86,12 @@ func (driver *OverlayDriver) CreateCopyOnWriteLayer(
 		return err
 	}
 
-	grandparent, hasGrandparent, err := parent.Parent()
+	rootParent, err := driver.findRootParent(child, parent)
 	if err != nil {
 		return err
 	}
 
-	if hasGrandparent {
-		childDir := driver.layerDir(child)
-		parentDir := driver.layerDir(parent)
-		err := copy.Cp(false, parentDir, childDir)
-		if err != nil {
-			return fmt.Errorf("copy parent data to child: %w", err)
-		}
-
-		parent = grandparent
-
-		// resolve to root volume
-		for {
-			grandparent, hasGrandparent, err := parent.Parent()
-			if err != nil {
-				return err
-			}
-
-			if !hasGrandparent {
-				break
-			}
-
-			parent = grandparent
-		}
-	}
-
-	return driver.overlayMount(child, parent)
+	return driver.overlayMount(child, rootParent)
 }
 
 func (driver *OverlayDriver) Recover(fs volume.Filesystem) error {
@@ -130,13 +127,54 @@ func (driver *OverlayDriver) Recover(fs volume.Filesystem) error {
 	}
 
 	for _, cow := range cows {
-		err = driver.overlayMount(cow.child, cow.parent)
+		rootParent, err := driver.findRootParent(cow.child, cow.parent)
+		if err != nil {
+			return err
+		}
+
+		err = driver.overlayMount(cow.child, rootParent)
 		if err != nil {
 			return fmt.Errorf("recover overlay mount: %w", err)
 		}
 	}
 
 	return nil
+}
+
+func (driver *OverlayDriver) findRootParent(child volume.FilesystemVolume,
+	parent volume.FilesystemLiveVolume) (volume.FilesystemLiveVolume, error) {
+	rootParent := parent
+	grandparent, hasGrandparent, err := parent.Parent()
+	if err != nil {
+		return nil, err
+	}
+
+	if hasGrandparent {
+		childDir := driver.layerDir(child)
+		parentDir := driver.layerDir(parent)
+		err := copy.Cp(false, parentDir, childDir)
+		if err != nil {
+			return nil, fmt.Errorf("copy parent data to child: %w", err)
+		}
+
+		rootParent = grandparent
+
+		// resolve to root volume
+		for {
+			grandparent, hasGrandparent, err := rootParent.Parent()
+			if err != nil {
+				return nil, err
+			}
+
+			if !hasGrandparent {
+				break
+			}
+
+			rootParent = grandparent
+		}
+	}
+
+	return rootParent, nil
 }
 
 func (driver *OverlayDriver) bindMount(vol volume.FilesystemVolume) error {
@@ -168,10 +206,10 @@ func (driver *OverlayDriver) overlayMount(child volume.FilesystemVolume, parent 
 	}
 
 	opts := fmt.Sprintf(
-		"lowerdir=%s,upperdir=%s,workdir=%s",
-		parent.DataPath(),
-		childDir,
-		workDir,
+		mountOpts,
+		parent.DataPath(), //lowerdir
+		childDir,          //upperdir
+		workDir,           //workdir
 	)
 
 	err = syscall.Mount("overlay", child.DataPath(), "overlay", 0, opts)
