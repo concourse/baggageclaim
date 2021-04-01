@@ -1,163 +1,100 @@
 package baggageclaimcmd
 
 import (
+	"errors"
 	"fmt"
-	"net/http"
 	"os"
-	"regexp"
 
-	"code.cloudfoundry.org/lager"
-	"github.com/concourse/baggageclaim/api"
-	"github.com/concourse/baggageclaim/uidgid"
-	"github.com/concourse/baggageclaim/volume"
+	"github.com/clarafu/envstruct"
 	"github.com/concourse/flag"
-	"github.com/tedsuo/ifrit"
-	"github.com/tedsuo/ifrit/grouper"
-	"github.com/tedsuo/ifrit/http_server"
-	"github.com/tedsuo/ifrit/sigmon"
+	"github.com/go-playground/locales/en"
+	ut "github.com/go-playground/universal-translator"
+	val "github.com/go-playground/validator/v10"
+	"github.com/hashicorp/go-multierror"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
-type BaggageclaimCommand struct {
-	Logger flag.Lager
+var baggageclaimCmd BaggageclaimConfig
+var configFile flag.File
 
-	BindIP   flag.IP `long:"bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for API traffic."`
-	BindPort uint16  `long:"bind-port" default:"7788"      description:"Port on which to listen for API traffic."`
-
-	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
-	DebugBindPort uint16  `long:"debug-bind-port" default:"7787"      description:"Port on which to listen for the pprof debugger endpoints."`
-
-	P2pInterfaceNamePattern string `long:"p2p-interface-name-pattern" default:"eth0" description:"Regular expression to match a network interface for p2p streaming"`
-	P2pInterfaceFamily int `long:"p2p-interface-family" default:"4" choice:"4" choice:"6" description:"4 for IPv4 and 6 for IPv6"`
-
-	VolumesDir flag.Dir `long:"volumes" required:"true" description:"Directory in which to place volume data."`
-
-	Driver string `long:"driver" default:"detect" choice:"detect" choice:"naive" choice:"btrfs" choice:"overlay" description:"Driver to use for managing volumes."`
-
-	BtrfsBin string `long:"btrfs-bin" default:"btrfs" description:"Path to btrfs binary"`
-	MkfsBin  string `long:"mkfs-bin" default:"mkfs.btrfs" description:"Path to mkfs.btrfs binary"`
-
-	OverlaysDir string `long:"overlays-dir" description:"Path to directory in which to store overlay data"`
-
-	DisableUserNamespaces bool `long:"disable-user-namespaces" description:"Disable remapping of user/group IDs in unprivileged volumes."`
+// Baggageclaim command is only used for when the user wants to run
+// baggageclaim independently from the worker command. This is not included in
+// the concourse commands
+var BaggageclaimCommand = &cobra.Command{
+	Use:   "baggageclaim",
+	Short: "TODO",
+	Long:  `TODO`,
+	RunE:  InitializeBaggageclaim,
 }
 
-func (cmd *BaggageclaimCommand) Execute(args []string) error {
-	runner, err := cmd.Runner(args)
-	if err != nil {
-		return err
+func init() {
+	BaggageclaimCommand.Flags().Var(&configFile, "config", "config file (default is $HOME/.cobra.yaml)")
+
+	baggageclaimCmd = CmdDefaults
+
+	InitializeBaggageclaimFlags(BaggageclaimCommand, &baggageclaimCmd)
+}
+
+func InitializeBaggageclaim(cmd *cobra.Command, args []string) error {
+	// Fetch out env values
+	env := envstruct.Envstruct{
+		TagName:       "yaml",
+		OverrideName:  "env",
+		IgnoreTagName: "ignore_env",
+
+		Parser: envstruct.Parser{
+			Delimiter:   ",",
+			Unmarshaler: yaml.Unmarshal,
+		},
 	}
 
-	return <-ifrit.Invoke(sigmon.New(runner)).Wait()
-}
+	err := env.FetchEnv(&baggageclaimCmd)
+	if err != nil {
+		return fmt.Errorf("fetch env: %s", err)
+	}
 
-func (cmd *BaggageclaimCommand) Runner(args []string) (ifrit.Runner, error) {
-	logger, _ := cmd.constructLogger()
-
-	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP.IP, cmd.BindPort)
-
-	var privilegedNamespacer, unprivilegedNamespacer uidgid.Namespacer
-
-	if !cmd.DisableUserNamespaces && uidgid.Supported() {
-		privilegedNamespacer = &uidgid.UidNamespacer{
-			Translator: uidgid.NewTranslator(uidgid.NewPrivilegedMapper()),
-			Logger:     logger.Session("uid-namespacer"),
+	// Fetch out the values set from the config file and overwrite the flag
+	// values
+	if configFile != "" {
+		file, err := os.Open(string(configFile))
+		if err != nil {
+			return fmt.Errorf("open file: %s", err)
 		}
 
-		unprivilegedNamespacer = &uidgid.UidNamespacer{
-			Translator: uidgid.NewTranslator(uidgid.NewUnprivilegedMapper()),
-			Logger:     logger.Session("uid-namespacer"),
+		decoder := yaml.NewDecoder(file)
+		err = decoder.Decode(&baggageclaimCmd)
+		if err != nil {
+			return fmt.Errorf("decode config: %s", err)
 		}
-	} else {
-		privilegedNamespacer = uidgid.NoopNamespacer{}
-		unprivilegedNamespacer = uidgid.NoopNamespacer{}
 	}
 
-	locker := volume.NewLockManager()
+	// Validate the values passed in by the user
+	en := en.New()
+	uni := ut.New(en, en)
+	trans, _ := uni.GetTranslator("en")
 
-	driver, err := cmd.driver(logger)
+	validator := NewValidator(trans)
+
+	err = validator.Struct(baggageclaimCmd)
 	if err != nil {
-		logger.Error("failed-to-set-up-driver", err)
-		return nil, err
-	}
+		validationErrors := err.(val.ValidationErrors)
 
-	filesystem, err := volume.NewFilesystem(driver, cmd.VolumesDir.Path())
-	if err != nil {
-		logger.Error("failed-to-initialize-filesystem", err)
-		return nil, err
-	}
-
-	err = driver.Recover(filesystem)
-	if err != nil {
-		logger.Error("failed-to-recover-volume-driver", err)
-		return nil, err
-	}
-
-	volumeRepo := volume.NewRepository(
-		filesystem,
-		locker,
-		privilegedNamespacer,
-		unprivilegedNamespacer,
-	)
-
-	re, err := regexp.Compile(cmd.P2pInterfaceNamePattern)
-	if err != nil {
-		logger.Error("failed-to-compile-p2p-interface-name-pattern", err)
-		return nil, err
-	}
-	apiHandler, err := api.NewHandler(
-		logger.Session("api"),
-		volume.NewStrategerizer(),
-		volumeRepo,
-		re,
-		cmd.P2pInterfaceFamily,
-		cmd.BindPort,
-	)
-	if err != nil {
-		logger.Fatal("failed-to-create-handler", err)
-	}
-
-	members := []grouper.Member{
-		{Name: "api", Runner: http_server.New(listenAddr, apiHandler)},
-		{Name: "debug-server", Runner: http_server.New(
-			cmd.debugBindAddr(),
-			http.DefaultServeMux,
-		)},
-	}
-
-	return onReady(grouper.NewParallel(os.Interrupt, members), func() {
-		logger.Info("listening", lager.Data{
-			"addr": listenAddr,
-		})
-	}), nil
-}
-
-func (cmd *BaggageclaimCommand) constructLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	logger, reconfigurableSink := cmd.Logger.Logger("baggageclaim")
-
-	return logger, reconfigurableSink
-}
-
-func (cmd *BaggageclaimCommand) debugBindAddr() string {
-	return fmt.Sprintf("%s:%d", cmd.DebugBindIP, cmd.DebugBindPort)
-}
-
-func onReady(runner ifrit.Runner, cb func()) ifrit.Runner {
-	return ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		process := ifrit.Background(runner)
-
-		subExited := process.Wait()
-		subReady := process.Ready()
-
-		for {
-			select {
-			case <-subReady:
-				cb()
-				subReady = nil
-			case err := <-subExited:
-				return err
-			case sig := <-signals:
-				process.Signal(sig)
-			}
+		var errs *multierror.Error
+		for _, validationErr := range validationErrors {
+			errs = multierror.Append(
+				errs,
+				errors.New(validationErr.Translate(trans)),
+			)
 		}
-	})
+
+		return errs.ErrorOrNil()
+	}
+
+	err = baggageclaimCmd.Execute(args)
+	if err != nil {
+		return fmt.Errorf("failed to execute baggageclaim: %s", err)
+	}
+
+	return nil
 }

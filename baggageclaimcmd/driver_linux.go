@@ -19,7 +19,7 @@ import (
 
 const btrfsFSType = 0x9123683e
 
-func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, error) {
+func (cmd *BaggageclaimConfig) driver(logger lager.Logger) (volume.Driver, error) {
 	var fsStat syscall.Statfs_t
 	err := syscall.Statfs(cmd.VolumesDir.Path(), &fsStat)
 	if err != nil {

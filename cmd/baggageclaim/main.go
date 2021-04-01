@@ -5,21 +5,10 @@ import (
 	"os"
 
 	"github.com/concourse/baggageclaim/baggageclaimcmd"
-	"github.com/jessevdk/go-flags"
 )
 
 func main() {
-	cmd := &baggageclaimcmd.BaggageclaimCommand{}
-
-	parser := flags.NewParser(cmd, flags.Default)
-	parser.NamespaceDelimiter = "-"
-
-	args, err := parser.Parse()
-	if err != nil {
-		os.Exit(1)
-	}
-
-	err = cmd.Execute(args)
+	err := baggageclaimcmd.BaggageclaimCommand.Execute()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
