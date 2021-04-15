@@ -19,7 +19,7 @@ import (
 )
 
 type BaggageclaimConfig struct {
-	Logger flag.Lager
+	Logger flag.Lager `yaml:",inline"`
 
 	BindIP   net.IP `yaml:"bind_ip,omitempty"`
 	BindPort uint16 `yaml:"bind_port,omitempty"`
@@ -28,7 +28,7 @@ type BaggageclaimConfig struct {
 
 	P2p P2pConfig `yaml:"p2p,omitempty"`
 
-	VolumesDir flag.Dir `yaml:"volumes,omitempty" validate:"required"`
+	VolumesDir flag.Dir `yaml:"volumes,omitempty"`
 
 	Driver string `yaml:"driver,omitempty" validate:"baggageclaim_driver"`
 
@@ -84,6 +84,11 @@ func (cmd *BaggageclaimConfig) Execute(args []string) error {
 }
 
 func (cmd *BaggageclaimConfig) Runner(args []string) (ifrit.Runner, error) {
+	err := cmd.validate()
+	if err != nil {
+		return nil, err
+	}
+
 	logger, _ := cmd.constructLogger()
 
 	listenAddr := fmt.Sprintf("%s:%d", cmd.BindIP, cmd.BindPort)
@@ -172,6 +177,14 @@ func (cmd *BaggageclaimConfig) constructLogger() (lager.Logger, *lager.Reconfigu
 
 func (cmd *BaggageclaimConfig) debugBindAddr() string {
 	return fmt.Sprintf("%s:%d", cmd.Debug.BindIP, cmd.Debug.BindPort)
+}
+
+func (cmd *BaggageclaimConfig) validate() error {
+	if cmd.VolumesDir == "" {
+		return errors.New("volumes_dir is required")
+	}
+
+	return nil
 }
 
 func onReady(runner ifrit.Runner, cb func()) ifrit.Runner {

@@ -15,8 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var baggageclaimCmd BaggageclaimConfig
-var configFile flag.File
+var baggageclaimCmd BaggageclaimCommandFlags
 
 // Baggageclaim command is only used for when the user wants to run
 // baggageclaim independently from the worker command. This is not included in
@@ -29,35 +28,24 @@ var BaggageclaimCommand = &cobra.Command{
 }
 
 func init() {
-	BaggageclaimCommand.Flags().Var(&configFile, "config", "config file (default is $HOME/.cobra.yaml)")
+	BaggageclaimCommand.Flags().Var(&baggageclaimCmd.ConfigFile, "config", "config file (default is $HOME/.cobra.yaml)")
 
-	baggageclaimCmd = CmdDefaults
+	baggageclaimCmd.BaggageclaimConfig = CmdDefaults
 
-	InitializeBaggageclaimFlags(BaggageclaimCommand, &baggageclaimCmd)
+	InitializeBaggageclaimFlags(BaggageclaimCommand, &baggageclaimCmd.BaggageclaimConfig, "")
+}
+
+type BaggageclaimCommandFlags struct {
+	ConfigFile flag.File `env:"BAGGAGECLAIM_CONFIG_FILE"`
+
+	BaggageclaimConfig
 }
 
 func InitializeBaggageclaim(cmd *cobra.Command, args []string) error {
-	// Fetch out env values
-	env := envstruct.Envstruct{
-		TagName:       "yaml",
-		OverrideName:  "env",
-		IgnoreTagName: "ignore_env",
-
-		Parser: envstruct.Parser{
-			Delimiter:   ",",
-			Unmarshaler: yaml.Unmarshal,
-		},
-	}
-
-	err := env.FetchEnv(&baggageclaimCmd)
-	if err != nil {
-		return fmt.Errorf("fetch env: %s", err)
-	}
-
 	// Fetch out the values set from the config file and overwrite the flag
 	// values
-	if configFile != "" {
-		file, err := os.Open(string(configFile))
+	if baggageclaimCmd.ConfigFile != "" {
+		file, err := os.Open(string(baggageclaimCmd.ConfigFile))
 		if err != nil {
 			return fmt.Errorf("open file: %s", err)
 		}
