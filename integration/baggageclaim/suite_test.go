@@ -9,18 +9,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/concourse/baggageclaim"
+	"github.com/concourse/baggageclaim/baggageclaimcmd"
 	"github.com/concourse/baggageclaim/client"
+	"github.com/concourse/flag"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/ginkgomon"
+	"gopkg.in/yaml.v2"
 
 	"github.com/onsi/gomega/gexec"
 )
@@ -92,15 +94,32 @@ func NewRunner(path string, driver string) *BaggageClaimRunner {
 }
 
 func (bcr *BaggageClaimRunner) Start() {
+	config := baggageclaimcmd.BaggageclaimConfig{
+		BindPort: uint16(bcr.port),
+		Debug: baggageclaimcmd.DebugConfig{
+			BindPort: uint16(8099 + GinkgoParallelNode()),
+		},
+		VolumesDir:  flag.Dir(bcr.volumeDir),
+		Driver:      bcr.driver,
+		OverlaysDir: filepath.Join(bcr.volumeDir, "overlays"),
+	}
+
+	configYAML, err := yaml.Marshal(config)
+	Expect(err).ToNot(HaveOccurred())
+
+	configFile, err := ioutil.TempFile("", "config.yml")
+	Expect(err).NotTo(HaveOccurred())
+
+	defer configFile.Close()
+
+	_, err = configFile.Write(configYAML)
+	Expect(err).NotTo(HaveOccurred())
+
 	runner := ginkgomon.New(ginkgomon.Config{
 		Name: "baggageclaim",
 		Command: exec.Command(
 			bcr.path,
-			"--bind-port", strconv.Itoa(bcr.port),
-			"--debug-bind-port", strconv.Itoa(8099+GinkgoParallelNode()),
-			"--volumes", bcr.volumeDir,
-			"--driver", bcr.driver,
-			"--overlays-dir", filepath.Join(bcr.volumeDir, "overlays"),
+			"--config", configFile.Name(),
 		),
 		StartCheck: "baggageclaim.listening",
 	})

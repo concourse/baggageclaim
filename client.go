@@ -13,6 +13,22 @@ type Encoding string
 const GzipEncoding Encoding = "gzip"
 const ZstdEncoding Encoding = "zstd"
 
+type Driver string
+
+const (
+	DetectDriver  Driver = "detect"
+	NaiveDriver   Driver = "naive"
+	BtrfsDriver   Driver = "btrfs"
+	OverlayDriver Driver = "overlay"
+)
+
+var ValidDrivers = []Driver{
+	DetectDriver,
+	NaiveDriver,
+	BtrfsDriver,
+	OverlayDriver,
+}
+
 //go:generate counterfeiter . Client
 
 // Client represents a client connection to a BaggageClaim server.

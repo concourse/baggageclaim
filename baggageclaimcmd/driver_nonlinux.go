@@ -8,6 +8,6 @@ import (
 	"github.com/concourse/baggageclaim/volume/driver"
 )
 
-func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, error) {
+func (cmd *BaggageclaimConfig) driver(logger lager.Logger) (volume.Driver, error) {
 	return &driver.NaiveDriver{}, nil
 }
